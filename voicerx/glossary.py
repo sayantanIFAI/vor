@@ -350,8 +350,13 @@ DERMATOLOGY = [
 # OPHTHALMOLOGY (eye)
 # ---------------------------------------------------------------------------
 OPHTHALMOLOGY = [
-    Drug("Moxifloxacin eye drops", ("Vigamox", "5-Moxi", "Milflox"),
-         ("মক্সিফ্লক্সাসিন", "ভিগাম্যাক্স"), "eye infection", "ophthalmology"),
+    Drug("Moxifloxacin eye drops", ("Vigamox", "5-Moxi", "Milflox", "Moxicip"),
+         ("মক্সিফ্লক্সাসিন", "ভিগাম্যাক্স", "মক্সি ফ্লক্সাসিম", "ফ্লক্সাসিম",
+          "মক্সিফ্লক্সাসিম", "মক্সি ফ্লক্সাসিন", "মক্সিফ্লক্স"),
+         "eye infection", "ophthalmology"),
+    Drug("Flurbiprofen eye drops", ("Flur", "Flubiprof", "Ocuflur"),
+         ("ফ্লার্বিপ্রোফেন", "ফ্লুরবিপ্রোফেন", "ফ্লারবি"),
+         "ocular NSAID", "ophthalmology"),
     Drug("Carboxymethylcellulose", ("Refresh Tears", "Optive", "Lubrex"),
          ("রিফ্রেশ টিয়ার্স", "কৃত্রিম অশ্রু"), "dry eye lubricant", "ophthalmology"),
     Drug("Olopatadine", ("Patanol", "Winolap"),
@@ -548,10 +553,16 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     # metabolic / blood
     "Creatinine": ("ক্রিয়েটিনিন", "creatine", "ক্রিয়েটিন"),
     "Urea": ("ইউরিয়া",),
+    # Spoken forms, verbatim from real audio:
+    #   "ওসিটি ফাস্টিং ব্লাড সুগার পিপি ইসিজি ব্লাড প্রেসার চেক"
+    # Note "ফাস্টিং ব্লাড সুগার" - the interposed "ব্লাড" broke the n-gram
+    # against the key "ফাস্টিং সুগার", and bare "পিপি" was never an alias.
     "PP sugar": ("পিপি সুগার", "পি পি সুগার", "পোস্ট প্রান্ডিয়াল",
-                  "post prandial sugar", "খাওয়ার পরের সুগার"),
+                  "post prandial sugar", "খাওয়ার পরের সুগার", "পিপি",
+                  "পিপি ব্লাড সুগার", "পি পি ব্লাড সুগার", "পোস্ট প্রান্ডিয়াল সুগার"),
     "Fasting sugar": ("ফাস্টিং সুগার", "FBS", "খালি পেটে সুগার",
-                       "এফ বি এস"),
+                       "এফ বি এস", "ফাস্টিং ব্লাড সুগার", "ফাস্টিং",
+                       "fasting blood sugar"),
     "HbA1c": ("এইচবিএ১সি", "এইচ বি এ ওয়ান সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন"),
     "TSH": ("টিএসএইচ", "টি এস এইচ", "থাইরয়েড টেস্ট", "thyroid profile"),
     # NOTE: "রক্ত পরীক্ষা" / "ব্লাড টেস্ট" are deliberately NOT CBC aliases.
@@ -602,7 +613,12 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "Intraocular pressure": ("iop", "tonometry", "চোখের প্রেশার",
                               "eye pressure"),
     "Visual acuity": ("visual acuity", "দৃষ্টিশক্তি পরীক্ষা", "vision test"),
-    "OCT": ("oct", "optical coherence tomography", "ওসিটি"),
+    "OCT": ("oct", "optical coherence tomography", "ওসিটি", "ও সি টি"),
+    "Biometry": ("biometry", "বায়োমেট্রি", "বায়োমিট্রিক", "বায়োমেট্রিক",
+                  "a-scan", "iol power", "আইওএল পাওয়ার"),
+    "Viral markers": ("viral marker", "viral markers", "ভাইরাল মার্কার",
+                       "hiv", "এইচআইভি", "এইচ আই ভি", "hbsag", "এইচবিএসএজি",
+                       "anti hcv", "hiv hbsag hcv"),
     "Refraction": ("refraction", "power test", "চশমার পাওয়ার"),
     # ENT
     "Audiometry": ("audiometry", "pta", "pure tone audiometry",
@@ -1278,3 +1294,51 @@ for _canon, _alts in DURATION_TERMS.items():
     _DURATION_LOOKUP[fold(_canon)] = _canon
     for _a in _alts:
         _DURATION_LOOKUP[fold(_a)] = _canon
+
+# ---------------------------------------------------------------------------
+# WHICH CLINICAL TERMS ARE WHAT
+#
+# CLINICAL_TERMS is one flat table because its original job was only to say
+# "this is not a drug". But the entries are three different kinds of thing,
+# and treating them alike loses information:
+#
+#   conditions  cataract, diabetes, heart attack   -> a DIAGNOSIS
+#   symptoms    eye pain, itching, breathlessness  -> a SYMPTOM
+#   advice/     rest, exercise, antibiotic, syrup  -> neither; must never
+#   classes                                           appear as either
+#
+# A live cataract consultation transcribed "ক্যাটারাক্ট" and "ছানি"
+# perfectly, the gazetteer recognised both, and the prescription still came
+# back with a blank diagnosis and no mention of cataract - because nothing
+# ever carried the term into an output field.
+# ---------------------------------------------------------------------------
+
+CONDITIONS: frozenset[str] = frozenset({
+    "cataract", "glaucoma", "diabetes", "heart attack", "heart failure",
+    "ischemia", "angina", "blockage", "hypertension", "thyroid",
+    "kidney failure", "stroke", "migraine", "seizure", "hernia", "piles",
+    "gallstone", "appendicitis", "tonsillitis", "fungal infection",
+    "infection", "acne", "menopause", "pregnancy", "dementia",
+    "osteoporosis", "arthritis",
+})
+
+# Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
+NON_CLINICAL_TERMS: frozenset[str] = frozenset({
+    "exercise", "lean diet", "avoid oily food", "drink water", "ORS",
+    "rest", "follow up", "bandage", "dressing", "nebulization",
+    "prescription", "dialysis", "antibiotic", "painkiller", "antacid",
+    "steroid", "vitamin supplement", "antihistamine", "eye drops",
+    "ear drops", "nasal spray", "ointment", "syrup", "tablet",
+    "injection", "medicine",
+})
+
+
+def scan_conditions(text: str) -> list[str]:
+    """Diagnosable conditions named in the text."""
+    return [t for t in _ngram_scan_all(text, _TERM_LOOKUP) if t in CONDITIONS]
+
+
+def scan_symptoms(text: str) -> list[str]:
+    """Symptoms named in the text - excludes conditions, advice and classes."""
+    return [t for t in _ngram_scan_all(text, _TERM_LOOKUP)
+            if t not in CONDITIONS and t not in NON_CLINICAL_TERMS]

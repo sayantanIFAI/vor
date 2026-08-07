@@ -15,7 +15,8 @@ from .correct import correct_transcript
 from .fuzzy_drugs import find_drug_candidates
 from .extract import extract_rx, ExtractionError
 from .english import englishise
-from .glossary import scan_dosing, scan_drugs, scan_labs
+from .glossary import (scan_conditions, scan_dosing, scan_drugs,
+                        scan_labs, scan_symptoms)
 from .schema import ExtractedRx, Medication
 from .translate import Translator
 from .validate import validate
@@ -118,6 +119,23 @@ class VoiceToRxPipeline:
                         review_reason="found in transcript by gazetteer, "
                                        "not proposed by the model",
                     ))
+
+                # Symptoms and the diagnosis from the gazetteer, same
+                # principle as drugs and labs. A live cataract consultation
+                # transcribed "ক্যাটারাক্ট" and "ছানি" perfectly and the
+                # gazetteer recognised both, yet the prescription came back
+                # with a blank diagnosis and no mention of cataract -
+                # nothing ever carried the term into an output field.
+                for sym in scan_symptoms(cr.text):
+                    if sym not in rx.symptoms:
+                        rx.symptoms.append(sym)
+
+                # A named condition is a DIAGNOSIS, not a symptom. Only
+                # filled when the model left it blank - the doctor's own
+                # stated diagnosis always wins.
+                conditions = scan_conditions(cr.text)
+                if conditions and not rx.diagnosis:
+                    rx.diagnosis = ", ".join(conditions)
 
                 # Frequency and duration are spoken in plain Bengali
                 # ("দুপুরে খাওয়ার পর"), which the model returns as blank
