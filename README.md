@@ -36,6 +36,16 @@ it is why the human review step is not optional.
 
 ---
 
+## Documentation
+
+| Document | For |
+|---|---|
+| [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) | Install, run, test, troubleshoot on your own laptop. Start here. |
+| [docs/DESIGN.md](docs/DESIGN.md) | Architecture and why each decision was made, with the evidence. |
+| This file | Overview and module reference. |
+
+---
+
 ## Quick start (laptop, no GPU)
 
 You can run everything except the ASR model on CPU. The ASR needs ~4GB VRAM
