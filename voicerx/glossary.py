@@ -280,34 +280,57 @@ ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
 # ---------------------------------------------------------------------------
 # LAB TESTS / INVESTIGATIONS - these are ORDERS, never medications
 # ---------------------------------------------------------------------------
+# NOTE ON SPACED ACRONYMS - learned from real audio, not assumed.
+# Clinicians SPELL OUT acronyms, and the ASR transcribes each letter as a
+# separate Bengali token. Real example from 8.wav: "আপনি এই সি বি সি টা
+# করবেন" - that is C-B-C spoken letter by letter. An earlier version of
+# this table only had the unspaced "সিবিসি" and therefore matched ZERO lab
+# tests across 255 real segments. Always include the spaced form.
 LAB_TESTS: dict[str, tuple[str, ...]] = {
     # cardiac
-    "ECG": ("ইসিজি", "ই সি জি", "electrocardiogram"),
-    "Echo": ("ইকো", "echocardiogram", "2d echo"),
-    "TMT": ("টিএমটি", "টি এম টি", "treadmill test", "stress test"),
-    "Angiography": ("অ্যাঞ্জিওগ্রাফি", "angiogram", "অ্যাঞ্জিওগ্রাম"),
-    "Lipid profile": ("লিপিড প্রোফাইল", "cholesterol test"),
-    "Troponin": ("ট্রপোনিন",),
+    "ECG": ("ইসিজি", "ই সি জি", "ইকেজি", "electrocardiogram", "e c g"),
+    "Echo": ("ইকো", "echocardiogram", "2d echo", "টু ডি ইকো"),
+    "TMT": ("টিএমটি", "টি এম টি", "treadmill test", "stress test", "t m t"),
+    "Angiography": ("অ্যাঞ্জিওগ্রাফি", "angiogram", "অ্যাঞ্জিওগ্রাম",
+                     "এনজিওগ্রাম", "এঞ্জিওগ্রাফি"),
+    "Lipid profile": ("লিপিড প্রোফাইল", "cholesterol test", "লিপিড"),
+    "Troponin": ("ট্রপোনিন", "ট্রপ"),
     # neuro
-    "EEG": ("ইইজি", "ই ই জি", "electroencephalogram"),
-    "MRI": ("এমআরআই", "এম আর আই"),
-    "CT scan": ("সিটি স্ক্যান", "সিটি"),
+    "EEG": ("ইইজি", "ই ই জি", "electroencephalogram", "e e g"),
+    "MRI": ("এমআরআই", "এম আর আই", "m r i"),
+    "CT scan": ("সিটি স্ক্যান", "সি টি স্ক্যান", "সিটি"),
     # metabolic / blood
-    "Creatinine": ("ক্রিয়েটিনিন", "creatine"),
+    "Creatinine": ("ক্রিয়েটিনিন", "creatine", "ক্রিয়েটিন"),
     "Urea": ("ইউরিয়া",),
-    "PP sugar": ("পিপি সুগার", "পোস্ট প্রান্ডিয়াল", "post prandial sugar"),
-    "Fasting sugar": ("ফাস্টিং সুগার", "FBS", "খালি পেটে সুগার"),
-    "HbA1c": ("এইচবিএ১সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন"),
-    "TSH": ("টিএসএইচ", "থাইরয়েড টেস্ট", "thyroid profile"),
-    "CBC": ("সিবিসি", "complete blood count", "রক্ত পরীক্ষা"),
-    "LFT": ("এলএফটি", "liver function test"),
-    "KFT": ("কেএফটি", "kidney function test", "RFT"),
-    "Urine routine": ("ইউরিন", "প্রস্রাব পরীক্ষা", "urine test"),
-    "Uric acid": ("ইউরিক অ্যাসিড",),
+    "PP sugar": ("পিপি সুগার", "পি পি সুগার", "পোস্ট প্রান্ডিয়াল",
+                  "post prandial sugar", "খাওয়ার পরের সুগার"),
+    "Fasting sugar": ("ফাস্টিং সুগার", "FBS", "খালি পেটে সুগার",
+                       "এফ বি এস"),
+    "HbA1c": ("এইচবিএ১সি", "এইচ বি এ ওয়ান সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন"),
+    "TSH": ("টিএসএইচ", "টি এস এইচ", "থাইরয়েড টেস্ট", "thyroid profile"),
+    # NOTE: "রক্ত পরীক্ষা" / "ব্লাড টেস্ট" are deliberately NOT CBC aliases.
+    # "Blood test" is not necessarily a complete blood count, and turning a
+    # generic phrase into a specific named order would be the pipeline
+    # inventing a clinical decision. They fall through to "blood test
+    # (unspecified)" so the reviewer names it.
+    "CBC": ("সিবিসি", "সি বি সি", "complete blood count", "c b c",
+             "কমপ্লিট ব্লাড কাউন্ট", "কমপ্লিট ব্লাড"),
+    "LFT": ("এলএফটি", "এল এফ টি", "liver function test"),
+    "KFT": ("কেএফটি", "কে এফ টি", "kidney function test", "RFT",
+             "আর এফ টি"),
+    "Urine routine": ("ইউরিন", "প্রস্রাব পরীক্ষা", "urine test",
+                       "ইউরিন টেস্ট"),
+    "Uric acid": ("ইউরিক অ্যাসিড", "ইউরিক"),
     "Vitamin D": ("ভিটামিন ডি টেস্ট",),
-    "X-ray": ("এক্স রে", "এক্সরে", "চেস্ট এক্স রে"),
-    "USG": ("ইউএসজি", "আল্ট্রাসাউন্ড", "ultrasound", "sonography"),
-    "PSA": ("পিএসএ",),
+    "X-ray": ("এক্স রে", "এক্সরে", "চেস্ট এক্স রে", "এক্স-রে"),
+    "USG": ("ইউএসজি", "ইউ এস জি", "আল্ট্রাসাউন্ড", "ultrasound",
+             "sonography", "আলট্রাসনোগ্রাফি"),
+    "PSA": ("পিএসএ", "পি এস এ"),
+    # Generic orders - a test WAS ordered even if unnamed. Surfaced so the
+    # reviewer names it, rather than dropped silently or guessed at.
+    "blood test (unspecified)": ("রক্ত পরীক্ষা", "ব্লাড টেস্ট", "রক্ত টেস্ট"),
+    "test (unspecified)": ("পরীক্ষা করাতে", "টেস্ট দিচ্ছি", "টেস্ট করবেন",
+                            "পরীক্ষা করতে", "পরীক্ষা করতে হবে"),
 }
 
 # ---------------------------------------------------------------------------
@@ -359,70 +382,297 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
 }
 
 
+# ===========================================================================
+# PHONETIC FOLDING
+# ===========================================================================
+# The gazetteer used to match on NFC + lowercase only. That failed on real
+# audio in four separate ways, and enumerating spellings by hand cannot fix
+# any of them because the variants multiply combinatorially:
+#
+#   1. SPACING      - clinicians spell acronyms out, and the ASR writes each
+#                     letter separately: "সি বি সি" vs the written "সিবিসি".
+#                     This alone caused ZERO lab tests to match across 255
+#                     real segments.
+#   2. HALF-LETTERS - Bengali conjuncts (যুক্তাক্ষর) are written with a hasant
+#                     that the ASR drops or inserts inconsistently:
+#                     "মন্টিকুলাষ্ট" vs "মনটিকুলাসট" are the same word.
+#   3. DIALECT      - the three sibilants শ/ষ/স are ONE sound /ʃ/ in spoken
+#                     Bengali, as are ণ/ন. Which glyph the ASR picks is
+#                     arbitrary. Same for ড়/র and য/জ.
+#   4. ACCENT       - aspiration (ক/খ, ত/থ, ব/ভ, প/ফ …) is the least stable
+#                     feature across speakers and the one the ASR most often
+#                     gets wrong on borrowed drug names.
+#
+# So instead of listing variants, both the gazetteer and the ASR text are
+# pushed through the SAME lossy fold, and matching happens in folded space.
+# One entry then covers its whole spelling family.
+#
+# This is deliberately lossy, which means it can over-merge. That risk is
+# not hand-waved: _collisions() below checks every gazetteer entry against
+# every other at import time, and the test suite asserts no drug folds onto
+# a different drug or onto a clinical term.
+
+_BN_DROP = str.maketrans("", "", (
+    "্"   # ্  hasant - collapses ALL conjuncts / half-letters
+    "ঁ"   # ঁ  chandrabindu - nasalisation, not phonemic here
+    "ঃ"   # ঃ  visarga
+    "়"   # ়  nukta
+))
+
+# Everything on the left is heard as the thing on the right by a Bengali
+# speaker, or is a glyph the ASR swaps freely.
+_BN_FOLD = str.maketrans({
+    # sibilants - all /ʃ/
+    "শ": "স",  # শ -> স
+    "ষ": "স",  # ষ -> স
+    # nasals
+    "ণ": "ন",  # ণ -> ন
+    "ঙ": "ং",  # ঙ -> ং
+    # rhotics / flaps
+    "ড়": "র",  # ড় -> র
+    "ঢ়": "র",  # ঢ় -> র
+    "ৰ": "র",  # ৰ -> র
+    # y / j merge
+    "য": "জ",  # য -> জ
+    "য়": "য়",  # য় kept - it is a glide, not /dʒ/
+    # vowel LENGTH is not contrastive in Bengali
+    "ী": "ি",  # ী -> ি
+    "ূ": "ু",  # ূ -> ু
+    "ঈ": "ই",  # ঈ -> ই
+    "ঊ": "উ",  # ঊ -> উ
+    "ৃ": "ি",  # ৃ -> ি
+    "ঋ": "র",  # ঋ -> র
+    "ৎ": "ত",  # ৎ -> ত
+    # ASPIRATION - the least stable feature across speakers
+    "খ": "ক",  # খ -> ক
+    "ঘ": "গ",  # ঘ -> গ
+    "ছ": "চ",  # ছ -> চ
+    "ঝ": "জ",  # ঝ -> জ
+    "ঠ": "ট",  # ঠ -> ট
+    "ঢ": "ড",  # ঢ -> ড
+    "থ": "ত",  # থ -> ত
+    "ধ": "দ",  # ধ -> দ
+    "ফ": "প",  # ফ -> প
+    "ভ": "ব",  # ভ -> ব
+})
+
+# Latin side: drug names arrive romanised too, with the same instability
+# ("Montelukast" / "Montuculast", "Ecosprin" / "Ecospirin").
+_LAT_FOLD = (
+    ("ph", "f"), ("ck", "k"), ("qu", "k"), ("x", "ks"),
+    ("y", "i"), ("z", "s"), ("c", "k"), ("w", "v"), ("j", "z"),
+)
+
+
+def fold(s: str) -> str:
+    """Collapse a term to its phonetic skeleton for matching.
+
+    Lossy by design - see the block comment above. Never use the output for
+    display; it is a lookup key only.
+    """
+    s = unicodedata.normalize("NFC", s).strip().lower()
+    s = s.translate(_BN_DROP).translate(_BN_FOLD)
+    for a, b in _LAT_FOLD:
+        s = s.replace(a, b)
+    # strip spacing and punctuation LAST, so "সি বি সি" == "সিবিসি"
+    out = [c for c in s if not (c.isspace() or unicodedata.category(c).startswith("P"))]
+    s = "".join(out)
+    # Collapse doubled letters ("Ecosprinn", "pantopp") - ASCII ONLY.
+    # Applying this to Bengali corrupts spelled-out acronyms: EEG is
+    # "ই ই জি", and deduping it to "ইজি" made a 3-character key that
+    # false-matched "এই জিভটা" ("stick your tongue out").
+    deduped: list[str] = []
+    for c in s:
+        if deduped and deduped[-1] == c and c.isascii():
+            continue
+        deduped.append(c)
+    return "".join(deduped)
+
+
 def _norm(s: str) -> str:
+    """Display normalisation only. Matching goes through fold()."""
     return unicodedata.normalize("NFC", s.strip().lower())
 
 
-# Build lookup tables once at import.
+# Build lookup tables once at import, keyed on the FOLD.
 _DRUG_LOOKUP: dict[str, Drug] = {}
 for _d in ALL_DRUGS:
     for _key in (_d.generic, *_d.brands, *_d.bengali):
-        _DRUG_LOOKUP[_norm(_key)] = _d
+        _DRUG_LOOKUP[fold(_key)] = _d
 
 _LAB_LOOKUP: dict[str, str] = {}
 for _canon, _alts in LAB_TESTS.items():
-    _LAB_LOOKUP[_norm(_canon)] = _canon
+    _LAB_LOOKUP[fold(_canon)] = _canon
     for _a in _alts:
-        _LAB_LOOKUP[_norm(_a)] = _canon
+        _LAB_LOOKUP[fold(_a)] = _canon
 
 _TERM_LOOKUP: dict[str, str] = {}
 for _canon, _alts in CLINICAL_TERMS.items():
-    _TERM_LOOKUP[_norm(_canon)] = _canon
+    _TERM_LOOKUP[fold(_canon)] = _canon
     for _a in _alts:
-        _TERM_LOOKUP[_norm(_a)] = _canon
+        _TERM_LOOKUP[fold(_a)] = _canon
+
+
+def collisions() -> list[tuple[str, str, str]]:
+    """Entries that fold onto the same key but mean different things.
+
+    The fold is lossy, so this is the guard-rail that keeps it honest. A
+    drug colliding with another drug, or with a clinical term, is a real
+    bug - the fold has over-merged and must be made less aggressive.
+    Exercised by the test suite; returns [] when the gazetteer is clean.
+    """
+    found: list[tuple[str, str, str]] = []
+    seen: dict[str, tuple[str, str]] = {}
+    for kind, table in (("drug", {k: v.generic for k, v in _DRUG_LOOKUP.items()}),
+                        ("lab", _LAB_LOOKUP),
+                        ("term", _TERM_LOOKUP)):
+        for key, canon in table.items():
+            if key in seen:
+                prev_kind, prev_canon = seen[key]
+                if prev_canon != canon:
+                    found.append((key, f"{prev_kind}:{prev_canon}", f"{kind}:{canon}"))
+            else:
+                seen[key] = (kind, canon)
+    return found
+
+
+# Dosage-form noise the SLM prepends. Folded, because that is the space
+# the comparison happens in ("cap." -> "kap", "syp." -> "sip").
+_DOSAGE_PREFIXES = tuple(fold(p) for p in (
+    "tab.", "tab", "cap.", "cap", "syp.", "syp", "inj.", "inj",
+    "tablet", "capsule", "syrup", "injection", "ট্যাব", "ক্যাপ",
+))
 
 
 def lookup_drug(text: str) -> Drug | None:
-    """Exact gazetteer hit, or None. Strips common dosage-form noise
-    ("Tab.", "Cap", "Syp") the SLM often prepends."""
-    t = _norm(text)
+    """Exact gazetteer hit in folded space, or None.
+
+    Folding means one entry covers its whole spelling family, so
+    "মন্টিকুলাষ্ট", "মনটিকুলাসট" and "Montelukast" all land on the same Drug.
+    """
+    t = fold(text)
     if not t:
         return None
     if t in _DRUG_LOOKUP:
         return _DRUG_LOOKUP[t]
-    for prefix in ("tab.", "tab ", "cap.", "cap ", "syp.", "syp ",
-                   "inj.", "inj ", "tablet ", "capsule ", "syrup "):
-        if t.startswith(prefix):
-            stripped = t[len(prefix):].strip()
+    for prefix in _DOSAGE_PREFIXES:
+        if prefix and t.startswith(prefix):
+            stripped = t[len(prefix):]
             if stripped in _DRUG_LOOKUP:
                 return _DRUG_LOOKUP[stripped]
-    # a drug name embedded in a longer phrase ("Amlodipine 5mg once daily")
-    for key, drug in _DRUG_LOOKUP.items():
-        if len(key) >= 5 and key in t:
-            return drug
-    return None
+    return _ngram_match(text, _DRUG_LOOKUP)
+
+
+# How many consecutive words a gazetteer entry may span. Covers the longest
+# real cases: "সি বি সি" (3), "খাওয়ার পরের সুগার" (3), "তেল মশলা এড়িয়ে" (3),
+# plus headroom for a spelled-out four-letter acronym.
+_MAX_NGRAM = 5
+
+
+def _ngram_match(text: str, table: dict):
+    """Find a gazetteer entry inside free text, matching only on WHOLE
+    word groups.
+
+    Plain substring matching over the space-stripped fold was wrong: it let
+    keys straddle word boundaries, so the EEG key matched inside
+    "এই জিভটা বার কর". Folding each n-gram of consecutive tokens instead
+    means a key must line up with real word starts.
+
+    A trailing-suffix allowance stays, because Bengali is agglutinative -
+    "সি বি সি টা" and "প্যারাসিটামলটা" carry a bound suffix that is part of
+    the same word. Prefix matching is capped at keys of >= 4 folded
+    characters so short keys cannot run away.
+    """
+    tokens = text.split()
+    if not tokens:
+        return None
+    best = None
+    best_len = 0
+    for i in range(len(tokens)):
+        for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1):
+            gram = fold("".join(tokens[i:i + n]))
+            if not gram:
+                continue
+            hit = table.get(gram)
+            if hit is None and len(gram) >= 4:
+                # agglutinative suffix: word starts with the entry
+                for key, val in table.items():
+                    if len(key) >= 4 and gram.startswith(key):
+                        hit = val
+                        gram = key
+                        break
+            # prefer the longest match, so "PP sugar" beats "blood sugar"
+            if hit is not None and len(gram) > best_len:
+                best, best_len = hit, len(gram)
+    return best
+
+
+def _ngram_scan_all(text: str, table: dict) -> list:
+    """Every distinct gazetteer entry appearing in the text, in order.
+
+    is_lab_test() returns a single best hit, which silently loses data:
+    "আপনাকে একটা টি এম টি আর ই সি জি করতে হবে" orders BOTH a TMT and an
+    ECG. Anything populating a prescription must use this instead.
+
+    LIMITATION - NO NEGATION HANDLING. This is a gazetteer, not a parser:
+    "নতুন কোনো টেস্ট দিচ্ছি না" ("I am NOT giving a new test") still
+    reports a test. That is acceptable only because these functions VETO
+    what the SLM proposed - they never propose on their own. Do not use
+    them as a standalone extractor without adding negation scope.
+    """
+    tokens = text.split()
+    found: list = []
+    for i in range(len(tokens)):
+        for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1):
+            gram = fold("".join(tokens[i:i + n]))
+            if not gram:
+                continue
+            hit = table.get(gram)
+            if hit is None and len(gram) >= 4:
+                for key, val in table.items():
+                    if len(key) >= 4 and gram.startswith(key):
+                        hit = val
+                        break
+            if hit is not None and hit not in found:
+                found.append(hit)
+    return found
+
+
+def scan_labs(text: str) -> list[str]:
+    """All lab tests ordered in this segment."""
+    return _ngram_scan_all(text, _LAB_LOOKUP)
+
+
+def scan_drugs(text: str) -> list[Drug]:
+    """All gazetteer drugs named in this segment."""
+    return _ngram_scan_all(text, _DRUG_LOOKUP)
+
+
+def scan_terms(text: str) -> list[str]:
+    """All clinical terms (symptoms / findings / advice) in this segment."""
+    return _ngram_scan_all(text, _TERM_LOOKUP)
 
 
 def is_lab_test(text: str) -> str | None:
-    t = _norm(text)
+    """Folded n-gram match - this is what makes spelled-out acronyms work:
+    the tokens "সি বি সি" join and fold to the CBC key."""
+    t = fold(text)
+    if not t:
+        return None
     if t in _LAB_LOOKUP:
         return _LAB_LOOKUP[t]
-    for key, canon in _LAB_LOOKUP.items():
-        if len(key) >= 3 and key in t:
-            return canon
-    return None
+    return _ngram_match(text, _LAB_LOOKUP)
 
 
 def is_clinical_term(text: str) -> str | None:
     """True for symptoms, findings and advice - i.e. things that are
     definitively NOT medications."""
-    t = _norm(text)
+    t = fold(text)
+    if not t:
+        return None
     if t in _TERM_LOOKUP:
         return _TERM_LOOKUP[t]
-    for key, canon in _TERM_LOOKUP.items():
-        if len(key) >= 4 and key in t:
-            return canon
-    return None
+    return _ngram_match(text, _TERM_LOOKUP)
 
 
 def stats() -> dict:
