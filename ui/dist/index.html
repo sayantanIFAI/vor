@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Voice-to-Rx</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --txt:#e8eaed; --dim:#9aa3b2; --accent:#4f8cff; --ok:#31c48d;
+    --warn:#f0a202; --danger:#f05252;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7f9; --panel:#fff; --panel2:#f0f2f5; --line:#dde1e7;
+           --txt:#1a1d23; --dim:#5b6472; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       background:var(--bg);color:var(--txt)}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);
+         display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+  .tabs{display:flex;gap:4px;margin-left:auto}
+  .tab{padding:7px 14px;border-radius:7px;border:1px solid transparent;
+       background:none;color:var(--dim);cursor:pointer;font-size:14px;font-weight:500}
+  .tab.on{background:var(--panel2);color:var(--txt);border-color:var(--line)}
+  main{padding:22px;max-width:1180px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+        padding:18px;margin-bottom:16px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .col{flex:1;min-width:280px}
+  button.primary{background:var(--accent);color:#fff;border:0;border-radius:8px;
+    padding:11px 20px;font-size:15px;font-weight:600;cursor:pointer}
+  button.primary:disabled{opacity:.5;cursor:not-allowed}
+  button.rec{background:var(--danger)}
+  .drop{border:2px dashed var(--line);border-radius:10px;padding:32px;
+        text-align:center;color:var(--dim);cursor:pointer}
+  .drop:hover{border-color:var(--accent);color:var(--txt)}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;
+     color:var(--dim);margin:0 0 9px;font-weight:650}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--dim);
+     padding:7px 9px;border-bottom:1px solid var(--line);letter-spacing:.05em}
+  td{padding:9px;border-bottom:1px solid var(--line);vertical-align:top}
+  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;
+        font-weight:600;letter-spacing:.02em}
+  .pill.ok{background:rgba(49,196,141,.16);color:var(--ok)}
+  .pill.warn{background:rgba(240,162,2,.16);color:var(--warn)}
+  .pill.danger{background:rgba(240,82,82,.16);color:var(--danger)}
+  ul.clean{margin:0;padding-left:19px}
+  ul.clean li{margin:3px 0}
+  .muted{color:var(--dim)}
+  .warnbox{background:rgba(240,162,2,.10);border:1px solid rgba(240,162,2,.35);
+           border-radius:9px;padding:13px;margin-bottom:16px}
+  .bn{font-size:15px;line-height:1.75}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);
+        border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;
+        vertical-align:-3px;margin-right:8px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  textarea{width:100%;background:var(--panel2);color:var(--txt);
+    border:1px solid var(--line);border-radius:7px;padding:9px;font:inherit}
+  .seg{border:1px solid var(--line);border-radius:9px;padding:13px;margin-bottom:11px;
+       background:var(--panel2)}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useRef,useEffect} = React;
+const API = "";
+
+function Pill({kind,children}){ return <span className={"pill "+kind}>{children}</span>; }
+
+function Rx({data}){
+  if(!data) return null;
+  const flagged = data.segments_flagged>0;
+  return (
+    <div>
+      {flagged && (
+        <div className="warnbox">
+          <strong>⚠ {data.segments_flagged} of {data.segments_total} segments need human review.</strong>
+          <div className="muted" style={{marginTop:6,fontSize:13}}>
+            This is a draft, not a prescription. A clinician must confirm before use.
+          </div>
+          {data.review_reasons?.length>0 && (
+            <ul className="clean muted" style={{marginTop:8,fontSize:13}}>
+              {data.review_reasons.slice(0,6).map((r,i)=><li key={i}>{r}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {data.drug_candidates?.length>0 && (
+        <div className="warnbox" style={{borderColor:"rgba(240,82,82,.4)",
+             background:"rgba(240,82,82,.09)"}}>
+          <strong>Possible drug names detected in garbled audio — confirm each:</strong>
+          <ul className="clean" style={{marginTop:8,fontSize:13}}>
+            {data.drug_candidates.map((c,i)=><li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <div className="row">
+        <div className="col card">
+          <h3>Patient</h3>
+          <div style={{fontSize:17,fontWeight:600}}>
+            {data.patient_name || <span className="muted">Not stated in audio</span>}
+          </div>
+          <h3 style={{marginTop:16}}>Diagnosis</h3>
+          <div>{data.diagnosis || <span className="muted">None explicitly stated</span>}</div>
+          <h3 style={{marginTop:16}}>Summary</h3>
+          <div className="muted">{data.summary || "—"}</div>
+        </div>
+
+        <div className="col card">
+          <h3>Symptoms</h3>
+          {data.symptoms?.length ? (
+            <ul className="clean bn">{data.symptoms.map((s,i)=><li key={i}>{s}</li>)}</ul>
+          ) : <span className="muted">None extracted</span>}
+
+          <h3 style={{marginTop:16}}>Lab tests ordered</h3>
+          {data.labs_ordered?.length ? (
+            <ul className="clean">{data.labs_ordered.map((s,i)=><li key={i}>{s}</li>)}</ul>
+          ) : <span className="muted">None</span>}
+
+          <h3 style={{marginTop:16}}>Follow-up</h3>
+          <div className="muted">{data.follow_up || "—"}</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Medications</h3>
+        {data.medications?.length ? (
+          <table>
+            <thead><tr><th>Drug</th><th>Dosage</th><th>Frequency</th>
+              <th>Duration</th><th>Status</th></tr></thead>
+            <tbody>
+              {data.medications.map((m,i)=>(
+                <tr key={i}>
+                  <td style={{fontWeight:600}}>{m.drug}</td>
+                  <td>{m.dosage||<span className="muted">—</span>}</td>
+                  <td>{m.frequency||<span className="muted">—</span>}</td>
+                  <td>{m.duration||<span className="muted">—</span>}</td>
+                  <td>{m.verified
+                    ? <Pill kind="ok">known drug</Pill>
+                    : <Pill kind="danger">unverified</Pill>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <span className="muted">No medications confidently identified.
+             Any drug mentioned appears under uncertain terms below.</span>}
+      </div>
+
+      {data.raw_uncertain_terms?.length>0 && (
+        <div className="card">
+          <h3>Uncertain terms — not interpreted</h3>
+          <ul className="clean bn muted">
+            {data.raw_uncertain_terms.map((t,i)=><li key={i}>{t}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <div className="card">
+        <h3>Transcript by segment</h3>
+        {data.segments?.map((s,i)=>(
+          <div className="seg" key={i}>
+            <div className="muted" style={{fontSize:12,marginBottom:5}}>
+              {s.start_s?.toFixed(1)}s – {s.end_s?.toFixed(1)}s · {s.decoder_used}
+              {" · agreement "}{s.decoder_agreement}
+              {s.corrections_applied?.length>0 &&
+                <span> · <span style={{color:"var(--ok)"}}>
+                  {s.corrections_applied.length} auto-corrected</span></span>}
+            </div>
+            <div className="bn">{s.corrected_text}</div>
+            {s.corrections_applied?.length>0 && (
+              <div className="muted" style={{fontSize:12,marginTop:5}}>
+                {s.corrections_applied.join(", ")}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Record(){
+  const [busy,setBusy]=useState(false);
+  const [rec,setRec]=useState(false);
+  const [data,setData]=useState(null);
+  const [err,setErr]=useState(null);
+  const mr=useRef(null), chunks=useRef([]), fileIn=useRef(null);
+
+  async function send(blob,name){
+    setBusy(true); setErr(null); setData(null);
+    try{
+      const fd=new FormData(); fd.append("file",blob,name);
+      const r=await fetch(API+"/api/transcribe",{method:"POST",body:fd});
+      if(!r.ok) throw new Error("Server returned "+r.status);
+      setData(await r.json());
+    }catch(e){ setErr(e.message); }
+    finally{ setBusy(false); }
+  }
+
+  async function startRec(){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:{
+        channelCount:1, echoCancellation:true, noiseSuppression:true}});
+      chunks.current=[];
+      const m=new MediaRecorder(stream);
+      m.ondataavailable=e=>{ if(e.data.size>0) chunks.current.push(e.data); };
+      m.onstop=()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        send(new Blob(chunks.current,{type:m.mimeType}),"mic.webm");
+      };
+      mr.current=m; m.start(); setRec(true);
+    }catch(e){ setErr("Microphone blocked: "+e.message); }
+  }
+  function stopRec(){ mr.current?.stop(); setRec(false); }
+
+  return (
+    <div>
+      <div className="card">
+        <div className="row" style={{alignItems:"center"}}>
+          <button className={"primary "+(rec?"rec":"")} disabled={busy}
+                  onClick={rec?stopRec:startRec}>
+            {rec ? "■ Stop recording" : "● Record from microphone"}
+          </button>
+          <span className="muted">or</span>
+          <button className="primary" style={{background:"var(--panel2)",
+                  color:"var(--txt)",border:"1px solid var(--line)"}}
+                  disabled={busy} onClick={()=>fileIn.current.click()}>
+            Upload a recording
+          </button>
+          <input ref={fileIn} type="file" accept="audio/*" style={{display:"none"}}
+                 onChange={e=>{const f=e.target.files[0]; if(f) send(f,f.name);}}/>
+          {rec && <span style={{color:"var(--danger)",fontWeight:600}}>● recording…</span>}
+        </div>
+        {busy && <div style={{marginTop:14}}><span className="spin"></span>
+          Transcribing and extracting… (ASR → correction → Qwen2.5)</div>}
+        {err && <div style={{marginTop:14,color:"var(--danger)"}}>{err}</div>}
+        {data && <div className="muted" style={{marginTop:12,fontSize:13}}>
+          Processed in {data.processing_s}s · {data.segments_total} segments</div>}
+      </div>
+      <Rx data={data}/>
+    </div>
+  );
+}
+
+function Review(){
+  const [items,setItems]=useState([]);
+  const [n,setN]=useState(0);
+  const [load,setLoad]=useState(true);
+  const [edits,setEdits]=useState({});
+
+  async function refresh(){
+    setLoad(true);
+    try{
+      const r=await fetch(API+"/api/review/pending");
+      const d=await r.json(); setItems(d.pending||[]); setN(d.reviewed||0);
+    }finally{ setLoad(false); }
+  }
+  useEffect(()=>{ refresh(); },[]);
+
+  async function decide(seg,action){
+    await fetch(API+"/api/review/"+encodeURIComponent(seg.segment_id),{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action, corrected_text: edits[seg.segment_id] ?? seg.transcript})
+    });
+    setItems(x=>x.filter(i=>i.segment_id!==seg.segment_id)); setN(v=>v+1);
+  }
+
+  if(load) return <div className="card"><span className="spin"></span>Loading…</div>;
+
+  return (
+    <div>
+      <div className="card">
+        <strong>{items.length} segments awaiting review</strong>
+        <span className="muted"> · {n} already reviewed</span>
+        <button className="primary" style={{marginLeft:16,padding:"6px 13px",fontSize:13}}
+                onClick={refresh}>Refresh</button>
+      </div>
+      {items.length===0 && <div className="card muted">
+        Nothing pending. Process a recording first.</div>}
+      {items.map(s=>(
+        <div className="card" key={s.segment_id}>
+          <div className="muted" style={{fontSize:12,marginBottom:7}}>
+            {s.consult_id} · {s.start_s?.toFixed(1)}s–{s.end_s?.toFixed(1)}s
+          </div>
+          <textarea rows={2} className="bn"
+            value={edits[s.segment_id] ?? s.transcript}
+            onChange={e=>setEdits({...edits,[s.segment_id]:e.target.value})}/>
+          <div style={{marginTop:9}}>
+            {s.review_reasons.map((r,i)=>
+              <div key={i} className="muted" style={{fontSize:13}}>• {r}</div>)}
+          </div>
+          {s.drug_candidates?.length>0 && (
+            <div className="warnbox" style={{marginTop:10,marginBottom:0}}>
+              {s.drug_candidates.map((c,i)=><div key={i} style={{fontSize:13}}>{c}</div>)}
+            </div>
+          )}
+          <div style={{marginTop:12,display:"flex",gap:8}}>
+            <button className="primary" style={{background:"var(--ok)",padding:"8px 15px",
+                    fontSize:14}} onClick={()=>decide(s,"approved")}>Approve</button>
+            <button className="primary" style={{background:"var(--accent)",padding:"8px 15px",
+                    fontSize:14}} onClick={()=>decide(s,"edited")}>Save edit</button>
+            <button className="primary" style={{background:"var(--danger)",padding:"8px 15px",
+                    fontSize:14}} onClick={()=>decide(s,"rejected")}>Reject</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function App(){
+  const [tab,setTab]=useState("record");
+  return (
+    <div>
+      <header>
+        <h1>Voice-to-Rx <span className="muted" style={{fontWeight:400}}>
+          · Bengali consultation → structured prescription</span></h1>
+        <div className="tabs">
+          <button className={"tab"+(tab==="record"?" on":"")}
+                  onClick={()=>setTab("record")}>Record / Upload</button>
+          <button className={"tab"+(tab==="review"?" on":"")}
+                  onClick={()=>setTab("review")}>Review queue</button>
+        </div>
+      </header>
+      <main>{tab==="record" ? <Record/> : <Review/>}</main>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

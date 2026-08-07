@@ -30,8 +30,10 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-dist/
 build/
+# NOTE: deliberately NOT ignoring dist/ - the React UI ships as
+# ui/dist/index.html (single file, no build step). A blanket dist/ rule
+# silently excluded the entire frontend from the first commit.
 
 # Models / caches (large, re-downloadable)
 *.nemo
