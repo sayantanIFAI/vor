@@ -10,6 +10,7 @@ re-derives review flags from hard rules.
 from __future__ import annotations
 
 from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
+from .glossary import is_lab_test
 from .schema import ExtractedRx
 
 
@@ -53,6 +54,31 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
                 f'"{med.drug}" was proposed as a medication but rejected: {v.reason}'
             )
     rx.medications = kept
+
+    # --- lab gate --------------------------------------------------------
+    # Same principle as the medication gate, and added because a live run
+    # exposed the gap: labs_ordered came back as ['রেজ', 'সুগার', 'টেস্ট ক্ব']
+    # - raw SLM output, where "রেজ" and "টেস্ট ক্ব" are ASR garble. The
+    # pipeline was only APPENDING gazetteer hits to this list, never
+    # filtering what the model proposed, so garbage was presented as a
+    # confirmed lab order.
+    #
+    # Resolved names are canonicalised ("ইসিজি" -> "ECG"). Unresolved ones
+    # are not deleted - they move to raw_uncertain_terms, because an
+    # unrecognised lab name may still be a real order the gazetteer is
+    # missing, and that has to stay visible.
+    gated_labs: list[str] = []
+    for lab in rx.labs_ordered:
+        canon = is_lab_test(lab)
+        if canon:
+            if canon not in gated_labs:
+                gated_labs.append(canon)
+        else:
+            note = f"{lab} (proposed as a lab test, not recognised)"
+            if note not in rx.raw_uncertain_terms:
+                rx.raw_uncertain_terms.append(note)
+            reasons.append(f'lab "{lab}" not in the clinical gazetteer - confirm')
+    rx.labs_ordered = gated_labs
 
     if rx.raw_uncertain_terms:
         reasons.append(f"{len(rx.raw_uncertain_terms)} uncertain term(s) flagged by extraction")
