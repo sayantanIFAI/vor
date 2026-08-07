@@ -44,8 +44,8 @@ import re
 import sys
 
 sys.path.insert(0, ".")
-from voicerx.glossary import (fold, is_clinical_term, is_lab_test,  # noqa: E402
-                               lookup_drug)
+from voicerx.glossary import (fold, _DRUG_LOOKUP, _LAB_LOOKUP,  # noqa: E402
+                               _TERM_LOOKUP)
 
 CSV_PATH = "D:/Extensive_A_Z_medicines_dataset_of_India.csv"
 
@@ -105,6 +105,15 @@ def main() -> None:
             brands.setdefault(b, generic)
 
     # ---- collision filtering: the part that matters -----------------------
+    # Uses EXACT folded-key equality against the lookup tables, not the
+    # is_clinical_term()/is_lab_test() helpers.
+    #
+    # Two reasons, and the second is the important one:
+    #   - speed: those helpers run n-gram matching over ~2,400 entries at
+    #     0.78ms a call, which is ~10 minutes across a quarter-million rows.
+    #   - correctness: they match SUBSTRINGS, so any brand merely containing
+    #     a symptom word would be dropped. A collision is when the brand IS
+    #     the other thing, not when it contains it.
     kept: dict[str, str] = {}
     dropped: list[tuple[str, str]] = []
     for b, generic in brands.items():
@@ -112,16 +121,13 @@ def main() -> None:
         if len(fb) < MIN_LEN:
             dropped.append((b, "too short - would collide with ordinary words"))
             continue
-        term = is_clinical_term(b)
-        if term:
-            dropped.append((b, f"collides with clinical term '{term}'"))
+        if fb in _TERM_LOOKUP:
+            dropped.append((b, f"collides with clinical term '{_TERM_LOOKUP[fb]}'"))
             continue
-        lab = is_lab_test(b)
-        if lab:
-            dropped.append((b, f"collides with lab test '{lab}'"))
+        if fb in _LAB_LOOKUP:
+            dropped.append((b, f"collides with lab test '{_LAB_LOOKUP[fb]}'"))
             continue
-        existing = lookup_drug(b)
-        if existing:
+        if fb in _DRUG_LOOKUP:
             # already curated (with Bengali + department) - curated wins
             continue
         kept[b] = generic

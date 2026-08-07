@@ -50,6 +50,21 @@ from difflib import SequenceMatcher
 from .glossary import (Drug, fold, is_clinical_term, is_lab_test,
                        lookup_drug, _DRUG_LOOKUP)
 
+# 179,002 Indian brand -> generic names, machine-imported. Optional so a
+# fresh checkout works before anyone runs the importer.
+try:
+    from .brands_india import INDIA_BRANDS
+except ImportError:                              # pragma: no cover
+    INDIA_BRANDS = {}
+
+# Folded once at import; a dict lookup keeps this O(1) per candidate.
+_BRAND_LOOKUP: dict[str, str] = {}
+for _b, _g in INDIA_BRANDS.items():
+    _k = fold(_b)
+    # curated table always wins - it carries Bengali and a department
+    if _k and _k not in _DRUG_LOOKUP:
+        _BRAND_LOOKUP.setdefault(_k, _g)
+
 VERIFIED = "verified"
 PROBABLE = "probable"
 REJECTED = "rejected"
@@ -128,6 +143,20 @@ def judge_medication(name: str) -> Verdict:
                        department=hit.department, indication=hit.indication,
                        similarity=1.0,
                        reason="exact gazetteer match")
+
+    # 1b. Indian brand table (179k entries).
+    #
+    # EXACT folded match only, and deliberately NOT used to scan free text.
+    # The SLM has already asserted "this is the drug"; this validates that
+    # claim. Fishing 179,000 brand names out of a raw transcript would be a
+    # different and much more dangerous operation - a great many of them are
+    # ordinary words, and the "hair loss -> Lactulose" failure would come
+    # back at scale. Restricting it to candidate validation keeps the
+    # coverage without the exposure.
+    brand = _BRAND_LOOKUP.get(fold(raw))
+    if brand:
+        return Verdict(VERIFIED, canonical=brand, similarity=1.0,
+                       reason="Indian brand register (imported, not clinically reviewed)")
 
     # 2. positively identified as something that is NOT a drug. Checked
     #    BEFORE fuzzy, so "sugar" can never be fuzzy-matched onto a drug.
