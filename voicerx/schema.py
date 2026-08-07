@@ -105,6 +105,14 @@ class ExtractedRx(BaseModel):
     # list is the only place the evidence survives.
     rejected_terms: list[str] = Field(default_factory=list)
 
+    # Symptoms the model asserted that the transcript does not support.
+    # Kept separate rather than mixed into symptoms[], because the model
+    # invents them: a cataract consultation reported "loose stools" and a
+    # patient "wiping their eye with a finger", neither of which was said.
+    # Separating them is the same principle the drug gate applies - the
+    # model proposes, the transcript decides - without discarding anything.
+    symptoms_unconfirmed: list[str] = Field(default_factory=list)
+
     @field_validator("confidence_note", mode="before")
     @classmethod
     def _coerce_note(cls, v):

@@ -558,11 +558,9 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     # Note "ফাস্টিং ব্লাড সুগার" - the interposed "ব্লাড" broke the n-gram
     # against the key "ফাস্টিং সুগার", and bare "পিপি" was never an alias.
     "PP sugar": ("পিপি সুগার", "পি পি সুগার", "পোস্ট প্রান্ডিয়াল",
-                  "post prandial sugar", "খাওয়ার পরের সুগার", "পিপি",
-                  "পিপি ব্লাড সুগার", "পি পি ব্লাড সুগার", "পোস্ট প্রান্ডিয়াল সুগার"),
+                  "post prandial sugar", "খাওয়ার পরের সুগার", "পিপি"),
     "Fasting sugar": ("ফাস্টিং সুগার", "FBS", "খালি পেটে সুগার",
-                       "এফ বি এস", "ফাস্টিং ব্লাড সুগার", "ফাস্টিং",
-                       "fasting blood sugar"),
+                       "এফ বি এস", "ফাস্টিং"),
     "HbA1c": ("এইচবিএ১সি", "এইচ বি এ ওয়ান সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন"),
     "TSH": ("টিএসএইচ", "টি এস এইচ", "থাইরয়েড টেস্ট", "thyroid profile"),
     # NOTE: "রক্ত পরীক্ষা" / "ব্লাড টেস্ট" are deliberately NOT CBC aliases.
@@ -1117,22 +1115,10 @@ def _ngram_match(text: str, table: dict):
     best_len = 0
     for i in range(len(tokens)):
         for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1):
-            gram = fold("".join(tokens[i:i + n]))
-            if not gram:
-                continue
-            hit = table.get(gram)
-            if hit is not None and _too_short_for_text(gram, table):
-                hit = None
-            if hit is None and len(gram) >= 4:
-                # agglutinative suffix: word starts with the entry
-                for key, val in table.items():
-                    if len(key) >= 4 and gram.startswith(key):
-                        hit = val
-                        gram = key
-                        break
+            hit, key = _lookup_span(_span_variants(tokens, i, n), table)
             # prefer the longest match, so "PP sugar" beats "blood sugar"
-            if hit is not None and len(gram) > best_len:
-                best, best_len = hit, len(gram)
+            if hit is not None and len(key) > best_len:
+                best, best_len = hit, len(key)
     return best
 
 
@@ -1168,6 +1154,55 @@ def _span_is_negated(tokens: list[str], start: int, end: int) -> bool:
     return False
 
 
+def _span_variants(tokens: list[str], i: int, n: int) -> list[str]:
+    """Folded forms of tokens[i:i+n]: the full span, plus each variant with
+    ONE interior token removed.
+
+    Contiguous-only matching was the single biggest source of misses. The
+    key is "ফাস্টিং সুগার" but a doctor says "ফাস্টিং ব্লাড সুগার", and the
+    interposed word made the n-gram miss - so every such phrasing needed
+    its own hand-written alias, and each one was found only after a real
+    consultation lost data.
+
+    Dropping one interior token generalises that: the anchor words still
+    have to be present, in order, adjacent-but-one. Only interior tokens
+    are droppable - removing the first or last would match a different
+    phrase entirely.
+    """
+    span = tokens[i:i + n]
+    out = [fold("".join(span))]
+    if n >= 3:
+        for skip in range(1, n - 1):
+            out.append(fold("".join(span[:skip] + span[skip + 1:])))
+    return out
+
+
+def _lookup_span(grams: list[str], table: dict):
+    """First table hit among a span's folded variants.
+
+    grams[0] is the full contiguous span; the rest have one interior token
+    dropped. The agglutinative-suffix allowance (prefix matching) is applied
+    ONLY to grams[0].
+
+    Stacking both relaxations was too loose and produced a real false
+    positive: "এইচ ওয়ান বি এ সি" (HbA1c) matched CT scan, because dropping
+    an interior token yielded a fragment that merely STARTED with the "সিটি"
+    key. A gapped match is already a relaxation; a gapped match that also
+    only has to match a prefix is barely a match at all.
+    """
+    for idx, gram in enumerate(grams):
+        if not gram:
+            continue
+        hit = table.get(gram)
+        if hit is not None and not _too_short_for_text(gram, table):
+            return hit, gram
+        if idx == 0 and len(gram) >= 4:
+            for key, val in table.items():
+                if len(key) >= 4 and gram.startswith(key):
+                    return val, key
+    return None, ""
+
+
 def _ngram_scan_all(text: str, table: dict) -> list:
     """Every distinct gazetteer entry appearing in the text, in order.
 
@@ -1185,17 +1220,7 @@ def _ngram_scan_all(text: str, table: dict) -> list:
     found: list = []
     for i in range(len(tokens)):
         for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1):
-            gram = fold("".join(tokens[i:i + n]))
-            if not gram:
-                continue
-            hit = table.get(gram)
-            if hit is not None and _too_short_for_text(gram, table):
-                hit = None
-            if hit is None and len(gram) >= 4:
-                for key, val in table.items():
-                    if len(key) >= 4 and gram.startswith(key):
-                        hit = val
-                        break
+            hit, _key = _lookup_span(_span_variants(tokens, i, n), table)
             if hit is not None and hit not in found:
                 if _span_is_negated(tokens, i, i + n):
                     continue

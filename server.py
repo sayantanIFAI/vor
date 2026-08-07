@@ -88,6 +88,7 @@ def _merge_segments(result) -> dict:
     uncertain: list[str] = []
     candidates: list[str] = []
     rejected: list[str] = []
+    unconfirmed: list[str] = []
     summaries: list[str] = []
     diagnosis = None
     follow_up = None
@@ -124,6 +125,12 @@ def _merge_segments(result) -> dict:
         for s in rx.symptoms:
             if s not in symptoms:
                 symptoms.append(s)
+        # Symptoms the transcript does not support. Carried up separately
+        # so the merge cannot quietly promote a hallucination into the
+        # confirmed list.
+        for s in rx.symptoms_unconfirmed:
+            if s not in unconfirmed and s not in symptoms:
+                unconfirmed.append(s)
         for l in rx.labs_ordered:
             if l not in labs:
                 labs.append(l)
@@ -156,6 +163,7 @@ def _merge_segments(result) -> dict:
         "raw_uncertain_terms": uncertain,
         "drug_candidates": candidates,
         "rejected_terms": rejected,
+        "symptoms_unconfirmed": unconfirmed,
         "segments_flagged": n_flagged,
         "segments_total": len(result.extractions),
         "review_reasons": sorted(set(review_reasons)),

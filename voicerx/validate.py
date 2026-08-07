@@ -10,7 +10,7 @@ re-derives review flags from hard rules.
 from __future__ import annotations
 
 from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
-from .glossary import is_lab_test
+from .glossary import is_lab_test, scan_conditions, scan_symptoms
 from .schema import ExtractedRx
 
 # Below this CTC/RNNT agreement a segment is treated as too garbled to
@@ -89,6 +89,39 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
             f"({rx.decoder_agreement:.2f}) on what was said"
         )
         rx.symptoms = []
+
+    # --- symptom corroboration --------------------------------------------
+    # The model proposes a symptom; the TRANSCRIPT decides whether it was
+    # said. Same principle as the drug gate, and needed for the same
+    # reason: on a cataract consultation the model reported "loose stools"
+    # and a patient "wiping their eye with a finger". Neither was spoken.
+    #
+    # Corroboration is against the source text, not merely against the term
+    # table - "loose stools" IS a valid clinical term, which is exactly why
+    # checking the table alone would have confirmed a hallucination.
+    #
+    # Uncorroborated symptoms are MOVED, not deleted. The gazetteer cannot
+    # know every way a patient describes something, so an unmatched symptom
+    # is often real; it just cannot be asserted.
+    if rx.symptoms and rx.source_transcript:
+        supported = {t.lower() for t in scan_symptoms(rx.source_transcript)}
+        supported |= {t.lower() for t in scan_conditions(rx.source_transcript)}
+        confirmed, unconfirmed = [], []
+        for s in rx.symptoms:
+            sl = s.lower()
+            if any(sl == t or sl in t or t in sl for t in supported):
+                confirmed.append(s)
+            else:
+                unconfirmed.append(s)
+        rx.symptoms = confirmed
+        for s in unconfirmed:
+            if s not in rx.symptoms_unconfirmed:
+                rx.symptoms_unconfirmed.append(s)
+        if unconfirmed:
+            reasons.append(
+                f"{len(unconfirmed)} symptom(s) not corroborated by the "
+                f"transcript - confirm before use"
+            )
 
     # --- lab gate --------------------------------------------------------
     # Same principle as the medication gate, and added because a live run

@@ -179,6 +179,18 @@ function Rx({data}){
             <ul className="clean bn">{data.symptoms.map((s,i)=><li key={i}>{s}</li>)}</ul>
           ) : <span className="muted">None extracted</span>}
 
+          {/* Shown separately and greyed: the model asserted these but the
+              transcript does not support them. Mixing them into Symptoms
+              is how "loose stools" reached a cataract prescription. */}
+          {data.symptoms_unconfirmed?.length>0 && (
+            <>
+              <h3 style={{marginTop:16,color:"var(--warn)"}}>
+                Not heard in the audio — check</h3>
+              <ul className="clean muted" style={{fontSize:13}}>
+                {data.symptoms_unconfirmed.map((s,i)=><li key={i}>{s}</li>)}
+              </ul>
+            </>)}
+
           <h3 style={{marginTop:16}}>Lab tests ordered</h3>
           {data.labs_ordered?.length ? (
             <ul className="clean">{data.labs_ordered.map((s,i)=><li key={i}>{s}</li>)}</ul>
