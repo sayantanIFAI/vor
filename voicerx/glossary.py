@@ -276,8 +276,48 @@ UROLOGY = [
          ("নাইট্রোফুরানটোইন",), "urinary tract infection", "urology"),
 ]
 
+# ---------------------------------------------------------------------------
+# BONE / ORTHOPAEDIC
+#
+# Added after a live osteoporosis consultation returned no bisphosphonate
+# and none of the bone labs. The gazetteer had been built from cardiac,
+# diabetic and general-OPD material, so an entire specialty was missing -
+# the same way cardiology labs were missing before 200 cardiac
+# prescriptions exposed that gap.
+# ---------------------------------------------------------------------------
+BONE = [
+    Drug("Alendronate", ("Fosamax", "Osteofos", "Restofos", "Alendra"),
+         ("অ্যালেনড্রোনেট", "অ্যালেন্ড্রোনেট", "ফোসাম্যাক্স"),
+         "bisphosphonate / osteoporosis", "bone"),
+    Drug("Risedronate", ("Actonel", "Risofos"),
+         ("রাইসেড্রোনেট",), "bisphosphonate / osteoporosis", "bone"),
+    Drug("Zoledronic acid", ("Zoldria", "Aclasta", "Zybone"),
+         ("জোলেড্রনিক অ্যাসিড", "জোলেড্রোনিক"),
+         "IV bisphosphonate, yearly", "bone"),
+    Drug("Teriparatide", ("Forteo", "Bonista"),
+         ("টেরিপ্যারাটাইড",), "anabolic / severe osteoporosis", "bone"),
+    Drug("Denosumab", ("Prolia", "Xgeva"),
+         ("ডেনোসুম্যাব",), "RANKL inhibitor / osteoporosis", "bone"),
+    Drug("Calcitriol", ("Rocaltrol", "Calcirol"),
+         ("ক্যালসিট্রায়ল", "ক্যালসিরল"),
+         "active vitamin D", "bone"),
+    Drug("Cholecalciferol", ("Calcirol", "D-Rise", "Uprise-D3"),
+         ("কোলেক্যালসিফেরল", "ভিটামিন ডি থ্রি", "ডি রাইজ"),
+         "vitamin D3 supplement", "bone"),
+    Drug("Calcium carbonate", ("Shelcal", "Calcimax", "Ostocalcium"),
+         ("ক্যালসিয়াম", "শেলক্যাল", "ক্যালশিয়াম", "অস্টোক্যালসিয়াম"),
+         "calcium supplement", "bone"),
+    Drug("Etoricoxib", ("Etoshine", "Nucoxia"),
+         ("ইটোরিকক্সিব", "ইটোশাইন"), "NSAID / joint pain", "bone"),
+    Drug("Aceclofenac", ("Zerodol", "Hifenac"),
+         ("এসিক্লোফেনাক", "জিরোডল"), "NSAID / joint pain", "bone"),
+    Drug("Methylcobalamin", ("Nurokind", "Meconerv"),
+         ("মিথাইলকোবালামিন", "নিউরোকাইন্ড"),
+         "neuropathy / B12", "bone"),
+]
+
 ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
-                          + GENERAL + UROLOGY)
+                          + GENERAL + UROLOGY + BONE)
 
 # ---------------------------------------------------------------------------
 # LAB TESTS / INVESTIGATIONS - these are ORDERS, never medications
@@ -340,7 +380,26 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
                        "ইউরিন টেস্ট", "urine r/e", "urine re",
                        "urine routine examination"),
     "Uric acid": ("ইউরিক অ্যাসিড", "ইউরিক"),
-    "Vitamin D": ("ভিটামিন ডি টেস্ট",),
+    # NOT the bare "ভিটামিন ডি" - that is ambiguous between the supplement
+    # and the blood test, and collisions() flagged it against the
+    # Vitamin D3 drug entry. Only unambiguously test-shaped forms here.
+    "Vitamin D": ("ভিটামিন ডি টেস্ট", "25 oh vitamin d", "vitamin d3 level",
+                   "ভিটামিন ডি লেভেল"),
+    # Bone / metabolic. A live osteoporosis consultation ordered every one
+    # of these and the table knew none of them.
+    "Serum calcium": ("সিরাম ক্যালসিয়াম", "serum calcium", "রক্তে ক্যালসিয়াম",
+                       "calcium level", "ক্যালসিয়াম টেস্ট"),
+    "Serum phosphorus": ("সিরাম ফসফরাস", "phosphorus", "phosphate",
+                          "ফসফরাস", "serum phosphate"),
+    "DEXA scan": ("dexa", "dexa scan", "ডেক্সা", "ডেক্সা স্ক্যান",
+                   "bone mineral density", "bmd", "বিএমডি", "বোন ডেনসিটি",
+                   "bone densitometry"),
+    "X-ray LS spine": ("ls spine", "l s spine", "lumbosacral spine",
+                        "এল এস স্পাইন", "কোমরের এক্স রে", "ap view ls spine",
+                        "ls spine ap view", "এলএস স্পাইন"),
+    "PTH": ("pth", "parathyroid hormone", "পিটিএইচ", "প্যারাথাইরয়েড"),
+    "Alkaline phosphatase": ("alp", "alkaline phosphatase",
+                              "অ্যালকালাইন ফসফেটেজ"),
     "X-ray": ("এক্স রে", "এক্সরে", "চেস্ট এক্স রে", "এক্স-রে"),
     "USG": ("ইউএসজি", "ইউ এস জি", "আল্ট্রাসাউন্ড", "ultrasound",
              "sonography", "আলট্রাসনোগ্রাফি"),

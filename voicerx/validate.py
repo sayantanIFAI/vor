@@ -13,6 +13,11 @@ from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
 from .glossary import is_lab_test
 from .schema import ExtractedRx
 
+# Below this CTC/RNNT agreement a segment is treated as too garbled to
+# support a symptom claim. Chosen against real data: the segment that
+# produced hallucinated eye symptoms scored 0.29, the median segment 0.56.
+LOW_AGREEMENT = 0.5
+
 
 def validate(rx: ExtractedRx) -> ExtractedRx:
     reasons: list[str] = []
@@ -54,6 +59,36 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
                 f'"{med.drug}" was proposed as a medication but rejected: {v.reason}'
             )
     rx.medications = kept
+
+    # --- symptom grounding ------------------------------------------------
+    # Symptoms extracted from a segment the two decoders disagree about are
+    # demoted rather than asserted.
+    #
+    # A live consultation produced "eye redness" and "itchy eyes" from:
+    #     কেলেঙ্কারি খুব জোটে চোখ লেগেছিল
+    # which is nonsense - but it contains চোখ ("eye"), so the model
+    # "grounded" one garbled word and invented two specific findings from
+    # it. The patient had never mentioned their eyes.
+    #
+    # The signal was already there and unused: that segment scored 0.29
+    # decoder agreement against a median of 0.56. Low agreement means the
+    # decoders could not even agree what was SAID, so anything built on top
+    # of it is speculation.
+    #
+    # Demoted, not deleted - they move to raw_uncertain_terms where a
+    # reviewer still sees them. Dropping a real symptom would be worse.
+    if (rx.symptoms and rx.decoder_agreement < LOW_AGREEMENT
+            and len(rx.source_transcript.split()) >= 3):
+        for s in rx.symptoms:
+            note = (f"{s} (from a garbled segment, decoder agreement "
+                    f"{rx.decoder_agreement:.2f} - not confirmed)")
+            if note not in rx.raw_uncertain_terms:
+                rx.raw_uncertain_terms.append(note)
+        reasons.append(
+            f"{len(rx.symptoms)} symptom(s) discarded: decoders disagreed "
+            f"({rx.decoder_agreement:.2f}) on what was said"
+        )
+        rx.symptoms = []
 
     # --- lab gate --------------------------------------------------------
     # Same principle as the medication gate, and added because a live run

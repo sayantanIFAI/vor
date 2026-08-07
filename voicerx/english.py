@@ -128,6 +128,27 @@ def englishise(rx) -> None:
         if not eng and reason:
             _note(value, f"{field} {reason}")
 
+    # MEDICATION FIELDS. Missed in the first version, and Chinese duly
+    # appeared in the frequency column of a live prescription. These are
+    # the highest-stakes strings in the document - a dosing instruction
+    # nobody can read is worse than a blank one, because a blank prompts a
+    # question and a garbled one may be copied.
+    for med in rx.medications:
+        for field in ("dosage", "frequency", "duration"):
+            value = getattr(med, field, "") or ""
+            if not value:
+                continue
+            eng, reason = to_english(value)
+            setattr(med, field, eng or "")
+            if not eng and reason:
+                _note(value, f"{med.drug} {field} {reason}")
+        # The drug NAME keeps Bengali - it is what was actually said, and
+        # the canonical English name already sits alongside it. Only CJK is
+        # stripped, since that can only be a model failure.
+        if has_cjk(med.drug):
+            _note(med.drug, "drug name dropped: model emitted Chinese")
+            med.drug = med.canonical or ""
+
     # A patient NAME is not translated - it is a proper noun, and
     # "translating" it would be inventing a different person. Only CJK is
     # removed, because that can only be a model failure.
