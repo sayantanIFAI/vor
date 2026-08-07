@@ -512,6 +512,32 @@ for _canon, _alts in CLINICAL_TERMS.items():
     for _a in _alts:
         _TERM_LOOKUP[fold(_a)] = _canon
 
+# Machine-imported terms from the MedER dataset - a LOWER trust tier than
+# the curated table above, and loaded second so a curated entry always wins.
+#
+# These are only ever used to RULE THINGS OUT: a term here can never become
+# a medication, it can only stop something being called one. That is the
+# safe direction for unreviewed data - the worst case is a real drug being
+# demoted to rejected_terms where a human sees it, not a wrong drug being
+# added to a prescription.
+#
+# Optional by design: the file is generated, so glossary.py must still
+# import cleanly in a fresh checkout before anyone has run the importer.
+try:
+    from .terms_imported import IMPORTED_TERMS
+except ImportError:                              # pragma: no cover
+    IMPORTED_TERMS = {}
+
+_IMPORTED_COUNT = 0
+for _canon, _alts in IMPORTED_TERMS.items():
+    for _a in _alts:
+        _k = fold(_a)
+        # never let an import shadow a curated term, a drug or a lab test
+        if _k in _TERM_LOOKUP or _k in _DRUG_LOOKUP or _k in _LAB_LOOKUP:
+            continue
+        _TERM_LOOKUP[_k] = _canon
+        _IMPORTED_COUNT += 1
+
 
 def collisions() -> list[tuple[str, str, str]]:
     """Entries that fold onto the same key but mean different things.
@@ -569,6 +595,31 @@ def lookup_drug(text: str) -> Drug | None:
 _MAX_NGRAM = 5
 
 
+# Minimum folded length for a DRUG key to be matched inside free text.
+#
+# Short drug keys collide with ordinary words once folded. Found by the
+# MedER import: the Lactulose brand "Looz" folds to "los" (z->s, then the
+# doubled-o dedup), and the English word "loss" folds to "los" too - so
+# "hair loss", "bone loss", "loss of appetite" and "weight loss" all
+# resolved to Lactulose and would have entered medications[] as VERIFIED.
+#
+# collisions() could not catch this: it compares gazetteer entries against
+# each other, never against ordinary vocabulary.
+#
+# Applied to drugs ONLY. Lab acronyms are legitimately short - "tmt", "mri",
+# "psa", "usg" are 3 folded characters and must still match inside a
+# sentence - and they are far less likely to collide because they are
+# consonant clusters, not word-shaped. A short drug name still resolves via
+# the whole-string exact lookup in lookup_drug(); it just cannot be fished
+# out of the middle of a sentence.
+_MIN_DRUG_NGRAM = 4
+
+
+def _too_short_for_text(gram: str, table: dict) -> bool:
+    """Guard against short DRUG keys being fished out of free text."""
+    return table is _DRUG_LOOKUP and len(gram) < _MIN_DRUG_NGRAM
+
+
 def _ngram_match(text: str, table: dict):
     """Find a gazetteer entry inside free text, matching only on WHOLE
     word groups.
@@ -594,6 +645,8 @@ def _ngram_match(text: str, table: dict):
             if not gram:
                 continue
             hit = table.get(gram)
+            if hit is not None and _too_short_for_text(gram, table):
+                hit = None
             if hit is None and len(gram) >= 4:
                 # agglutinative suffix: word starts with the entry
                 for key, val in table.items():
@@ -660,6 +713,8 @@ def _ngram_scan_all(text: str, table: dict) -> list:
             if not gram:
                 continue
             hit = table.get(gram)
+            if hit is not None and _too_short_for_text(gram, table):
+                hit = None
             if hit is None and len(gram) >= 4:
                 for key, val in table.items():
                     if len(key) >= 4 and gram.startswith(key):
