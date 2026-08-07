@@ -87,6 +87,7 @@ def _merge_segments(result) -> dict:
     labs: list[str] = []
     uncertain: list[str] = []
     candidates: list[str] = []
+    rejected: list[str] = []
     summaries: list[str] = []
     diagnosis = None
     follow_up = None
@@ -101,7 +102,25 @@ def _merge_segments(result) -> dict:
                     "drug": m.drug, "dosage": m.dosage, "frequency": m.frequency,
                     "duration": m.duration, "verified": m.verified,
                     "review_reason": m.review_reason,
+                    # The gate's verdict MUST survive the merge. This dict
+                    # was written before gate.py existed and rebuilt each
+                    # medication from a fixed field list, so tier and
+                    # canonical were silently dropped - the gate ran per
+                    # segment and its entire decision was thrown away here.
+                    # A live run showed every medication arriving at the UI
+                    # with tier=None, which is exactly the information the
+                    # reviewer needs most.
+                    "tier": m.tier, "canonical": m.canonical,
+                    "department": m.department, "indication": m.indication,
+                    "match_similarity": m.match_similarity,
                 })
+        # Terms the gate refused. Merged rather than dropped for the same
+        # reason they are recorded at all: a silent deletion is
+        # indistinguishable from a term that was never extracted, and if
+        # the gate is WRONG this list is the only surviving evidence.
+        for t in rx.rejected_terms:
+            if t not in rejected:
+                rejected.append(t)
         for s in rx.symptoms:
             if s not in symptoms:
                 symptoms.append(s)
@@ -136,6 +155,7 @@ def _merge_segments(result) -> dict:
         "summary": " ".join(summaries) if summaries else None,
         "raw_uncertain_terms": uncertain,
         "drug_candidates": candidates,
+        "rejected_terms": rejected,
         "segments_flagged": n_flagged,
         "segments_total": len(result.extractions),
         "review_reasons": sorted(set(review_reasons)),
