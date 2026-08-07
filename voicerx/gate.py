@@ -45,6 +45,7 @@ proposes; a human disposes.
 from __future__ import annotations
 
 import dataclasses
+import re
 from difflib import SequenceMatcher
 
 from .glossary import (Drug, fold, is_clinical_term, is_lab_test,
@@ -53,9 +54,9 @@ from .glossary import (Drug, fold, is_clinical_term, is_lab_test,
 # 179,002 Indian brand -> generic names, machine-imported. Optional so a
 # fresh checkout works before anyone runs the importer.
 try:
-    from .brands_india import INDIA_BRANDS
+    from .brands_india import GENERIC_NAMES, INDIA_BRANDS
 except ImportError:                              # pragma: no cover
-    INDIA_BRANDS = {}
+    INDIA_BRANDS, GENERIC_NAMES = {}, frozenset()
 
 # Folded once at import; a dict lookup keeps this O(1) per candidate.
 _BRAND_LOOKUP: dict[str, str] = {}
@@ -64,6 +65,18 @@ for _b, _g in INDIA_BRANDS.items():
     # curated table always wins - it carries Bengali and a department
     if _k and _k not in _DRUG_LOOKUP:
         _BRAND_LOOKUP.setdefault(_k, _g)
+
+# Generic names, indexed separately from brands.
+#
+# Added after testing against 200 real cardiology prescriptions, where only
+# 20/48 drugs verified: a brand table maps brand -> generic, so generics are
+# VALUES and were never looked up. Clinicians write generics constantly, and
+# "Flecainide", "Ivabradine", "Dronedarone" and "Sacubitril/Valsartan" were
+# all rejected while sitting in the composition column the whole time.
+for _g in GENERIC_NAMES:
+    _k = fold(_g)
+    if _k and _k not in _DRUG_LOOKUP:
+        _BRAND_LOOKUP.setdefault(_k, _g.title())
 
 VERIFIED = "verified"
 PROBABLE = "probable"
@@ -157,6 +170,24 @@ def judge_medication(name: str) -> Verdict:
     if brand:
         return Verdict(VERIFIED, canonical=brand, similarity=1.0,
                        reason="Indian brand register (imported, not clinically reviewed)")
+
+    # 1c. Combination products written as "A/B" or "A+B".
+    #     "Sacubitril/Valsartan" is one prescription line but two molecules,
+    #     and neither the brand nor the generic index holds the joined form.
+    #     Resolving on a component is enough to confirm it IS a drug, which
+    #     is the only question this gate answers.
+    if any(sep in raw for sep in ("/", "+")):
+        parts = [p.strip() for p in re.split(r"[/+]", raw) if p.strip()]
+        resolved = [p for p in parts
+                    if lookup_drug(p) or _BRAND_LOOKUP.get(fold(p))]
+        if resolved and len(resolved) == len(parts):
+            names = []
+            for p in parts:
+                d = lookup_drug(p)
+                names.append(d.generic if d else _BRAND_LOOKUP[fold(p)])
+            return Verdict(VERIFIED, canonical=" + ".join(names),
+                           similarity=1.0,
+                           reason="combination product, all components resolved")
 
     # 2. positively identified as something that is NOT a drug. Checked
     #    BEFORE fuzzy, so "sugar" can never be fuzzy-matched onto a drug.

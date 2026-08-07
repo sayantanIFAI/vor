@@ -116,6 +116,7 @@ def main() -> None:
     #     the other thing, not when it contains it.
     kept: dict[str, str] = {}
     dropped: list[tuple[str, str]] = []
+    generics: set[str] = set()
     for b, generic in brands.items():
         fb = fold(b)
         if len(fb) < MIN_LEN:
@@ -131,6 +132,13 @@ def main() -> None:
             # already curated (with Bengali + department) - curated wins
             continue
         kept[b] = generic
+        # Index each component of a combination separately - a prescription
+        # may name only one half of "Sacubitril/Valsartan".
+        for part in re.split(r"[/+]", generic):
+            part = part.strip().lower()
+            fp = fold(part)
+            if len(fp) >= MIN_LEN and fp not in _TERM_LOOKUP and fp not in _LAB_LOOKUP:
+                generics.add(part)
 
     with open(sys.argv[1] if len(sys.argv) > 1 else "voicerx/brands_india.py",
               "w", encoding="utf-8") as out:
@@ -154,7 +162,22 @@ def main() -> None:
         for b in sorted(kept):
             g = kept[b].replace('"', "'")
             out.write(f'    "{b}": "{g}",\n')
-        out.write("}\n")
+        out.write("}\n\n")
+
+        # GENERIC names indexed separately.
+        #
+        # Found by testing against 200 real cardiology prescriptions: only
+        # 20/48 drugs verified, because a brand table maps brand -> generic,
+        # so generics are VALUES and never looked up. Clinicians write
+        # generics constantly - "Flecainide", "Ivabradine", "Dronedarone",
+        # "Sacubitril/Valsartan" were all rejected despite the composition
+        # column being full of them.
+        out.write("# Generic/composition names, so a prescription written in generics\n")
+        out.write("# resolves as well as one written in brands.\n")
+        out.write("GENERIC_NAMES: frozenset[str] = frozenset({\n")
+        for g in sorted(generics):
+            out.write(f'    "{g}",\n')
+        out.write("})\n")
 
     print(f"rows={rows} base_brands={len(brands)} kept={len(kept)} dropped={len(dropped)}")
 

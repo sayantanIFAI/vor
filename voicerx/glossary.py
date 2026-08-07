@@ -294,7 +294,21 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "Angiography": ("অ্যাঞ্জিওগ্রাফি", "angiogram", "অ্যাঞ্জিওগ্রাম",
                      "এনজিওগ্রাম", "এঞ্জিওগ্রাফি"),
     "Lipid profile": ("লিপিড প্রোফাইল", "cholesterol test", "লিপিড"),
-    "Troponin": ("ট্রপোনিন", "ট্রপ"),
+    "Troponin": ("ট্রপোনিন", "ট্রপ", "troponin i", "troponin t",
+                  "troponin i/t"),
+    # Cardiology-specific tests. Added after 200 real cardiac prescriptions
+    # showed only 12/20 labs recognised - the table was built for general
+    # OPD and had no Holter, no tilt table, no electrophysiology study.
+    "Holter monitor": ("holter", "holter monitor", "হোল্টার",
+                        "holter monitor (24-48 hr)", "24 hour holter"),
+    "Tilt table test": ("tilt table", "tilt table test", "টিল্ট টেবিল"),
+    "Electrophysiology study": ("electrophysiology study", "ep study",
+                                 "ইপি স্টাডি"),
+    "CK-MB": ("ck-mb", "ck mb", "সিকে এমবি", "creatine kinase"),
+    "BNP": ("bnp", "nt-probnp", "bnp or nt-probnp", "pro bnp"),
+    "Serum electrolytes": ("serum electrolytes", "electrolytes",
+                            "ইলেক্ট্রোলাইট", "na k cl"),
+    "2D Echo": ("2d echo", "two d echo", "টু ডি ইকো"),
     # neuro
     "EEG": ("ইইজি", "ই ই জি", "electroencephalogram", "e e g"),
     "MRI": ("এমআরআই", "এম আর আই", "m r i"),
@@ -319,7 +333,8 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "KFT": ("কেএফটি", "কে এফ টি", "kidney function test", "RFT",
              "আর এফ টি"),
     "Urine routine": ("ইউরিন", "প্রস্রাব পরীক্ষা", "urine test",
-                       "ইউরিন টেস্ট"),
+                       "ইউরিন টেস্ট", "urine r/e", "urine re",
+                       "urine routine examination"),
     "Uric acid": ("ইউরিক অ্যাসিড", "ইউরিক"),
     "Vitamin D": ("ভিটামিন ডি টেস্ট",),
     "X-ray": ("এক্স রে", "এক্সরে", "চেস্ট এক্স রে", "এক্স-রে"),
