@@ -321,11 +321,27 @@ them; optimise the LLM call count.
    safety property; losing model size only loses some fluency, because the
    gazetteer — not the model — decides what counts as a drug.
 
-> **Honest status:** the current `server.py` extracts per segment but
-> processes the file *after* upload, so it is the 61 s path, not the 3 s
-> path. Streaming-during-capture is a change to the capture flow, not to
-> the pipeline internals. The per-segment work is already correctly
-> factored for it.
+### Measured, not predicted
+
+Streaming capture is implemented (`/api/session/*`) and measured on a real
+2-minute consultation on an RTX 4090:
+
+| | |
+|---|---|
+| audio | 120.4 s |
+| compute during recording | 59.4 s — **0.49x real time** |
+| segments processed live | 31 |
+| segments held back by the tail guard | 1 (drained at finalize) |
+| **click to result** | **2.11 s** |
+
+The 0.49x ratio is what makes it work: processing consumes audio about
+twice as fast as it arrives, so it cannot fall behind. (An earlier estimate
+of 0.25x was optimistic by 2x - the margin is real but smaller than
+predicted.)
+
+> **Caveat:** this was measured by posting one 120 s chunk, not by a
+> browser posting 10 s chunks. Real chunks are smaller and therefore
+> easier; end-to-end browser capture has not been timed.
 
 ---
 
