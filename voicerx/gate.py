@@ -157,11 +157,35 @@ def judge_medication(name: str) -> Verdict:
                        similarity=1.0,
                        reason="exact gazetteer match")
 
-    # 1b. Indian brand table (179k entries).
+    # 2. Positively identified as something that is NOT a drug.
+    #
+    # ORDER MATTERS, and this used to be wrong. This check sat AFTER the
+    # imported brand table, so "electrolytes" - a lab test - matched some
+    # product in the brand register and came back VERIFIED as a medication
+    # before the lab check ever ran. Found on a 500-transcript dry run,
+    # where it fired 227 times.
+    #
+    # The rule now: CURATED beats IMPORTED. The curated drug table above is
+    # highest trust and wins outright; the curated lab and clinical-term
+    # tables outrank the machine-imported brand register, which is a public
+    # dataset nobody clinically reviewed. Only then is the brand table
+    # consulted.
+    #
+    # This also keeps fuzzy matching from ever reaching "sugar".
+    term = is_clinical_term(raw)
+    if term:
+        return Verdict(REJECTED, canonical=term,
+                       reason=f"clinical term, not a drug: {term}")
+    lab = is_lab_test(raw)
+    if lab:
+        return Verdict(REJECTED, canonical=lab,
+                       reason=f"lab test, not a drug: {lab}")
+
+    # 3. Indian brand / generic register (174k entries).
     #
     # EXACT folded match only, and deliberately NOT used to scan free text.
     # The SLM has already asserted "this is the drug"; this validates that
-    # claim. Fishing 179,000 brand names out of a raw transcript would be a
+    # claim. Fishing 174,000 names out of a raw transcript would be a
     # different and much more dangerous operation - a great many of them are
     # ordinary words, and the "hair loss -> Lactulose" failure would come
     # back at scale. Restricting it to candidate validation keeps the
@@ -171,7 +195,7 @@ def judge_medication(name: str) -> Verdict:
         return Verdict(VERIFIED, canonical=brand, similarity=1.0,
                        reason="Indian brand register (imported, not clinically reviewed)")
 
-    # 1c. Combination products written as "A/B" or "A+B".
+    # 4. Combination products written as "A/B" or "A+B".
     #     "Sacubitril/Valsartan" is one prescription line but two molecules,
     #     and neither the brand nor the generic index holds the joined form.
     #     Resolving on a component is enough to confirm it IS a drug, which
@@ -189,18 +213,7 @@ def judge_medication(name: str) -> Verdict:
                            similarity=1.0,
                            reason="combination product, all components resolved")
 
-    # 2. positively identified as something that is NOT a drug. Checked
-    #    BEFORE fuzzy, so "sugar" can never be fuzzy-matched onto a drug.
-    term = is_clinical_term(raw)
-    if term:
-        return Verdict(REJECTED, canonical=term,
-                       reason=f"clinical term, not a drug: {term}")
-    lab = is_lab_test(raw)
-    if lab:
-        return Verdict(REJECTED, canonical=lab,
-                       reason=f"lab test, not a drug: {lab}")
-
-    # 3. close to a real drug - propose, never apply
+    # 5. close to a real drug - propose, never apply
     cand, score = _fuzzy(raw)
     if cand is not None and score >= SIMILARITY_FLOOR:
         return Verdict(PROBABLE, canonical=cand.generic,

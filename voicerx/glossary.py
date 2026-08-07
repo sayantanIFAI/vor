@@ -379,6 +379,22 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "sore throat": ("গলা ব্যথা",),
     "swelling": ("ফোলা", "ফুলে যাওয়া"),
     "weakness": ("দুর্বলতা", "দুর্বল"),
+    # English symptom phrases the SLM proposes verbatim. Present because
+    # fuzzy matching scored them against real drugs once the folded forms
+    # got close - "hair loss" folds to "hairlos" and scored 0.714 against
+    # Levothyroxine, over the 0.65 floor, so it was being offered as a
+    # PROBABLE medication. Naming them positively is more robust than
+    # raising the floor, which would start losing real garbled drug names.
+    "hair loss": ("চুল পড়া", "চুল পড়ে যাওয়া"),
+    "weight loss": ("ওজন কমা", "ওজন কমে যাওয়া"),
+    "weight gain": ("ওজন বাড়া", "ওজন বেড়ে যাওয়া"),
+    "bone loss": ("হাড় ক্ষয়",),
+    "memory loss": ("স্মৃতিশক্তি কমে যাওয়া", "ভুলে যাওয়া"),
+    "loss of appetite": ("খিদে কমে যাওয়া", "খাওয়ার ইচ্ছে নেই", "অরুচি"),
+    "shortness of breath": ("দম ফুরিয়ে যাওয়া", "হাঁপ ধরা"),
+    "loss of consciousness": ("জ্ঞান হারানো", "অজ্ঞান"),
+    "blurred vision": ("ঝাপসা দেখা",),
+    "dizziness": ("মাথা ঘোরা", "মাথা ঘুরছে"),
     "difficulty swallowing": ("গিলতে কষ্ট",),
     "phlegm": ("কফ", "শ্লেষ্মা"),
     "infection": ("ইনফেকশন", "সংক্রমণ"),

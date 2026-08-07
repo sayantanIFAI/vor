@@ -9,9 +9,9 @@ They are used only to RULE THINGS OUT (a term here can never be a
 medication), which is the safe direction for unreviewed data.
 
 raw candidate pairs seen : 12486
-survived cleaning        : 2525
-english canonical terms  : 2067
-dropped for colliding with a drug/lab : 33
+survived cleaning        : 2523
+english canonical terms  : 2066
+dropped for colliding with a drug/lab : 35
 
 collisions dropped (these would have shadowed a real drug):
     active vitamin d / সক্রিয় ভিটামিন ডি - folds onto drug Vitamin D3
@@ -28,6 +28,8 @@ collisions dropped (these would have shadowed a real drug):
     cytoplasmic calcium / সাইটোপ্লাজমিক ক্যালসিয়াম - folds onto drug Calcium carbonate
     diazepam / - - english side is a drug
     ecg / ইসিজি - folds onto lab ECG
+    electrolyte / ইলেক্ট্রোলাইট - folds onto lab Serum electrolytes
+    electrolyte disorders / ইলেক্ট্রোলাইট ব্যাধি - folds onto lab Serum electrolytes
     fexofenadine / - - english side is a drug
     insulin / ইনসুলিন - folds onto drug Human insulin
     insulin resistance / ইনসুলিন রেজিস্ট্যান্স - folds onto drug Human insulin
@@ -684,8 +686,7 @@ IMPORTED_TERMS: dict[str, tuple[str, ...]] = {
     "ejaculation": ("বীর্য নির্গমন", "বীর্যপাত",),
     "ejaculation and sperm": ("বীর্যপাত এবং শুক্রাণু",),
     "ejection": ("ইজেকশন",),
-    "electrolyte": ("ইলেক্ট্রলাইট", "ইলেক্ট্রোলাইট",),
-    "electrolyte disorders": ("ইলেক্ট্রোলাইট ব্যাধি",),
+    "electrolyte": ("ইলেক্ট্রলাইট",),
     "elimination": ("নির্মূল",),
     "embolism": ("এম্বোলিজম",),
     "embryo": ("ভ্রূণ",),
