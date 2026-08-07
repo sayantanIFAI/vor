@@ -36,6 +36,51 @@ it is why the human review step is not optional.
 
 ---
 
+## Get it running
+
+```bash
+git clone https://github.com/sayantanIFAI/vor.git && cd vor
+```
+
+Then follow **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)** top to bottom —
+it is written for someone who has never seen this repo, every command is
+copy-pasteable, and every error we actually hit is in its troubleshooting
+table with the fix.
+
+**Do not skip the install order.** Mainline NeMo *cannot* load this ASR
+model, and four separate version pins each fix a specific reproducible
+crash. The reasons are in the doc next to each command.
+
+Two optional imports turn the drug gate from ~69 drugs into ~174,000 — see
+§3.9 of the setup guide. Skipping them is safe; the code falls back.
+
+### The 60-second orientation
+
+| You want to… | Read |
+|---|---|
+| install and run it | [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) |
+| understand *why* it is built this way | [docs/DESIGN.md](docs/DESIGN.md) |
+| add a drug the gate rejected | LOCAL_SETUP §8 — it's one entry in `glossary.py` |
+| know what is unproven | DESIGN §7 — stated plainly |
+
+### Where the logic actually lives
+
+```
+voicerx/
+  glossary.py    the clinical gazetteer + phonetic fold   <- start here
+  gate.py        decides what may be called a drug
+  english.py     forces output to English
+  asr.py         dual CTC/RNNT decoding
+  pipeline.py    orchestration
+server.py        FastAPI + streaming capture endpoints
+ui/dist/         single-file React app, no build step
+```
+
+`glossary.py` is the file to read first. Almost every quality decision in
+this system is expressed there rather than in a prompt.
+
+---
+
 ## Documentation
 
 | Document | For |

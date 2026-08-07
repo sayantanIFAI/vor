@@ -213,7 +213,47 @@ words. A translation failure degrades readability; it cannot invent a drug.
 Off by default. The Bengali-only path is the one actually verified; the
 bridge is opt-in so the two can be compared rather than assumed.
 
-### 3.9 What the gazetteer may and may not do
+### 3.9 Output is forced into English — two failures, two treatments
+
+A live consultation returned this as the **summary**:
+
+```
+医生提到患者有多年的糖尿病，并进行了冠状动脉支架植入手术。
+```
+
+and `糖尿病`, `右脚疼痛`, `শ্বাসকষ্ট`, `লক্ষণগুলো` among the symptoms. Two
+different failures, so `english.py` treats them differently:
+
+| script | why it appeared | treatment |
+|---|---|---|
+| **Chinese** | Qwen2.5 is Chinese-origin and falls back to it on Bengali input | **dropped** — no legitimate use here, and no reviewer can read it |
+| **Bengali** | real clinical content the model just didn't translate | **translated via the gazetteer** — `শ্বাসকষ্ট` → *breathlessness* |
+
+Bengali the gazetteer can't translate is **not** deleted — it moves to
+`raw_uncertain_terms`. Losing a symptom to a formatting rule would be
+losing patient data.
+
+> A CJK drop deliberately does **not** quote the offending text. The final
+> CJK sweep would then delete the audit note itself — the summary vanished
+> with no record at all in testing. The note says how many characters were
+> removed instead.
+
+Applied to output fields only. `source_transcript` stays Bengali: it is
+evidence, and a reviewer must be able to check the original.
+
+### 3.10 Dosing is spoken, not written
+
+Prescriptions came back with empty frequency and duration. The cause isn't
+extraction failure — a doctor says **"দুপুরে খাওয়ার পর"** (after lunch),
+never "BD". The model, prompted for clinical shorthand, correctly returned
+nothing rather than guessing.
+
+`DOSING_TERMS` and `DURATION_TERMS` map spoken Bengali to standard
+notation, with subsumption so "after dinner" doesn't also print "at night,
+after food". These fill **only** empty fields — the model is never
+overwritten.
+
+### 3.11 What the gazetteer may and may not do
 
 The brand register is used **only to validate a name the SLM already
 proposed** — exact folded lookup. It is deliberately **not** used to scan
