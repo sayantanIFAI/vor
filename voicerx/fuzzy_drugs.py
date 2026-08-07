@@ -59,7 +59,13 @@ BENGALI_DRUG_FORMS: dict[str, str] = {
 }
 
 # Below this, a "match" is more likely coincidence than a real garbling.
-SIMILARITY_FLOOR = 0.62
+#
+# Raised from 0.62 to match gate.SIMILARITY_FLOOR. Scores are computed in
+# folded space now, which makes them tighter, and 0.62 was low enough to
+# surface cross-class suggestions - Metoprolol proposed as Metronidazole at
+# 0.64. Proposing the wrong drug is worse than proposing none: the reviewer
+# sees a plausible-looking name and may accept it.
+SIMILARITY_FLOOR = 0.65
 
 # Common Bengali words that happen to sit near drug names in edit distance.
 # Never propose a drug for these.
@@ -85,7 +91,19 @@ class DrugCandidate:
 
 
 def _sim(a: str, b: str) -> float:
-    return SequenceMatcher(a=a, b=b).ratio()
+    """Similarity in FOLDED space.
+
+    Comparing raw strings scored badly and produced dangerous proposals: a
+    live consultation had "মেটো প্রোল" (Metoprolol, a beta blocker) matched
+    to Metronidazole, an antibiotic, at 0.64 - a suggestion that crosses
+    therapeutic class entirely.
+
+    Folding first removes the spacing, dialect and aspiration noise that
+    was dominating the score, so what remains is real garbling. It is the
+    same normalisation the gate uses, and the two should agree.
+    """
+    from .glossary import fold
+    return SequenceMatcher(a=fold(a), b=fold(b)).ratio()
 
 
 def find_drug_candidates(text: str, floor: float = SIMILARITY_FLOOR) -> list[DrugCandidate]:
@@ -114,6 +132,15 @@ def find_drug_candidates(text: str, floor: float = SIMILARITY_FLOOR) -> list[Dru
         # spelling, the span is just that drug plus surrounding words -
         # proposing a "correction" for it would be noise.
         if len(span) > 1 and any(tok in BENGALI_DRUG_FORMS for tok in span):
+            continue
+
+        # If the gazetteer already resolves this span EXACTLY, do not guess.
+        # Without this the two layers contradict each other: "রসু ভাস্টাটিন"
+        # resolves to Rosuvastatin by lookup while fuzzy simultaneously
+        # proposed Atorvastatin at 0.70 - a different statin, shown to the
+        # reviewer as if it were the better answer.
+        from .glossary import lookup_drug
+        if lookup_drug(observed):
             continue
 
         best: tuple[float, str, str] | None = None

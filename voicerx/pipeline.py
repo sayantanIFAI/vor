@@ -14,8 +14,9 @@ from .asr import ASRNode, TranscribedSegment
 from .correct import correct_transcript
 from .fuzzy_drugs import find_drug_candidates
 from .extract import extract_rx, ExtractionError
-from .glossary import scan_labs
-from .schema import ExtractedRx
+from .english import englishise
+from .glossary import scan_dosing, scan_drugs, scan_labs
+from .schema import ExtractedRx, Medication
 from .translate import Translator
 from .validate import validate
 
@@ -98,6 +99,41 @@ class VoiceToRxPipeline:
                 for lab in scan_labs(cr.text):
                     if lab not in rx.labs_ordered:
                         rx.labs_ordered.append(lab)
+
+                # Drugs, same principle as labs. The SLM misses drug names
+                # the ASR split across words - a live consultation had
+                # "মেট ফর্মিন", "রসু ভাস্টাটিন" and "মেটো প্রোল" all absent
+                # from medications[] while sitting in the transcript. The
+                # fold joins the pieces and resolves them exactly.
+                known = {(m.canonical or m.drug).lower() for m in rx.medications}
+                for drug in scan_drugs(cr.text):
+                    if drug.generic.lower() in known:
+                        continue
+                    known.add(drug.generic.lower())
+                    rx.medications.append(Medication(
+                        drug=drug.generic, canonical=drug.generic,
+                        tier="verified", verified=True,
+                        department=drug.department, indication=drug.indication,
+                        match_similarity=1.0,
+                        review_reason="found in transcript by gazetteer, "
+                                       "not proposed by the model",
+                    ))
+
+                # Frequency and duration are spoken in plain Bengali
+                # ("দুপুরে খাওয়ার পর"), which the model returns as blank
+                # because it expects clinical shorthand. Filled only where
+                # the model left them empty - never overwriting it.
+                freq, dur = scan_dosing(cr.text)
+                for med in rx.medications:
+                    if freq and not med.frequency:
+                        med.frequency = freq
+                    if dur and not med.duration:
+                        med.duration = dur
+
+                # Force output fields to English. Chinese is dropped
+                # outright (Qwen falls back to it on Bengali input);
+                # Bengali clinical terms are translated via the gazetteer.
+                englishise(rx)
 
                 rx = validate(rx)
                 extractions.append(rx)

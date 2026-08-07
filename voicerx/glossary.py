@@ -55,7 +55,8 @@ CARDIAC = [
          ("অ্যাটোরভাস্ট্যাটিন", "এটোরভা"),
          "cholesterol / statin", "cardiac"),
     Drug("Rosuvastatin", ("Rosuvas", "Crestor"),
-         ("রোসুভাস্ট্যাটিন", "রোসুভাস"),
+         ("রোসুভাস্ট্যাটিন", "রোসুভাস", "রসু ভাস্টাটিন", "রসুভাস্টাটিন",
+          "রোসু ভাস্ট্যাটিন", "ভাস্টাটিন"),
          "cholesterol / statin", "cardiac"),
     Drug("Amlodipine", ("Amlopres", "Amlokind", "Stamlo"),
          ("অ্যামলোডিপিন", "অ্যামলোপ্রেস"),
@@ -63,8 +64,9 @@ CARDIAC = [
     Drug("Telmisartan", ("Telma", "Telsartan"),
          ("টেলমিসারটান", "টেলমা"),
          "hypertension", "cardiac"),
-    Drug("Metoprolol", ("Metolar", "Betaloc"),
-         ("মেটোপ্রোলল", "মেটোলার"),
+    Drug("Metoprolol", ("Metolar", "Betaloc", "Metoprolol Succinate"),
+         ("মেটোপ্রোলল", "মেটোলার", "মেটো প্রোল", "মেটোপ্রোল",
+          "মেটো প্রোলল", "মেটোপ্রোল সাক্সিনেট"),
          "beta blocker", "cardiac"),
     Drug("Bisoprolol", ("Concor", "Bisolol"),
          ("বিসোপ্রোলল", "কনকর"),
@@ -94,7 +96,7 @@ ENDOCRINE = [
          ("রাইবেলসাস", "সেমাগ্লুটাইড", "রাইবেলসাস"),
          "oral GLP-1 / type 2 diabetes", "endocrine"),
     Drug("Metformin", ("Glycomet", "Glucophage", "Okamet"),
-         ("মেটফরমিন", "গ্লাইকোমেট"),
+         ("মেটফরমিন", "গ্লাইকোমেট", "মেট ফর্মিন", "মেটফর্মিন", "ফর্মিন"),
          "type 2 diabetes, first line", "endocrine"),
     Drug("Glimepiride", ("Amaryl", "Glimestar"),
          ("গ্লিমিপিরাইড", "অ্যামারিল"),
@@ -289,7 +291,9 @@ ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
 LAB_TESTS: dict[str, tuple[str, ...]] = {
     # cardiac
     "ECG": ("ইসিজি", "ই সি জি", "ইকেজি", "electrocardiogram", "e c g"),
-    "Echo": ("ইকো", "echocardiogram", "2d echo", "টু ডি ইকো"),
+    "Echo": ("ইকো", "echocardiogram", "2d echo", "টু ডি ইকো",
+              "ইকোকার্ডিওগ্রাফি", "ইকোকার্ডিওগ্রাম", "echocardiography",
+              "ইকো কার্ডিওগ্রাফি"),
     "TMT": ("টিএমটি", "টি এম টি", "treadmill test", "stress test", "t m t"),
     "Angiography": ("অ্যাঞ্জিওগ্রাফি", "angiogram", "অ্যাঞ্জিওগ্রাম",
                      "এনজিওগ্রাম", "এঞ্জিওগ্রাফি"),
@@ -355,7 +359,16 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
 # ---------------------------------------------------------------------------
 CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # cardiac
-    "angina": ("অ্যাঞ্জাইনা",),
+    # ASR-observed spellings, not textbook ones. A live consultation
+    # produced "ইয়ার্ট অযাটাক" and "হয়াট অ্যাটাক" for "heart attack".
+    "heart attack": ("হার্ট অ্যাটাক", "ইয়ার্ট অযাটাক", "হয়াট অ্যাটাক",
+                      "হার্ট অ্যাটাক", "হার্ট এটাক", "মায়োকার্ডিয়াল ইনফার্কশন"),
+    "heart failure": ("হার্ট ফেইলিওর", "হার্ট ফেলুআর", "হৃদযন্ত্রের অক্ষমতা"),
+    "ischemia": ("ইস্কিমিয়া", "ইস্কামিয়া", "ইসকিমিয়া"),
+    "diabetes": ("ডায়াবেটিস", "ডায়াবেটিজ", "ডায়াবিটিস", "মধুমেহ"),
+    "stent": ("স্টেন্ট", "স্ট্যান্ট", "রিং পরানো"),
+    "angioplasty": ("অ্যাঞ্জিওপ্লাস্টি", "এনজিওপ্লাস্টি"),
+    "angina": ("অ্যাঞ্জাইনা", "অঞ্জিনা", "এনজাইনা"),
     "chest pain": ("বুকে ব্যথা", "বুক ব্যথা", "চেস্ট পেইন"),
     "blockage": ("ব্লকেজ", "ব্লক"),
     "palpitations": ("ধড়ফড়", "হার্ট বিট"),
@@ -518,6 +531,57 @@ def fold(s: str) -> str:
             continue
         deduped.append(c)
     return "".join(deduped)
+
+
+# ---------------------------------------------------------------------------
+# DOSING - frequency and timing, as actually spoken.
+#
+# A prescription without a frequency is not a prescription. The SLM was
+# returning medications with empty dosage/frequency/duration because the
+# instruction is spoken in ordinary Bengali - "দুপুরে খাওয়ার পর" - and never
+# looks like "BD" or "TDS" to a model expecting clinical shorthand.
+#
+# Mapped to standard notation so the printed prescription is unambiguous,
+# with the plain-English gloss kept alongside for the reviewer.
+# ---------------------------------------------------------------------------
+DOSING_TERMS: dict[str, tuple[str, ...]] = {
+    "after lunch": ("দুপুরে খাওয়ার পর", "দুপুরে খাবার পরে", "দুপুরের খাবারের পর",
+                     "দুপুরে খেয়ে"),
+    "after dinner": ("রাতে খাবার পরে", "রাতে খাওয়ার পর", "রাতের খাবারের পর",
+                      "রাতে খেয়ে"),
+    "after breakfast": ("সকালে খাওয়ার পর", "সকালে খাবার পরে", "ব্রেকফাস্টের পর"),
+    "before food": ("খাওয়ার আগে", "খাবার আগে", "খালি পেটে", "খাওয়ার পূর্বে"),
+    "after food": ("খাওয়ার পরে", "খাবার পরে", "ভরা পেটে", "খাওয়ার পর"),
+    "in the morning": ("সকালে", "সকাল বেলা", "রোজ সকালে"),
+    "at night": ("রাতে", "রাত্রে", "শোয়ার আগে", "ঘুমানোর আগে"),
+    "twice daily": ("দিনে দুবার", "দুবেলা", "সকাল বিকেল", "সকালে আর রাতে"),
+    "three times daily": ("দিনে তিনবার", "তিনবেলা", "তিন বেলা"),
+    "once daily": ("দিনে একবার", "রোজ একটা", "একবেলা", "প্রতিদিন একবার"),
+    "when required": ("দরকার হলে", "প্রয়োজন হলে", "যখন লাগবে", "কষ্ট হলে"),
+}
+
+# Frequency shorthand a printed prescription expects.
+DOSING_CODES: dict[str, str] = {
+    "once daily": "OD",
+    "twice daily": "BD",
+    "three times daily": "TDS",
+    "when required": "SOS",
+    "in the morning": "OD (morning)",
+    "at night": "OD (night)",
+}
+
+DURATION_TERMS: dict[str, tuple[str, ...]] = {
+    "3 days": ("তিন দিন", "তিনদিন"),
+    "5 days": ("পাঁচ দিন", "পাঁচদিন"),
+    "7 days": ("সাত দিন", "সাতদিন", "এক সপ্তাহ"),
+    "10 days": ("দশ দিন", "দশদিন"),
+    "15 days": ("পনেরো দিন", "পনেরদিন", "দুই সপ্তাহ"),
+    "1 month": ("এক মাস", "একমাস", "৩০ দিন"),
+    "2 months": ("দুই মাস", "দুমাস"),
+    "3 months": ("তিন মাস", "তিনমাস"),
+    "6 months": ("ছয় মাস", "ছমাস"),
+    "continue": ("চালিয়ে যান", "চলতে থাকবে", "একটানা", "নিয়মিত"),
+}
 
 
 def _norm(s: str) -> str:
@@ -803,3 +867,49 @@ def stats() -> dict:
         "clinical_terms": len(CLINICAL_TERMS),
         "departments": sorted({d.department for d in ALL_DRUGS}),
     }
+
+
+def scan_dosing(text: str) -> tuple[str, str]:
+    """(frequency, duration) spoken in ordinary Bengali.
+
+    Prescriptions were coming back with empty frequency and duration
+    because a doctor says "দুপুরে খাওয়ার পর" (after lunch), never "BD".
+    The SLM, prompted for clinical shorthand, returned nothing rather than
+    guessing - correct behaviour, but it left the field blank.
+
+    Returns standard notation where one exists ("twice daily" -> "BD"),
+    otherwise the plain-English gloss, which is still unambiguous to a
+    pharmacist.
+    """
+    freqs = _ngram_scan_all(text, _DOSING_LOOKUP)
+    durs = _ngram_scan_all(text, _DURATION_LOOKUP)
+
+    # Drop terms implied by a more specific one already present. "after
+    # dinner" also matches "at night" and "after food", and printing all
+    # three reads like three separate instructions.
+    for specific, implied in _SUBSUMES.items():
+        if specific in freqs:
+            freqs = [f for f in freqs if f == specific or f not in implied]
+
+    freq_parts = [DOSING_CODES.get(f, f) for f in freqs]
+    return ", ".join(freq_parts), ", ".join(durs)
+
+
+_SUBSUMES: dict[str, tuple[str, ...]] = {
+    "after dinner": ("at night", "after food"),
+    "after lunch": ("after food",),
+    "after breakfast": ("in the morning", "after food"),
+}
+
+
+_DOSING_LOOKUP: dict[str, str] = {}
+for _canon, _alts in DOSING_TERMS.items():
+    _DOSING_LOOKUP[fold(_canon)] = _canon
+    for _a in _alts:
+        _DOSING_LOOKUP[fold(_a)] = _canon
+
+_DURATION_LOOKUP: dict[str, str] = {}
+for _canon, _alts in DURATION_TERMS.items():
+    _DURATION_LOOKUP[fold(_canon)] = _canon
+    for _a in _alts:
+        _DURATION_LOOKUP[fold(_a)] = _canon

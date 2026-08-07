@@ -65,6 +65,11 @@
   .seg{border:1px solid var(--line);border-radius:9px;padding:13px;margin-bottom:11px;
        background:var(--panel2)}
   code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:13px}
+  input.cell{width:100%;background:transparent;color:var(--txt);border:1px solid transparent;
+    border-radius:6px;padding:5px 6px;font:inherit}
+  input.cell:hover{border-color:var(--line)}
+  input.cell:focus{outline:none;border-color:var(--accent);background:var(--panel2)}
+  input.cell::placeholder{color:var(--dim);opacity:.6}
 </style>
 </head>
 <body>
@@ -75,7 +80,54 @@ const API = "";
 
 function Pill({kind,children}){ return <span className={"pill "+kind}>{children}</span>; }
 
+// The model annotates uncertain drug names inline:
+//   "এস্কোরিল (possible medication name, ASR unclear, needs human verification)"
+// The match is correct but the parenthetical belongs in the review reason,
+// not in the drug column of a prescription.
+function cleanDrug(name){
+  return String(name||"").replace(/\s*\((?:possible|likely|probable|uncertain)[^)]*\)/gi,"").trim();
+}
+
 function Rx({data}){
+  // Editable working copy. The doctor is the author of the prescription;
+  // everything the pipeline produced is a draft they correct in place.
+  const [meds,setMeds]=useState([]);
+  const [dx,setDx]=useState("");
+  const [dirty,setDirty]=useState(false);
+
+  useEffect(()=>{
+    if(!data){ setMeds([]); setDx(""); return; }
+    // Drug candidates found in garbled audio are shown as MEDICATION ROWS,
+    // not in a separate box. They were being missed entirely because a
+    // reviewer had to notice a second panel and retype the name; as rows
+    // they are one edit away from being correct.
+    const fromCandidates=(data.drug_candidates||[]).map(c=>{
+      const m=/^'([^']+)'\s*may be\s*([^(]+)/.exec(c)||[];
+      return {drug:(m[1]||c).trim(), canonical:(m[2]||"").trim(),
+              dosage:"", frequency:"", duration:"",
+              tier:"probable", verified:false, match_similarity:null,
+              review_reason:"heard in audio, not confirmed"};
+    });
+    const base=(data.medications||[]).map(m=>({...m, drug:cleanDrug(m.drug)}));
+    const seen=new Set(base.map(m=>(m.canonical||m.drug).toLowerCase()));
+    setMeds([...base, ...fromCandidates.filter(c=>{
+      const k=(c.canonical||c.drug).toLowerCase();
+      if(seen.has(k)) return false; seen.add(k); return true;
+    })]);
+    setDx(data.diagnosis||"");
+    setDirty(false);
+  },[data]);
+
+  function edit(i,field,value){
+    setMeds(ms=>ms.map((m,j)=>j===i?{...m,[field]:value}:m)); setDirty(true);
+  }
+  function addRow(){
+    setMeds(ms=>[...ms,{drug:"",dosage:"",frequency:"",duration:"",
+                        tier:"manual",verified:true,review_reason:"added by clinician"}]);
+    setDirty(true);
+  }
+  function removeRow(i){ setMeds(ms=>ms.filter((_,j)=>j!==i)); setDirty(true); }
+
   if(!data) return null;
   const flagged = data.segments_flagged>0;
   return (
@@ -94,15 +146,9 @@ function Rx({data}){
         </div>
       )}
 
-      {data.drug_candidates?.length>0 && (
-        <div className="warnbox" style={{borderColor:"rgba(240,82,82,.4)",
-             background:"rgba(240,82,82,.09)"}}>
-          <strong>Possible drug names detected in garbled audio — confirm each:</strong>
-          <ul className="clean" style={{marginTop:8,fontSize:13}}>
-            {data.drug_candidates.map((c,i)=><li key={i}>{c}</li>)}
-          </ul>
-        </div>
-      )}
+      {/* The separate "possible drug names" panel is gone: those entries
+          are now editable rows in the Medications table, where they can be
+          corrected in one step instead of being retyped. */}
 
       <div className="row">
         <div className="col card">
@@ -110,8 +156,19 @@ function Rx({data}){
           <div style={{fontSize:17,fontWeight:600}}>
             {data.patient_name || <span className="muted">Not stated in audio</span>}
           </div>
+          {/* Editable. The model only fills this when the doctor states a
+              diagnosis outright, which in practice is rare - so it is a
+              field to complete, not a read-only result. */}
           <h3 style={{marginTop:16}}>Diagnosis</h3>
-          <div>{data.diagnosis || <span className="muted">None explicitly stated</span>}</div>
+          <input value={dx} onChange={e=>{setDx(e.target.value); setDirty(true);}}
+                 placeholder="e.g. diabetic, cardiac — ischaemic heart disease"
+                 style={{width:"100%",background:"var(--panel2)",color:"var(--txt)",
+                         border:"1px solid var(--line)",borderRadius:7,padding:"9px 10px",
+                         font:"inherit"}}/>
+          {!data.diagnosis && (
+            <div className="muted" style={{fontSize:12,marginTop:5}}>
+              Not stated outright in the audio — please complete.
+            </div>)}
           <h3 style={{marginTop:16}}>Summary</h3>
           <div className="muted">{data.summary || "—"}</div>
         </div>
@@ -134,40 +191,58 @@ function Rx({data}){
 
       <div className="card">
         <h3>Medications</h3>
-        {data.medications?.length ? (
+        {meds.length ? (
           <table>
-            <thead><tr><th>Drug</th><th>Dosage</th><th>Frequency</th>
-              <th>Duration</th><th>Status</th></tr></thead>
+            <thead><tr><th style={{width:"30%"}}>Drug</th><th>Dosage</th><th>Frequency</th>
+              <th>Duration</th><th style={{width:130}}>Source</th><th></th></tr></thead>
             <tbody>
-              {data.medications.map((m,i)=>(
+              {meds.map((m,i)=>(
                 <tr key={i}>
-                  <td style={{fontWeight:600}}>
-                    {m.drug}
-                    {/* The canonical name is shown as a SUGGESTION under the
-                        text that was actually said, never in place of it -
-                        a probable match is a proposal for the reviewer, not
-                        a correction the system has made. */}
+                  <td>
+                    <input value={m.drug} onChange={e=>edit(i,"drug",e.target.value)}
+                           className="cell" style={{fontWeight:600}}/>
+                    {/* The gazetteer's canonical name stays a SUGGESTION
+                        under what was actually said. Clicking it accepts
+                        it - the doctor decides, the system never rewrites
+                        a drug name on its own. */}
                     {m.canonical && m.canonical!==m.drug && (
-                      <div className="muted" style={{fontWeight:400,fontSize:"0.85em"}}>
+                      <div className="muted" style={{fontSize:"0.85em",marginTop:3}}>
                         {m.tier==="verified" ? "= " : "possibly "}
-                        {m.canonical}
+                        <a href="#" onClick={e=>{e.preventDefault();edit(i,"drug",m.canonical);}}
+                           style={{color:"var(--accent)"}}>{m.canonical}</a>
                         {m.indication ? ` — ${m.indication}` : ""}
                       </div>)}
                   </td>
-                  <td>{m.dosage||<span className="muted">—</span>}</td>
-                  <td>{m.frequency||<span className="muted">—</span>}</td>
-                  <td>{m.duration||<span className="muted">—</span>}</td>
-                  <td>{m.tier==="probable"
-                    ? <Pill kind="warn">confirm ({m.match_similarity})</Pill>
-                    : m.verified
-                      ? <Pill kind="ok">known drug</Pill>
-                      : <Pill kind="danger">unverified</Pill>}</td>
+                  <td><input value={m.dosage||""} placeholder="500mg"
+                             onChange={e=>edit(i,"dosage",e.target.value)} className="cell"/></td>
+                  <td><input value={m.frequency||""} placeholder="BD / after lunch"
+                             onChange={e=>edit(i,"frequency",e.target.value)} className="cell"/></td>
+                  <td><input value={m.duration||""} placeholder="7 days"
+                             onChange={e=>edit(i,"duration",e.target.value)} className="cell"/></td>
+                  <td>{m.tier==="manual"
+                        ? <Pill kind="ok">you added</Pill>
+                        : m.tier==="probable"
+                          ? <Pill kind="warn">confirm{m.match_similarity?` (${m.match_similarity})`:""}</Pill>
+                          : m.verified
+                            ? <Pill kind="ok">known drug</Pill>
+                            : <Pill kind="danger">unverified</Pill>}
+                      {m.review_reason && (
+                        <div className="muted" style={{fontSize:11,marginTop:3}}>{m.review_reason}</div>)}
+                  </td>
+                  <td><button onClick={()=>removeRow(i)} title="remove"
+                        style={{background:"none",border:0,color:"var(--dim)",
+                                cursor:"pointer",fontSize:17}}>×</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
-        ) : <span className="muted">No medications confidently identified.
-             Any drug mentioned appears under uncertain terms below.</span>}
+        ) : <span className="muted">Nothing detected — add any medication you prescribed.</span>}
+        <div style={{marginTop:12,display:"flex",gap:12,alignItems:"center"}}>
+          <button onClick={addRow} style={{background:"var(--panel2)",color:"var(--txt)",
+                  border:"1px solid var(--line)",borderRadius:7,padding:"7px 13px",
+                  cursor:"pointer",font:"inherit"}}>+ Add medication</button>
+          {dirty && <span className="muted" style={{fontSize:12}}>edited — not yet saved</span>}
+        </div>
       </div>
 
       {data.raw_uncertain_terms?.length>0 && (
