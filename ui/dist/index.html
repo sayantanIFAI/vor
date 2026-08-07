@@ -225,7 +225,8 @@ function Record(){
   const [rec,setRec]=useState(false);
   const [data,setData]=useState(null);
   const [err,setErr]=useState(null);
-  const mr=useRef(null), chunks=useRef([]), fileIn=useRef(null);
+  const [progress,setProgress]=useState(null);
+  const mr=useRef(null), chunks=useRef([]), fileIn=useRef(null), sid=useRef(null);
 
   async function send(blob,name){
     setBusy(true); setErr(null); setData(null);
@@ -238,18 +239,55 @@ function Record(){
     finally{ setBusy(false); }
   }
 
+  // STREAMING CAPTURE.
+  // Chunks are uploaded DURING the consultation and transcribed as they
+  // arrive, so pressing Stop only has the final chunk left to process.
+  // The old design did all the work after Stop, which meant ~60s of
+  // waiting on a real consultation.
   async function startRec(){
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
         channelCount:1, echoCancellation:true, noiseSuppression:true}});
-      chunks.current=[];
+
+      const s=await fetch(API+"/api/session/start",{method:"POST"});
+      if(!s.ok) throw new Error("could not start session");
+      const {session_id,chunk_seconds}=await s.json();
+      sid.current=session_id; setErr(null); setData(null); setProgress(null);
+
       const m=new MediaRecorder(stream);
-      m.ondataavailable=e=>{ if(e.data.size>0) chunks.current.push(e.data); };
-      m.onstop=()=>{
-        stream.getTracks().forEach(t=>t.stop());
-        send(new Blob(chunks.current,{type:m.mimeType}),"mic.webm");
+      // Chunks are uploaded in order and awaited one at a time. The server
+      // appends them to a single growing file, because MediaRecorder only
+      // puts the container header in the FIRST chunk - later ones cannot
+      // be decoded on their own, and out-of-order arrival would corrupt
+      // the stream.
+      let queue=Promise.resolve();
+      m.ondataavailable=e=>{
+        if(!e.data.size) return;
+        queue=queue.then(async()=>{
+          try{
+            const fd=new FormData();
+            fd.append("file",e.data,"chunk.webm");
+            const r=await fetch(API+"/api/session/"+sid.current+"/chunk",
+                                {method:"POST",body:fd});
+            if(r.ok){ const j=await r.json(); setProgress(j); }
+          }catch(_){ /* a dropped chunk must not stop the recording */ }
+        });
       };
-      mr.current=m; m.start(); setRec(true);
+      m.onstop=async()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        setBusy(true);
+        try{
+          await queue;                    // let in-flight chunks land first
+          const r=await fetch(API+"/api/session/"+sid.current+"/finalize",
+                              {method:"POST"});
+          if(!r.ok) throw new Error("Server returned "+r.status);
+          setData(await r.json());
+        }catch(e){ setErr(e.message); }
+        finally{ setBusy(false); setProgress(null); }
+      };
+      mr.current=m;
+      m.start((chunk_seconds||10)*1000);   // emit a chunk every N seconds
+      setRec(true);
     }catch(e){ setErr("Microphone blocked: "+e.message); }
   }
   function stopRec(){ mr.current?.stop(); setRec(false); }
@@ -272,11 +310,22 @@ function Record(){
                  onChange={e=>{const f=e.target.files[0]; if(f) send(f,f.name);}}/>
           {rec && <span style={{color:"var(--danger)",fontWeight:600}}>● recording…</span>}
         </div>
+        {/* Live progress while recording. Shown because the work is now
+            happening DURING the consultation - without this the user has
+            no way to tell that transcription is keeping up. */}
+        {rec && progress && !progress.pending && (
+          <div className="muted" style={{marginTop:12,fontSize:13}}>
+            transcribed {progress.segments_done} segment(s) so far
+            {progress.audio_s ? ` · ${progress.audio_s}s audio in ${progress.compute_s}s compute` : ""}
+          </div>)}
         {busy && <div style={{marginTop:14}}><span className="spin"></span>
-          Transcribing and extracting… (ASR → correction → Qwen2.5)</div>}
+          Finishing the last segment…</div>}
         {err && <div style={{marginTop:14,color:"var(--danger)"}}>{err}</div>}
         {data && <div className="muted" style={{marginTop:12,fontSize:13}}>
-          Processed in {data.processing_s}s · {data.segments_total} segments</div>}
+          {data.click_to_result_s!=null
+            ? <>Ready {data.click_to_result_s}s after you pressed Stop · {data.segments_total} segments
+                <span className="muted"> (transcribed live during the consultation)</span></>
+            : <>Processed in {data.processing_s}s · {data.segments_total} segments</>}</div>}
       </div>
       <Rx data={data}/>
     </div>

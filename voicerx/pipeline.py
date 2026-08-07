@@ -38,9 +38,18 @@ class VoiceToRxPipeline:
         self.asr = asr_node or ASRNode()
         self.translator = translator
 
-    def process_file(self, audio_path: str) -> PipelineResult:
+    def process_file(self, audio_path: str, skip_before_s: float = 0.0,
+                      max_end_s: float | None = None) -> PipelineResult:
+        """Transcribe and extract.
+
+        skip_before_s / max_end_s are used by streaming capture to process
+        only the newly-arrived audio on each chunk. Defaults reproduce the
+        original whole-file behaviour exactly.
+        """
         t0 = time.time()
-        segments = self.asr.transcribe_file(audio_path)
+        segments = self.asr.transcribe_file(audio_path,
+                                             skip_before_s=skip_before_s,
+                                             max_end_s=max_end_s)
         asr_time = time.time() - t0
 
         extractions: list[ExtractedRx] = []

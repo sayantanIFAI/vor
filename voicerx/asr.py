@@ -158,8 +158,27 @@ class ASRNode:
 
         return ctc_text, rnnt_text
 
-    def transcribe_file(self, audio_path: str) -> list[TranscribedSegment]:
+    def transcribe_file(self, audio_path: str, skip_before_s: float = 0.0,
+                         max_end_s: float | None = None) -> list[TranscribedSegment]:
+        """VAD + dual-decoder ASR.
+
+        skip_before_s / max_end_s exist for streaming capture, where the
+        same growing file is re-read after every chunk. Segments already
+        transcribed are skipped, and segments running past max_end_s are
+        left for a later call because they may still be mid-word - a drug
+        name cut at a chunk boundary is exactly the error this pipeline can
+        least afford.
+
+        Both default to whole-file behaviour, so the batch path is
+        unchanged.
+        """
         segments = self.vad.segment(audio_path)
+        if skip_before_s or max_end_s is not None:
+            segments = [
+                s for s in segments
+                if s.start_s >= skip_before_s - 1e-6
+                and (max_end_s is None or s.end_s <= max_end_s + 1e-6)
+            ]
         wav, sr = torchaudio.load(audio_path)
         if wav.shape[0] > 1:
             wav = wav.mean(dim=0, keepdim=True)

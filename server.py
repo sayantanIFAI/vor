@@ -162,6 +162,185 @@ def _merge_segments(result) -> dict:
     }
 
 
+# ===========================================================================
+# STREAMING CAPTURE
+# ===========================================================================
+# /api/transcribe processes everything AFTER the upload, so a 32-segment
+# consultation takes ~62s of staring at a spinner - the LLM is ~2s a segment
+# and none of it starts until the doctor stops talking.
+#
+# The consultation itself lasts minutes, so the work is moved into that
+# window. Chunks arrive during recording and are transcribed and extracted
+# immediately; by the time the doctor stops, only the final chunk is
+# outstanding. Measured budget: ~2.5s of compute per 10s of audio, a ~4x
+# margin, so processing never falls behind real time.
+#
+# TWO THINGS THAT MAKE THIS NON-TRIVIAL, both handled below:
+#
+# 1. MediaRecorder chunks are NOT independently decodable. Only the first
+#    carries the container header, so running ffmpeg on chunk 2 alone
+#    fails. Bytes are therefore appended to one growing file which is
+#    re-decoded whole each time. Re-decoding is cheap next to ASR+LLM.
+#
+# 2. A chunk boundary can fall mid-word. Segments ending within
+#    TAIL_GUARD_S of the end of the audio received so far are LEFT for the
+#    next chunk, because a drug name sliced in half is precisely the error
+#    this pipeline can least afford.
+
+TAIL_GUARD_S = 1.5          # never process audio this close to the live edge
+SESSION_TTL_S = 3600
+
+_sessions: dict[str, dict] = {}
+
+
+def _decode_to_wav(raw_path: str, wav_path: str) -> bool:
+    rc = os.system(f'ffmpeg -y -loglevel error -i "{raw_path}" '
+                   f'-ac 1 -ar 16000 -c:a pcm_s16le "{wav_path}"')
+    return rc == 0 and os.path.exists(wav_path) and os.path.getsize(wav_path) > 44
+
+
+def _wav_duration_s(wav_path: str) -> float:
+    import wave
+    try:
+        with wave.open(wav_path, "rb") as w:
+            return w.getnframes() / float(w.getframerate())
+    except Exception:                                  # noqa: BLE001
+        return 0.0
+
+
+def _reap_sessions() -> None:
+    now = time.time()
+    for sid in [s for s, v in _sessions.items() if now - v["created"] > SESSION_TTL_S]:
+        _drop_session(sid)
+
+
+def _drop_session(sid: str) -> None:
+    sess = _sessions.pop(sid, None)
+    if not sess:
+        return
+    for key in ("raw_path", "wav_path"):
+        try:
+            os.unlink(sess[key])
+        except OSError:
+            pass
+
+
+class _Accum:
+    """Quacks like PipelineResult so _merge_segments works unchanged."""
+
+    def __init__(self, segments, extractions, timing):
+        self.segments = segments
+        self.extractions = extractions
+        self.timing = timing
+
+
+@app.post("/api/session/start")
+def session_start():
+    _reap_sessions()
+    sid = f"{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    raw = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
+    raw.close()
+    _sessions[sid] = {
+        "created": time.time(),
+        "raw_path": raw.name,
+        "wav_path": raw.name + ".wav",
+        "processed_until_s": 0.0,
+        "segments": [],
+        "extractions": [],
+        "chunks": 0,
+        "compute_s": 0.0,
+    }
+    get_pipeline()                                     # warm before recording
+    return {"session_id": sid, "chunk_seconds": 10}
+
+
+@app.post("/api/session/{sid}/chunk")
+async def session_chunk(sid: str, file: UploadFile = File(...)):
+    sess = _sessions.get(sid)
+    if not sess:
+        raise HTTPException(404, "unknown or expired session")
+
+    with open(sess["raw_path"], "ab") as f:
+        f.write(await file.read())
+    sess["chunks"] += 1
+
+    if not _decode_to_wav(sess["raw_path"], sess["wav_path"]):
+        # Early chunks can be too short to decode. Not an error - the bytes
+        # are retained and will decode once more audio arrives.
+        return {"ok": True, "segments_done": len(sess["segments"]), "pending": True}
+
+    duration = _wav_duration_s(sess["wav_path"])
+    safe_until = duration - TAIL_GUARD_S
+    if safe_until <= sess["processed_until_s"]:
+        return {"ok": True, "segments_done": len(sess["segments"]), "pending": True}
+
+    t0 = time.time()
+    result = get_pipeline().process_file(
+        sess["wav_path"],
+        skip_before_s=sess["processed_until_s"],
+        max_end_s=safe_until,
+    )
+    sess["compute_s"] += time.time() - t0
+    sess["segments"].extend(result.segments)
+    sess["extractions"].extend(result.extractions)
+    if result.segments:
+        sess["processed_until_s"] = max(s.end_s for s in result.segments)
+
+    return {
+        "ok": True,
+        "segments_done": len(sess["segments"]),
+        "audio_s": round(duration, 1),
+        "compute_s": round(sess["compute_s"], 1),
+        "pending": False,
+    }
+
+
+@app.post("/api/session/{sid}/finalize")
+def session_finalize(sid: str):
+    sess = _sessions.get(sid)
+    if not sess:
+        raise HTTPException(404, "unknown or expired session")
+
+    t0 = time.time()
+    # Drain whatever is left, including the tail that was held back.
+    if _decode_to_wav(sess["raw_path"], sess["wav_path"]):
+        duration = _wav_duration_s(sess["wav_path"])
+        if duration > sess["processed_until_s"]:
+            tail = get_pipeline().process_file(
+                sess["wav_path"], skip_before_s=sess["processed_until_s"])
+            sess["segments"].extend(tail.segments)
+            sess["extractions"].extend(tail.extractions)
+
+    acc = _Accum(sess["segments"], sess["extractions"],
+                  {"streamed": True, "chunks": sess["chunks"],
+                   "compute_s": round(sess["compute_s"], 1)})
+    merged = _merge_segments(acc)
+    consult_id = sid
+    merged["consult_id"] = consult_id
+    # The number the clinician actually experiences: time from pressing
+    # Stop to seeing a prescription. Everything before that was overlapped
+    # with the consultation itself.
+    merged["click_to_result_s"] = round(time.time() - t0, 2)
+    merged["timing"] = acc.timing
+    merged["segments"] = [
+        {
+            "start_s": s.start_s, "end_s": s.end_s,
+            "raw_text": s.text, "corrected_text": s.corrected_text or s.text,
+            "decoder_used": s.decoder_used,
+            "decoder_agreement": s.decoder_agreement,
+            "corrections_applied": s.corrections_applied,
+        }
+        for s in sess["segments"]
+    ]
+    merged["per_segment_rx"] = [rx.model_dump() for rx in sess["extractions"]]
+
+    with open(RESULTS_DIR / f"{consult_id}.json", "w", encoding="utf-8") as f:
+        json.dump(merged, f, ensure_ascii=False, indent=2)
+
+    _drop_session(sid)
+    return JSONResponse(merged)
+
+
 @app.post("/api/transcribe")
 async def transcribe(file: UploadFile = File(...)):
     suffix = Path(file.filename or "audio.wav").suffix or ".wav"
