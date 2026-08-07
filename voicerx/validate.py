@@ -9,22 +9,50 @@ re-derives review flags from hard rules.
 """
 from __future__ import annotations
 
-from .drugs import is_known_drug
+from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
 from .schema import ExtractedRx
 
 
 def validate(rx: ExtractedRx) -> ExtractedRx:
     reasons: list[str] = []
 
+    # --- medication gate -------------------------------------------------
+    # Replaces drugs.is_known_drug(), which was actively harmful: it tested
+    # `n in known` as well as `known in n`, so any short fragment was a
+    # substring of some drug name and came back verified. Measured: 'a',
+    # 'in', 'or', 'no' and 'Nala' all reported as known drugs, which is how
+    # garbage reached medications[] wearing a verified flag.
+    kept = []
     for med in rx.medications:
         if not med.drug.strip():
             continue
-        if is_known_drug(med.drug):
+        v = judge_medication(med.drug)
+        med.tier = v.tier
+        med.canonical = v.canonical
+        med.department = v.department
+        med.indication = v.indication
+        med.match_similarity = v.similarity
+
+        if v.tier == VERIFIED:
             med.verified = True
-        else:
+            kept.append(med)
+        elif v.tier == PROBABLE:
+            # Real drug, garbled name. Kept, but the canonical name stays a
+            # proposal - see gate.py on why this is never auto-applied.
             med.verified = False
-            med.review_reason = "drug name not found in known-drug list"
-            reasons.append(f'medication "{med.drug}" not in known-drug list')
+            med.review_reason = v.reason
+            reasons.append(
+                f'medication "{med.drug}" is not an exact match - '
+                f'possibly {v.canonical} ({v.similarity:.2f}) - CONFIRM'
+            )
+            kept.append(med)
+        else:
+            # Not a drug. Recorded, not discarded.
+            rx.rejected_terms.append(f"{med.drug} — {v.reason}")
+            reasons.append(
+                f'"{med.drug}" was proposed as a medication but rejected: {v.reason}'
+            )
+    rx.medications = kept
 
     if rx.raw_uncertain_terms:
         reasons.append(f"{len(rx.raw_uncertain_terms)} uncertain term(s) flagged by extraction")

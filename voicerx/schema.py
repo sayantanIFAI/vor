@@ -35,6 +35,19 @@ class Medication(BaseModel):
     verified: bool = False
     review_reason: str = ""
 
+    # set by the medication gate (gate.py), never by the LLM.
+    # tier is "verified" or "probable" - "rejected" never reaches here,
+    # those are moved to ExtractedRx.rejected_terms instead.
+    tier: str = ""
+    # The gazetteer's canonical generic name. For a PROBABLE match this is
+    # a PROPOSAL for the reviewer, deliberately kept in a separate field so
+    # it can never be mistaken for what was actually said - `drug` always
+    # holds the original text.
+    canonical: str = ""
+    department: str = ""
+    indication: str = ""
+    match_similarity: float = 0.0
+
     @field_validator("drug", "dosage", "frequency", "duration", mode="before")
     @classmethod
     def _coerce_text(cls, v):
@@ -79,6 +92,13 @@ class ExtractedRx(BaseModel):
     # Surfaced for human confirmation. See fuzzy_drugs.py for why these are
     # never substituted automatically.
     drug_candidates: list[str] = Field(default_factory=list)
+
+    # Terms the SLM called medications that the gazetteer refused (gate.py):
+    # "drink water and rest", "Antibiotic", "Boot", null. Recorded rather
+    # than dropped, because a silent deletion is indistinguishable from a
+    # term that was never extracted - and if the gate is ever WRONG, this
+    # list is the only place the evidence survives.
+    rejected_terms: list[str] = Field(default_factory=list)
 
     @field_validator("confidence_note", mode="before")
     @classmethod
