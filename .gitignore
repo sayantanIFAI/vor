@@ -1,0 +1,46 @@
+# ---------------------------------------------------------------------------
+# PATIENT DATA - NEVER COMMIT
+# ---------------------------------------------------------------------------
+# These recordings are real doctor-patient consultations. Voice is biometric
+# and cannot be de-identified the way text can. Nothing derived from them
+# belongs in a git repository, public or private.
+*.wav
+*.mp3
+*.m4a
+*.webm
+*.ogg
+*_rx.json
+results/
+correction_worksheet*.json
+*correction_worksheet*.json
+human_review.json
+pipeline_summary.json
+pipeline*.log
+
+# Credentials
+.env
+*.token
+hf_token*
+*.pem
+id_ed25519*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Models / caches (large, re-downloadable)
+*.nemo
+.cache/
+models/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
