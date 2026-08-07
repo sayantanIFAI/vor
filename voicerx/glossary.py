@@ -865,7 +865,18 @@ _BN_FOLD = str.maketrans({
     "ঊ": "উ",  # ঊ -> উ
     "ৃ": "ি",  # ৃ -> ি
     "ঋ": "র",  # ঋ -> র
-    "ৎ": "ত",  # ৎ -> ত
+    "ৎ": "ট",  # ৎ -> ট
+    # DENTAL vs RETROFLEX. Contrastive in native Bengali words, but not in
+    # English loanwords - which is all the drug vocabulary is. Bengali
+    # writes English /t/ and /d/ as retroflex ট/ড ("মেটফরমিন"), while
+    # transliterators emit dental ত/দ ("মেত্ফোরমিন"), and speakers vary.
+    # Merging them lets one entry cover both conventions.
+    #
+    # This is the most aggressive rule here, so it is justified by
+    # measurement, not intuition: collisions() and tests_regression.py are
+    # run after adding it, and it stays only while both are clean.
+    "ত": "ট",  # ত -> ট
+    "দ": "ড",  # দ -> ড
     # ASPIRATION - the least stable feature across speakers
     "খ": "ক",  # খ -> ক
     "ঘ": "গ",  # ঘ -> গ
@@ -873,8 +884,8 @@ _BN_FOLD = str.maketrans({
     "ঝ": "জ",  # ঝ -> জ
     "ঠ": "ট",  # ঠ -> ট
     "ঢ": "ড",  # ঢ -> ড
-    "থ": "ত",  # থ -> ত
-    "ধ": "দ",  # ধ -> দ
+    "থ": "ট",  # থ -> ট (dental/retroflex merged)
+    "ধ": "ড",  # ধ -> ড (dental/retroflex merged)
     "ফ": "প",  # ফ -> প
     "ভ": "ব",  # ভ -> ব
 })
@@ -887,6 +898,18 @@ _LAT_FOLD = (
 )
 
 
+# TRIED AND REJECTED: stripping vowel diacritics (matras).
+#
+# It would let transliterator output match real spellings - "মেত্ফ়োর্মিন্"
+# and "মেটফরমিন" both reduce to the same consonant skeleton. Tempting,
+# because transliterators and speakers disagree constantly about which
+# vowel sign an English loanword takes.
+#
+# But it collapses too much: tests_regression.py failed immediately,
+# reinstating the HbA1c-matches-CT-scan over-reach and breaking a CBC case.
+# Consonant skeletons alone are not distinctive enough for a vocabulary
+# this phonetically dense. Do not re-add it without a much larger reviewed
+# set to measure against.
 def fold(s: str) -> str:
     """Collapse a term to its phonetic skeleton for matching.
 
