@@ -186,8 +186,14 @@ def _merge_segments(result) -> dict:
 #    TAIL_GUARD_S of the end of the audio received so far are LEFT for the
 #    next chunk, because a drug name sliced in half is precisely the error
 #    this pipeline can least afford.
+#
+# 3. VAD boundaries MOVE as audio arrives, so each pass must see only fresh
+#    audio - see _process_slice(). Re-running VAD over the whole growing
+#    file orphaned any segment straddling the processed boundary, and a
+#    real 3-minute recording yielded 2 segments instead of 37.
 
 TAIL_GUARD_S = 1.5          # never process audio this close to the live edge
+MIN_SLICE_S = 4.0           # don't bother VAD-ing a sliver
 SESSION_TTL_S = 3600
 
 _sessions: dict[str, dict] = {}
@@ -223,6 +229,61 @@ def _drop_session(sid: str) -> None:
             os.unlink(sess[key])
         except OSError:
             pass
+
+
+def _process_slice(sess: dict, start_s: float, end_s: float) -> int:
+    """VAD + transcribe + extract ONLY the audio between start_s and end_s.
+
+    THE BUG THIS FIXES
+    ------------------
+    The first version re-ran VAD over the whole growing file each chunk and
+    kept segments with start_s >= processed_until_s. That silently dropped
+    most of the consultation: Silero's boundaries MOVE as more audio
+    arrives, so a segment that straddled processed_until_s was excluded on
+    every subsequent pass and never processed at all. A 3-minute live
+    recording produced 2 segments.
+
+    Cutting the unprocessed region out first means VAD only ever sees fresh
+    audio, so no segment can straddle the boundary. Timestamps are shifted
+    back to consultation time afterwards, so the UI still shows real
+    offsets.
+    """
+    import soundfile as sf
+
+    audio, sr = sf.read(sess["wav_path"])
+    if getattr(audio, "ndim", 1) > 1:
+        audio = audio.mean(axis=1)
+    a, b = int(start_s * sr), int(end_s * sr)
+    if b - a < int(MIN_SLICE_S * sr):
+        return 0
+
+    slice_path = sess["wav_path"] + f".slice_{int(start_s * 100)}.wav"
+    sf.write(slice_path, audio[a:b], sr)
+    try:
+        result = get_pipeline().process_file(slice_path)
+    finally:
+        try:
+            os.unlink(slice_path)
+        except OSError:
+            pass
+
+    # Shift back into consultation time.
+    for seg in result.segments:
+        seg.start_s = round(seg.start_s + start_s, 2)
+        seg.end_s = round(seg.end_s + start_s, 2)
+    for rx in result.extractions:
+        if rx.segment_start_s is not None:
+            rx.segment_start_s = round(rx.segment_start_s + start_s, 2)
+        if rx.segment_end_s is not None:
+            rx.segment_end_s = round(rx.segment_end_s + start_s, 2)
+
+    sess["segments"].extend(result.segments)
+    sess["extractions"].extend(result.extractions)
+    # Advance by the slice we consumed, NOT by the last segment's end.
+    # Trailing silence carries no segment, and advancing only to the last
+    # segment would re-process that silence forever.
+    sess["processed_until_s"] = end_s
+    return len(result.segments)
 
 
 class _Accum:
@@ -271,20 +332,12 @@ async def session_chunk(sid: str, file: UploadFile = File(...)):
 
     duration = _wav_duration_s(sess["wav_path"])
     safe_until = duration - TAIL_GUARD_S
-    if safe_until <= sess["processed_until_s"]:
+    if safe_until - sess["processed_until_s"] < MIN_SLICE_S:
         return {"ok": True, "segments_done": len(sess["segments"]), "pending": True}
 
     t0 = time.time()
-    result = get_pipeline().process_file(
-        sess["wav_path"],
-        skip_before_s=sess["processed_until_s"],
-        max_end_s=safe_until,
-    )
+    processed = _process_slice(sess, sess["processed_until_s"], safe_until)
     sess["compute_s"] += time.time() - t0
-    sess["segments"].extend(result.segments)
-    sess["extractions"].extend(result.extractions)
-    if result.segments:
-        sess["processed_until_s"] = max(s.end_s for s in result.segments)
 
     return {
         "ok": True,
@@ -305,11 +358,8 @@ def session_finalize(sid: str):
     # Drain whatever is left, including the tail that was held back.
     if _decode_to_wav(sess["raw_path"], sess["wav_path"]):
         duration = _wav_duration_s(sess["wav_path"])
-        if duration > sess["processed_until_s"]:
-            tail = get_pipeline().process_file(
-                sess["wav_path"], skip_before_s=sess["processed_until_s"])
-            sess["segments"].extend(tail.segments)
-            sess["extractions"].extend(tail.extractions)
+        if duration - sess["processed_until_s"] > 0.3:
+            _process_slice(sess, sess["processed_until_s"], duration)
 
     acc = _Accum(sess["segments"], sess["extractions"],
                   {"streamed": True, "chunks": sess["chunks"],
