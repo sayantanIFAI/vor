@@ -91,6 +91,21 @@ grep -q "issubdtype" "$SEG" && echo "  numpy 2.0 patch applied" || { echo "FATAL
 
 pip install --quiet silero-vad soundfile
 
+# LESSON: these were missing from this script and the server would not start
+# after a pod restart - the React UI just failed to upload with no useful
+# error. python-multipart in particular is NOT a FastAPI dependency but IS
+# required for file upload endpoints, and its absence shows up only when a
+# request arrives, not at import time.
+pip install --quiet fastapi "uvicorn[standard]" python-multipart
+
+# bn->en bridge (translate.py). Optional at runtime - the pipeline falls
+# back to Bengali if these are missing - but install them here so the A/B
+# comparison can actually be run. IndicTransToolkit is required for
+# IndicTrans2's language tags and script normalisation; without it the
+# model loads but produces silently degraded output rather than an error.
+pip install --quiet IndicTransToolkit || \
+  echo "  WARN: IndicTransToolkit unavailable - translation bridge disabled"
+
 echo "  verifying NeMo imports..."
 python3 -c "import nemo.collections.asr as m; print('  NEMO_ASR_IMPORT_OK')"
 
@@ -107,6 +122,18 @@ p = snapshot_download(
 print("  model at:", p)
 with open("/workspace/voicerx/model_path.txt", "w") as f:
     f.write(p)
+PY
+
+echo "=============================================================="
+echo " 4b. IndicTrans2 bn->en (translation bridge, optional)"
+echo "=============================================================="
+# Cached onto the network volume so a pod restart does not re-download it.
+# NOT gated, unlike IndicConformer. Non-fatal on failure: the pipeline runs
+# Bengali-only without it, which is still the verified default path.
+python3 - <<'PY' || echo "  WARN: IndicTrans2 download failed - bridge disabled"
+from huggingface_hub import snapshot_download
+p = snapshot_download("ai4bharat/indictrans2-indic-en-dist-200M")
+print("  indictrans2 at:", p)
 PY
 
 echo "=============================================================="

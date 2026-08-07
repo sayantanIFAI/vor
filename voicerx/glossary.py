@@ -607,6 +607,38 @@ def _ngram_match(text: str, table: dict):
     return best
 
 
+# Bengali negation and interrogative particles. Both follow the verb, so a
+# short forward window from the end of a match is the right place to look.
+#
+# This exists because the scan functions became GENERATIVE - pipeline.py
+# merges scan_labs() straight into labs_ordered. As a veto over SLM output
+# a spurious hit was harmless; as a source of orders it is a fabricated
+# prescription line. Measured on real audio, the generic entries scored 1/3
+# precision without this: "নতুন কোনো টেস্ট দিচ্ছি না" ("I am NOT giving a new
+# test") was reported as a test ordered, and "কোনো পরীক্ষা করাতে হবে কি"
+# ("do I need any tests?") is the patient ASKING, not the doctor ordering.
+_NEGATORS = {"না", "নি", "নেই", "নয়", "নাই", "কখনো"}
+_INTERROGATIVES = {"কি", "কী", "কিনা", "কিনা?"}
+_SCOPE_WINDOW = 3
+
+
+def _span_is_negated(tokens: list[str], start: int, end: int) -> bool:
+    """True if a negation or question particle governs the matched span.
+
+    Scans the span ITSELF as well as a short window after it. Checking only
+    after the span was wrong: matching is prefix-based, so a longer n-gram
+    swallows the negator and then looks clean. Real case -
+    "ওই এনজিওগ্রাম করতে চাই না এখন" ("I don't want the angiogram now") was
+    suppressed at n<=3 but reported at n=4, because the 4-token span
+    absorbed the "না" and the window past it saw only "এখন".
+    """
+    for tok in tokens[start:end + _SCOPE_WINDOW]:
+        clean = tok.strip("।,?!.")
+        if clean in _NEGATORS or clean in _INTERROGATIVES:
+            return True
+    return False
+
+
 def _ngram_scan_all(text: str, table: dict) -> list:
     """Every distinct gazetteer entry appearing in the text, in order.
 
@@ -634,6 +666,8 @@ def _ngram_scan_all(text: str, table: dict) -> list:
                         hit = val
                         break
             if hit is not None and hit not in found:
+                if _span_is_negated(tokens, i, i + n):
+                    continue
                 found.append(hit)
     return found
 

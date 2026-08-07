@@ -73,6 +73,11 @@ class ExtractedRx(BaseModel):
     needs_human_review: bool = False
     review_reasons: list[str] = Field(default_factory=list)
     source_transcript: str = ""
+    # English translation of source_transcript, when the bn->en bridge is
+    # enabled. Always kept ALONGSIDE the Bengali, never replacing it: a
+    # reviewer must be able to check the translation rather than trust it,
+    # and the Bengali stays the authority for drug and lab names.
+    transcript_en: str = ""
     audio_file: str = ""
     segment_start_s: Optional[float] = None
     segment_end_s: Optional[float] = None

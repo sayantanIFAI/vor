@@ -64,6 +64,20 @@ HARD RULES - violating any of these is a failure:
 }"""
 
 
+# Appended only when an English translation is supplied (translate.py).
+# Qwen2.5-7B reads English clinical text far better than Bengali, so the
+# translation carries the NARRATIVE. Drug names are pinned to the Bengali
+# original on purpose: machine translation is least reliable exactly where
+# the stakes are highest, on transliterated brand names that are not really
+# Bengali words. "নরফ্লক্স" can come out of an MT model as anything at all.
+BILINGUAL_HEADER = """You are given the SAME consultation segment twice: an English translation, and the Bengali original it came from.
+
+- Use the ENGLISH text to understand what happened - symptoms, diagnosis, summary, follow-up.
+- Treat the BENGALI text as authoritative for DRUG NAMES, DOSAGES and LAB TEST NAMES. Copy those from the Bengali. The English translation may have corrupted them, because translation systems handle transliterated brand names badly.
+- If the two disagree about a drug name, trust the Bengali and, if it is unclear there, follow rule 2 and use raw_uncertain_terms.
+"""
+
+
 def _call_ollama(prompt: str, temperature: float = 0.0, timeout_s: int = 120) -> str:
     payload = json.dumps({
         "model": OLLAMA_MODEL,
@@ -85,9 +99,23 @@ class ExtractionError(Exception):
 
 
 def extract_rx(transcript_bn: str, audio_file: str = "", seg_start: float | None = None,
-                seg_end: float | None = None, max_retries: int = 2) -> tuple[ExtractedRx, dict]:
-    """Returns (validated ExtractedRx, diagnostics dict with timing/attempts)."""
-    prompt = f"{SYSTEM_PROMPT}\n\nTRANSCRIPT:\n{transcript_bn}\n\nJSON:"
+                seg_end: float | None = None, max_retries: int = 2,
+                transcript_en: str | None = None) -> tuple[ExtractedRx, dict]:
+    """Returns (validated ExtractedRx, diagnostics dict with timing/attempts).
+
+    transcript_en, when supplied, switches on the bilingual prompt - see
+    translate.py for why. It is OPTIONAL and off by default: the
+    Bengali-only prompt above is the path that was actually verified across
+    repeated runs, and it stays the default until the bridge is measured
+    against it on real audio rather than assumed to be better.
+    """
+    if transcript_en:
+        prompt = (f"{SYSTEM_PROMPT}\n\n{BILINGUAL_HEADER}\n"
+                  f"\nENGLISH TRANSLATION:\n{transcript_en}\n"
+                  f"\nBENGALI ORIGINAL (authoritative for drug/lab names):\n{transcript_bn}\n"
+                  f"\nJSON:")
+    else:
+        prompt = f"{SYSTEM_PROMPT}\n\nTRANSCRIPT:\n{transcript_bn}\n\nJSON:"
     diagnostics = {"attempts": 0, "total_time_s": 0.0, "errors": []}
 
     last_error = None

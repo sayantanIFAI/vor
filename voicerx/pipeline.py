@@ -14,7 +14,9 @@ from .asr import ASRNode, TranscribedSegment
 from .correct import correct_transcript
 from .fuzzy_drugs import find_drug_candidates
 from .extract import extract_rx, ExtractionError
+from .glossary import scan_labs
 from .schema import ExtractedRx
+from .translate import Translator
 from .validate import validate
 
 
@@ -27,8 +29,14 @@ class PipelineResult:
 
 
 class VoiceToRxPipeline:
-    def __init__(self, asr_node: ASRNode | None = None):
+    def __init__(self, asr_node: ASRNode | None = None,
+                  translator: Translator | None = None):
+        """translator=None keeps the Bengali-only path that was actually
+        verified. Pass a Translator to enable the bn->en bridge, so the two
+        can be compared on the same audio instead of the change being
+        assumed to help."""
         self.asr = asr_node or ASRNode()
+        self.translator = translator
 
     def process_file(self, audio_path: str) -> PipelineResult:
         t0 = time.time()
@@ -52,14 +60,36 @@ class VoiceToRxPipeline:
                     + [f"{a}->{b}(medium)" for a, b in cr.medium_conf_applied]
                 )
 
+                # bn -> en bridge, when enabled. Falls back to the Bengali
+                # text on any failure (see translate.py), so this can only
+                # change output quality, never lose a segment.
+                english = None
+                if self.translator is not None:
+                    english = self.translator.translate_one(cr.text)
+                    if english == cr.text:      # pass-through == not translated
+                        english = None
+
                 rx, diag = extract_rx(cr.text, audio_file=seg.audio_file,
-                                       seg_start=seg.start_s, seg_end=seg.end_s)
+                                       seg_start=seg.start_s, seg_end=seg.end_s,
+                                       transcript_en=english)
+                rx.transcript_en = english or ""
                 rx.decoder_used = seg.decoder_used
                 rx.decoder_agreement = seg.decoder_agreement
                 rx.corrections_applied = seg.corrections_applied
                 rx.correction_needs_confirmation = cr.needs_confirmation
                 # propose (never apply) drug names for still-mangled tokens
                 rx.drug_candidates = [str(c) for c in find_drug_candidates(cr.text)]
+
+                # Lab tests come from the gazetteer reading the ORIGINAL
+                # Bengali, not from the SLM and not from the translation.
+                # The SLM missed every lab order in the 10 consultations;
+                # the gazetteer finds CBC even in the ASR's mangled
+                # "সি ভিসিটা". Merged rather than replacing, so anything the
+                # SLM did catch survives.
+                for lab in scan_labs(cr.text):
+                    if lab not in rx.labs_ordered:
+                        rx.labs_ordered.append(lab)
+
                 rx = validate(rx)
                 extractions.append(rx)
             except ExtractionError as e:
