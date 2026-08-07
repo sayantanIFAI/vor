@@ -316,8 +316,196 @@ BONE = [
          "neuropathy / B12", "bone"),
 ]
 
+# ---------------------------------------------------------------------------
+# DERMATOLOGY (skin)
+# ---------------------------------------------------------------------------
+DERMATOLOGY = [
+    Drug("Clotrimazole", ("Candid", "Canesten", "Clop-G"),
+         ("ক্লোট্রিমাজল", "ক্যান্ডিড"), "antifungal cream", "dermatology"),
+    Drug("Ketoconazole", ("Nizral", "Ketostar"),
+         ("কিটোকোনাজল", "নিজরাল"), "antifungal", "dermatology"),
+    Drug("Terbinafine", ("Terbicip", "Lamisil", "Sebifin"),
+         ("টারবিনাফাইন", "টারবিসিপ"), "antifungal", "dermatology"),
+    Drug("Fluconazole", ("Forcan", "Zocon", "Flucos"),
+         ("ফ্লুকোনাজল", "ফোরকান"), "systemic antifungal", "dermatology"),
+    Drug("Mupirocin", ("T-Bact", "Bactroban", "Mupinase"),
+         ("মিউপিরোসিন", "টি ব্যাক্ট"), "topical antibiotic", "dermatology"),
+    Drug("Betamethasone", ("Betnovate", "Betnesol"),
+         ("বিটামেথাসোন", "বেটনোভেট"), "topical steroid", "dermatology"),
+    Drug("Permethrin", ("Permite", "Scabper"),
+         ("পারমেথ্রিন", "পারমাইট"), "scabies", "dermatology"),
+    Drug("Ivermectin", ("Ivermectol", "Iverjohn"),
+         ("আইভারমেকটিন",), "scabies / parasites", "dermatology"),
+    Drug("Isotretinoin", ("Sotret", "Isotroin", "Accufine"),
+         ("আইসোট্রেটিনয়েন", "আইসোট্রইন"), "severe acne", "dermatology"),
+    Drug("Adapalene", ("Deriva", "Adaferin"),
+         ("অ্যাডাপালিন", "ডেরিভা"), "acne", "dermatology"),
+    Drug("Tacrolimus ointment", ("Tacroz", "Protopic"),
+         ("ট্যাক্রোলিমাস",), "eczema / vitiligo", "dermatology"),
+    Drug("Calamine", ("Calamine lotion", "Caladryl"),
+         ("ক্যালামিন",), "soothing lotion", "dermatology"),
+]
+
+# ---------------------------------------------------------------------------
+# OPHTHALMOLOGY (eye)
+# ---------------------------------------------------------------------------
+OPHTHALMOLOGY = [
+    Drug("Moxifloxacin eye drops", ("Vigamox", "5-Moxi", "Milflox"),
+         ("মক্সিফ্লক্সাসিন", "ভিগাম্যাক্স"), "eye infection", "ophthalmology"),
+    Drug("Carboxymethylcellulose", ("Refresh Tears", "Optive", "Lubrex"),
+         ("রিফ্রেশ টিয়ার্স", "কৃত্রিম অশ্রু"), "dry eye lubricant", "ophthalmology"),
+    Drug("Olopatadine", ("Patanol", "Winolap"),
+         ("ওলোপাটাডিন", "প্যাটানল"), "allergic conjunctivitis", "ophthalmology"),
+    Drug("Timolol eye drops", ("Glucomol", "Iotim"),
+         ("টিমোলল",), "glaucoma", "ophthalmology"),
+    Drug("Latanoprost", ("Xalatan", "9PM", "Latoprost"),
+         ("ল্যাটানোপ্রস্ট",), "glaucoma", "ophthalmology"),
+    Drug("Brimonidine", ("Alphagan", "Brimolol"),
+         ("ব্রিমোনিডিন",), "glaucoma", "ophthalmology"),
+    Drug("Prednisolone eye drops", ("Predmet", "Omnipred"),
+         ("প্রেডনিসোলন ড্রপ",), "ocular inflammation", "ophthalmology"),
+    Drug("Tropicamide", ("Tropicacyl", "Mydriacyl"),
+         ("ট্রপিকামাইড",), "pupil dilation", "ophthalmology"),
+]
+
+# ---------------------------------------------------------------------------
+# ENT
+# ---------------------------------------------------------------------------
+ENT = [
+    Drug("Xylometazoline", ("Otrivin", "Nasivion"),
+         ("জাইলোমেটাজোলিন", "অট্রিভিন", "নাসিভিয়ন"),
+         "nasal decongestant drops", "ent"),
+    Drug("Fluticasone nasal spray", ("Flomist", "Nasoflo"),
+         ("ফ্লুটিকাসোন", "ফ্লোমিস্ট"), "allergic rhinitis", "ent"),
+    Drug("Mometasone nasal spray", ("Nasonex", "Metaspray"),
+         ("মোমেটাসোন", "মেটাস্প্রে"), "allergic rhinitis", "ent"),
+    Drug("Betahistine", ("Vertin", "Betavert"),
+         ("বিটাহিস্টিন", "ভার্টিন"), "vertigo", "ent"),
+    Drug("Candibiotic ear drops", ("Candibiotic", "Otek-AC"),
+         ("ক্যান্ডিবায়োটিক",), "ear infection", "ent"),
+    Drug("Prochlorperazine", ("Stemetil", "Vertigon"),
+         ("প্রোক্লোরপেরাজিন", "স্টেমেটিল"), "vertigo / nausea", "ent"),
+]
+
+# ---------------------------------------------------------------------------
+# DENTAL
+# ---------------------------------------------------------------------------
+DENTAL = [
+    Drug("Chlorhexidine mouthwash", ("Hexidine", "Clohex", "Rexidin"),
+         ("ক্লোরহেক্সিডিন", "হেক্সিডিন", "মাউথওয়াশ"),
+         "oral antiseptic", "dental"),
+    Drug("Ketorolac", ("Ketorol", "Zerodol-K"),
+         ("কিটোরোলাক", "কেটোরল"), "severe dental pain", "dental"),
+    Drug("Lignocaine gel", ("Mucopain", "Dentogel", "Xylocaine"),
+         ("লিগনোকেইন", "মিউকোপেইন"), "topical anaesthetic", "dental"),
+    Drug("Triamcinolone oral paste", ("Kenacort", "Tess"),
+         ("ট্রায়ামসিনোলোন", "কেনাকর্ট"), "mouth ulcer", "dental"),
+]
+
+# ---------------------------------------------------------------------------
+# GYNAECOLOGY
+# ---------------------------------------------------------------------------
+GYNAECOLOGY = [
+    Drug("Folic acid", ("Folvite", "Fol-5"),
+         ("ফলিক অ্যাসিড", "ফলভাইট"), "pregnancy supplement", "gynaecology"),
+    Drug("Tranexamic acid", ("Trapic", "Pause", "Texid"),
+         ("ট্রানেক্সামিক অ্যাসিড", "ট্রাপিক"),
+         "heavy menstrual bleeding", "gynaecology"),
+    Drug("Norethisterone", ("Primolut-N", "Regestrone"),
+         ("নরইথিস্টেরন", "প্রিমোলাট"), "menstrual regulation", "gynaecology"),
+    Drug("Medroxyprogesterone", ("Deviry", "Meprate"),
+         ("মেড্রক্সিপ্রোজেস্টেরন", "ডেভিরি"), "progestin", "gynaecology"),
+    Drug("Progesterone", ("Susten", "Duphaston", "Dubagest"),
+         ("প্রোজেস্টেরন", "সাসটেন", "ডুফাস্টন"),
+         "luteal support", "gynaecology"),
+    Drug("Clomiphene", ("Fertyl", "Clomi"),
+         ("ক্লোমিফেন", "ফার্টিল"), "ovulation induction", "gynaecology"),
+    Drug("Letrozole", ("Letroz", "Fempro"),
+         ("লেট্রোজল", "লেট্রোজ"), "ovulation induction", "gynaecology"),
+    Drug("Mifepristone+Misoprostol", ("MTP Kit", "Unwanted Kit"),
+         ("মিফেপ্রিস্টোন", "মাইসোপ্রোস্টল"),
+         "medical termination", "gynaecology"),
+]
+
+# ---------------------------------------------------------------------------
+# NEPHROLOGY
+# ---------------------------------------------------------------------------
+NEPHROLOGY = [
+    Drug("Sevelamer", ("Renvela", "Sevcar"),
+         ("সেভেলামার",), "phosphate binder / CKD", "nephrology"),
+    Drug("Calcium acetate", ("Nephrocal", "Royal-CA"),
+         ("ক্যালসিয়াম অ্যাসিটেট",), "phosphate binder", "nephrology"),
+    Drug("Erythropoietin", ("Eprex", "Epofit", "Relipoietin"),
+         ("এরিথ্রোপয়েটিন", "ইপ্রেক্স"), "anaemia of CKD", "nephrology"),
+    Drug("Sodium bicarbonate", ("Sodamint", "Nodosis"),
+         ("সোডিয়াম বাইকার্বোনেট", "নোডোসিস"),
+         "metabolic acidosis", "nephrology"),
+    Drug("Febuxostat", ("Febutaz", "Zurig", "Feburic"),
+         ("ফেবুক্সোস্ট্যাট", "ফেবুটাজ"), "gout / uric acid", "nephrology"),
+    Drug("Allopurinol", ("Zyloric", "Ciploric"),
+         ("অ্যালোপিউরিনল", "জাইলোরিক"), "gout / uric acid", "nephrology"),
+]
+
+# ---------------------------------------------------------------------------
+# NEUROLOGY
+# ---------------------------------------------------------------------------
+NEUROLOGY = [
+    Drug("Levetiracetam", ("Levipil", "Keppra", "Torleva"),
+         ("লেভেটিরাসিটাম", "লেভিপিল"), "epilepsy", "neurology"),
+    Drug("Sodium valproate", ("Valparin", "Encorate", "Divaa"),
+         ("সোডিয়াম ভালপ্রোয়েট", "ভালপারিন", "এনকোরেট"),
+         "epilepsy / migraine", "neurology"),
+    Drug("Phenytoin", ("Eptoin", "Dilantin"),
+         ("ফেনিটয়েন", "এপটোইন"), "epilepsy", "neurology"),
+    Drug("Carbamazepine", ("Tegretol", "Mazetol", "Zeptol"),
+         ("কার্বামাজেপিন", "টেগ্রেটল"),
+         "epilepsy / trigeminal neuralgia", "neurology"),
+    Drug("Clobazam", ("Frisium", "Lobazam"),
+         ("ক্লোবাজাম", "ফ্রিজিয়াম"), "epilepsy", "neurology"),
+    Drug("Pregabalin", ("Pregabid", "Lyrica", "Maxgalin"),
+         ("প্রিগাবালিন", "প্রিগাবিড"), "neuropathic pain", "neurology"),
+    Drug("Gabapentin", ("Gabapin", "Neurontin"),
+         ("গ্যাবাপেন্টিন", "গ্যাবাপিন"), "neuropathic pain", "neurology"),
+    Drug("Donepezil", ("Aricept", "Donep", "Dompezil"),
+         ("ডোনেপেজিল", "অ্যারিসেপ্ট"), "dementia", "neurology"),
+    Drug("Memantine", ("Admenta", "Nemdaa"),
+         ("মেমান্টিন",), "dementia", "neurology"),
+    Drug("Levodopa+Carbidopa", ("Syndopa", "Tidomet", "Sinemet"),
+         ("লেভোডোপা", "সিনডোপা", "টিডোমেট"),
+         "Parkinson's disease", "neurology"),
+    Drug("Sumatriptan", ("Suminat", "Imitrex"),
+         ("সুমাট্রিপটান", "সুমিন্যাট"), "migraine", "neurology"),
+    Drug("Flunarizine", ("Sibelium", "Flunarin"),
+         ("ফ্লুনারিজিন", "সিবেলিয়াম"), "migraine prophylaxis", "neurology"),
+    Drug("Amitriptyline", ("Amitone", "Tryptomer"),
+         ("অ্যামিট্রিপটাইলিন", "ট্রিপটোমার"),
+         "neuropathic pain / migraine", "neurology"),
+    Drug("Clopidogrel+Aspirin", ("Clopitab-A", "Deplatt-A", "Ecosprin-AV"),
+         ("ক্লোপিটাব", "ইকোস্পিরিন এভি"), "stroke prevention", "neurology"),
+]
+
+# ---------------------------------------------------------------------------
+# SURGERY
+# ---------------------------------------------------------------------------
+SURGERY = [
+    Drug("Tramadol", ("Ultracet", "Tramazac", "Domadol"),
+         ("ট্রামাডল", "আলট্রাসেট"), "moderate-severe pain", "surgery"),
+    Drug("Ceftriaxone", ("Monocef", "Intacef", "Oframax"),
+         ("সেফট্রায়াক্সোন", "মনোসেফ"), "injectable antibiotic", "surgery"),
+    Drug("Diclofenac", ("Voveran", "Dynapar", "Diclomol"),
+         ("ডাইক্লোফেনাক", "ভোভেরান"), "NSAID", "surgery"),
+    Drug("Enoxaparin", ("Clexane", "Lomoh"),
+         ("এনোক্সাপারিন", "ক্লেক্সেন"), "DVT prophylaxis", "surgery"),
+    Drug("Povidone iodine", ("Betadine", "Cipladine"),
+         ("পোভিডোন আয়োডিন", "বিটাডিন"), "antiseptic", "surgery"),
+    Drug("Lactulose", ("Duphalac", "Looz", "Cremaffin"),
+         ("ল্যাকটুলোজ", "ডুফালাক"), "constipation", "surgery"),
+]
+
 ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
-                          + GENERAL + UROLOGY + BONE)
+                          + GENERAL + UROLOGY + BONE + DERMATOLOGY
+                          + OPHTHALMOLOGY + ENT + DENTAL + GYNAECOLOGY
+                          + NEPHROLOGY + NEUROLOGY + SURGERY)
 
 # ---------------------------------------------------------------------------
 # LAB TESTS / INVESTIGATIONS - these are ORDERS, never medications
@@ -404,6 +592,43 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "USG": ("ইউএসজি", "ইউ এস জি", "আল্ট্রাসাউন্ড", "ultrasound",
              "sonography", "আলট্রাসনোগ্রাফি"),
     "PSA": ("পিএসএ", "পি এস এ"),
+    # --- department-specific investigations ---------------------------
+    # dermatology
+    "KOH mount": ("koh mount", "koh", "কেওএইচ", "skin scraping"),
+    "Skin biopsy": ("skin biopsy", "ত্বকের বায়োপসি"),
+    "Patch test": ("patch test", "প্যাচ টেস্ট", "allergy patch test"),
+    # ophthalmology
+    "Fundus examination": ("fundus", "ফান্ডাস", "fundoscopy", "retina check"),
+    "Intraocular pressure": ("iop", "tonometry", "চোখের প্রেশার",
+                              "eye pressure"),
+    "Visual acuity": ("visual acuity", "দৃষ্টিশক্তি পরীক্ষা", "vision test"),
+    "OCT": ("oct", "optical coherence tomography", "ওসিটি"),
+    "Refraction": ("refraction", "power test", "চশমার পাওয়ার"),
+    # ENT
+    "Audiometry": ("audiometry", "pta", "pure tone audiometry",
+                    "অডিওমেট্রি", "কানের পরীক্ষা"),
+    "Tympanometry": ("tympanometry", "টিমপ্যানোমেট্রি"),
+    "Nasal endoscopy": ("nasal endoscopy", "dnc", "নাকের এন্ডোস্কোপি"),
+    # dental
+    "OPG": ("opg", "orthopantomogram", "ওপিজি", "dental x-ray"),
+    "IOPA": ("iopa", "intraoral periapical"),
+    # gynaecology
+    "USG pelvis": ("usg pelvis", "pelvic ultrasound", "তলপেটের আল্ট্রাসাউন্ড",
+                    "tvs", "transvaginal scan"),
+    "Pap smear": ("pap smear", "pap test", "প্যাপ স্মিয়ার"),
+    "Beta hCG": ("beta hcg", "bhcg", "pregnancy test", "প্রেগন্যান্সি টেস্ট"),
+    "Mammography": ("mammography", "mammogram", "ম্যামোগ্রাফি"),
+    # nephrology
+    "eGFR": ("egfr", "gfr", "creatinine clearance", "জিএফআর"),
+    "Urine ACR": ("urine acr", "albumin creatinine ratio", "microalbumin",
+                   "মাইক্রোঅ্যালবুমিন"),
+    "USG KUB": ("usg kub", "kub", "kidney ultrasound", "কিডনি আল্ট্রাসাউন্ড"),
+    # neurology
+    "CT brain": ("ct brain", "ct head", "সিটি ব্রেন", "brain ct"),
+    "MRI brain": ("mri brain", "এমআরআই ব্রেন", "brain mri"),
+    "NCV": ("ncv", "nerve conduction", "এনসিভি"),
+    "EMG": ("emg", "electromyography", "ইএমজি"),
+    "Carotid doppler": ("carotid doppler", "ক্যারোটিড ডপলার"),
     # Generic orders - a test WAS ordered even if unnamed. Surfaced so the
     # reviewer names it, rather than dropped silently or guessed at.
     "blood test (unspecified)": ("রক্ত পরীক্ষা", "ব্লাড টেস্ট", "রক্ত টেস্ট"),
@@ -470,6 +695,87 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "difficulty swallowing": ("গিলতে কষ্ট",),
     "phlegm": ("কফ", "শ্লেষ্মা"),
     "infection": ("ইনফেকশন", "সংক্রমণ"),
+    # --- department-specific symptoms and findings --------------------
+    # dermatology
+    "itching": ("চুলকানি", "চুলকায়", "খুজলি"),
+    "rash": ("র‍্যাশ", "ফুসকুড়ি", "চাকা চাকা দাগ"),
+    "acne": ("ব্রণ", "একনি"),
+    "hives": ("আমবাত", "চাকা"),
+    "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন"),
+    "hair fall": ("চুল পড়া", "চুল উঠছে"),
+    "dry skin": ("শুষ্ক ত্বক", "চামড়া শুকিয়ে"),
+    "boil": ("ফোঁড়া", "বিচি"),
+    # ophthalmology
+    "blurred vision far": ("দূরে ঝাপসা", "দূরের জিনিস দেখতে"),
+    "eye pain": ("চোখে ব্যথা", "চোখ ব্যথা"),
+    "watering eyes": ("চোখ দিয়ে জল", "চোখে জল পড়া"),
+    "red eye": ("চোখ লাল", "লাল চোখ"),
+    "cataract": ("ছানি", "ক্যাটারাক্ট"),
+    "glaucoma": ("গ্লুকোমা", "চোখের প্রেশার বেশি"),
+    # ENT
+    "ear pain": ("কানে ব্যথা", "কান ব্যথা"),
+    "hearing loss": ("কানে শুনতে অসুবিধা", "কম শুনছি", "শ্রবণশক্তি কমে"),
+    "tinnitus": ("কানে শব্দ", "কানে ভোঁ ভোঁ"),
+    "vertigo": ("মাথা ঘোরা ভার্টিগো", "ভার্টিগো", "সবকিছু ঘুরছে"),
+    "nasal block": ("নাক বন্ধ", "নাক দিয়ে শ্বাস"),
+    "runny nose": ("নাক দিয়ে জল", "সর্দি"),
+    "tonsillitis": ("টনসিল", "টনসিলাইটিস"),
+    # dental
+    "toothache": ("দাঁতে ব্যথা", "দাঁত ব্যথা"),
+    "bleeding gums": ("মাড়ি থেকে রক্ত", "মাড়িতে রক্ত"),
+    "mouth ulcer": ("মুখে ঘা", "মুখের ঘা"),
+    "swollen gums": ("মাড়ি ফোলা", "মাড়ি ফুলে"),
+    # gynaecology
+    "irregular periods": ("অনিয়মিত পিরিয়ড", "মাসিক অনিয়মিত"),
+    "heavy bleeding": ("বেশি রক্তপাত", "অতিরিক্ত রক্তক্ষরণ"),
+    "white discharge": ("সাদা স্রাব", "লিউকোরিয়া"),
+    "menopause": ("মেনোপজ", "মাসিক বন্ধ"),
+    "pregnancy": ("গর্ভাবস্থা", "প্রেগন্যান্ট", "অন্তঃসত্ত্বা"),
+    "lower abdominal pain": ("তলপেটে ব্যথা", "তলপেট ব্যথা"),
+    # nephrology
+    "reduced urine": ("প্রস্রাব কম", "কম প্রস্রাব"),
+    "burning urination": ("প্রস্রাবে জ্বালা", "জ্বালাপোড়া"),
+    "facial puffiness": ("মুখ ফোলা", "চোখ মুখ ফোলা"),
+    "kidney failure": ("কিডনি ফেইলিওর", "কিডনি খারাপ"),
+    "dialysis": ("ডায়ালিসিস",),
+    # neurology
+    "seizure": ("খিঁচুনি", "ফিট", "মৃগী"),
+    "stroke": ("স্ট্রোক", "প্যারালাইসিস", "পক্ষাঘাত"),
+    "numbness": ("অবশ", "ঝিনঝিন", "অসাড়"),
+    "tremor": ("কাঁপুনি", "হাত কাঁপে"),
+    "migraine": ("মাইগ্রেন",),
+    "memory problem": ("ভুলে যাচ্ছি", "স্মৃতি সমস্যা"),
+    "weakness one side": ("একদিক অবশ", "এক পাশ দুর্বল"),
+    # surgery
+    "lump": ("চাকা", "গোটা", "টিউমার"),
+    "hernia": ("হার্নিয়া",),
+    "piles": ("পাইলস", "অর্শ"),
+    "gallstone": ("পিত্তথলির পাথর", "গলব্লাডার স্টোন"),
+    "appendicitis": ("অ্যাপেন্ডিক্স", "অ্যাপেন্ডিসাইটিস"),
+    "wound": ("ক্ষত", "ঘা", "কাটা"),
+    # --- DRUG CLASSES, not drugs -------------------------------------
+    # A doctor says "I'll give you an antibiotic" without naming one. These
+    # must never resolve to a specific product.
+    #
+    # Not hypothetical: adding "Candibiotic" (an ear drop) to the gazetteer
+    # made the bare word "Antibiotic" fuzzy-match it at 0.86, so a generic
+    # statement became a specific ear medication. Naming the classes
+    # positively stops that for every future entry too, because the class
+    # check runs before the brand table and before fuzzy.
+    "antibiotic": ("অ্যান্টিবায়োটিক", "antibiotics", "এন্টিবায়োটিক"),
+    "painkiller": ("পেইনকিলার", "ব্যথার ওষুধ", "analgesic", "pain killer"),
+    "antacid": ("অ্যান্টাসিড", "গ্যাসের ওষুধ"),
+    "steroid": ("স্টেরয়েড", "steroids"),
+    "vitamin supplement": ("ভিটামিন", "vitamins", "supplement", "সাপ্লিমেন্ট"),
+    "antihistamine": ("অ্যান্টিহিস্টামিন",),
+    "eye drops": ("চোখের ড্রপ", "আই ড্রপ"),
+    "ear drops": ("কানের ড্রপ",),
+    "nasal spray": ("নাকের স্প্রে",),
+    "ointment": ("মলম", "অয়েন্টমেন্ট"),
+    "syrup": ("সিরাপ",),
+    "tablet": ("ট্যাবলেট", "বড়ি"),
+    "injection": ("ইনজেকশন", "ইঞ্জেকশন"),
+    "medicine": ("ওষুধ", "মেডিসিন", "ঔষধ"),
     # advice - explicitly NOT medications
     "exercise": ("ব্যায়াম", "এক্সারসাইজ", "হাঁটা", "walking"),
     "lean diet": ("লিন ডায়েট", "হালকা খাবার", "light food"),
