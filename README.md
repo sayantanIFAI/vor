@@ -109,6 +109,15 @@ Batch mode, no UI:
 python run_pipeline.py consultation1.wav consultation2.wav
 ```
 
+To enable the Bengali→English bridge (see `translate.py`), add `--translate`.
+Run it both ways on the same audio and compare — that is what the flag is
+for. If the model is unavailable the run says so loudly and continues in
+Bengali, rather than silently scoring an untested configuration:
+
+```bash
+python run_pipeline.py --translate consultation1.wav
+```
+
 ---
 
 ## How it works
@@ -151,12 +160,83 @@ does similarity matching against Bengali drug transliterations and
 **proposes** candidates for human confirmation. It never rewrites a drug
 name automatically — that behaviour is what produced "Naloxone".
 
+### `voicerx/glossary.py` — the clinical gazetteer, matched phonetically
+69 drugs / 25 lab tests / 36 clinical terms, organised by department.
+
+Matching is **not** string equality. Both the gazetteer and the ASR text go
+through the same lossy phonetic fold, because real audio breaks exact
+matching four ways at once and the variants multiply combinatorially:
+
+| | example | why |
+|---|---|---|
+| spacing | `সি বি সি` vs `সিবিসি` | clinicians spell acronyms out, the ASR writes each letter separately |
+| half-letters | `মন্টিকুলাষ্ট` vs `মনটিকুলাসট` | conjuncts (যুক্তাক্ষর) carry a hasant the ASR drops or adds |
+| dialect | `শ` `ষ` `স` | one sound in spoken Bengali; also `ণ/ন`, `ড়/র`, `য/জ` |
+| accent | `ব` vs `ভ` | aspiration is the least stable feature across speakers |
+
+The spacing case alone caused **zero** lab tests to match across 255 real
+segments. After folding, CBC is recovered even from the ASR's mangled
+`সি ভিসিটা`.
+
+The fold is deliberately lossy, so `collisions()` checks every entry against
+every other at import — if two distinct entries ever fold together, that is
+a bug, not a tuning knob.
+
+Matching is on token **n-grams**, never substrings: substring matching let
+keys straddle word boundaries, and the EEG key matched inside `এই জিভটা বার
+কর` ("stick your tongue out"). Negation and interrogative scope suppress
+`নতুন কোনো টেস্ট দিচ্ছি না` ("I am **not** giving a new test") while keeping
+the conditional order `যদি ... তাহলে রক্ত পরীক্ষা`.
+
+### `voicerx/gate.py` — the SLM proposes, the gazetteer decides
+"Is this a drug?" is a closed-set question, so it is looked up, not reasoned
+about. Three outcomes, and the middle one is the point:
+
+- **verified** — exact gazetteer hit after folding
+- **probable** — close to a real drug (`Montuculast` → Montelukast, 0.82).
+  Kept, with the canonical name attached as a *proposal* in a separate
+  field. Never written over what was actually said.
+- **rejected** — moved to `rejected_terms`, **recorded rather than dropped**,
+  because a silent deletion looks identical to a term that was never
+  extracted, and if the gate is ever wrong that list is the only evidence.
+
+A strict allowlist was tried first and was too harsh: it rejected 13 of 18
+false positives but also discarded two genuine Montelukast prescriptions.
+Hence three tiers, not a filter.
+
+`SIMILARITY_FLOOR` is derived, not guessed — scored on real audio, the
+classes separate cleanly (real drugs 0.818/0.700, worst false positive
+0.588) and the threshold sits in the empty band.
+
+Result on all 188 real extractions: 22 proposed → 7 verified, 2 probable,
+13 rejected.
+
+### `voicerx/translate.py` — bn→en bridge (optional, `--translate`)
+Qwen2.5-7B is weak at Bengali clinical text, and fine-tuning does not fix
+that: teaching a model a language is a continued-pretraining problem, not a
+LoRA over a few thousand consultations — and training it on 25.7%-WER
+transcripts mostly teaches confident guessing.
+
+So the SLM stops doing Bengali. IndicTrans2 (offline, 200M distilled)
+carries the **narrative**; drug and lab names never pass through translation
+at all, because the gazetteer reads the original Bengali and MT is least
+reliable exactly on transliterated brand names. The Bengali is always kept
+alongside so a reviewer can *check* the translation rather than trust it.
+
+**Off by default.** The Bengali-only prompt is the path that was actually
+verified, so the bridge is opt-in and meant to be A/B'd on the same audio.
+
 ### `voicerx/validate.py` — the safety gate
 Independent of what the SLM claims. Re-derives review flags from hard rules:
-drug not in the known list, decoder disagreement, uncertain terms, missing
-dosage, extraction failure. **The SLM's own confidence is not trusted** —
-it was observed correctly flagging one garbled term while confidently
-mis-resolving another in the same response.
+gate verdict, decoder disagreement, uncertain terms, missing dosage,
+extraction failure. **The SLM's own confidence is not trusted** — it was
+observed correctly flagging one garbled term while confidently mis-resolving
+another in the same response.
+
+> The previous check here, `drugs.is_known_drug()`, was worse than useless:
+> it tested substring containment in *both* directions, so `'a'`, `'in'`,
+> `'or'` and `'Nala'` all came back as known drugs. That is how garbage
+> reached `medications[]` wearing a verified flag. It has been deleted.
 
 ---
 

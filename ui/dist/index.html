@@ -141,13 +141,27 @@ function Rx({data}){
             <tbody>
               {data.medications.map((m,i)=>(
                 <tr key={i}>
-                  <td style={{fontWeight:600}}>{m.drug}</td>
+                  <td style={{fontWeight:600}}>
+                    {m.drug}
+                    {/* The canonical name is shown as a SUGGESTION under the
+                        text that was actually said, never in place of it -
+                        a probable match is a proposal for the reviewer, not
+                        a correction the system has made. */}
+                    {m.canonical && m.canonical!==m.drug && (
+                      <div className="muted" style={{fontWeight:400,fontSize:"0.85em"}}>
+                        {m.tier==="verified" ? "= " : "possibly "}
+                        {m.canonical}
+                        {m.indication ? ` — ${m.indication}` : ""}
+                      </div>)}
+                  </td>
                   <td>{m.dosage||<span className="muted">—</span>}</td>
                   <td>{m.frequency||<span className="muted">—</span>}</td>
                   <td>{m.duration||<span className="muted">—</span>}</td>
-                  <td>{m.verified
-                    ? <Pill kind="ok">known drug</Pill>
-                    : <Pill kind="danger">unverified</Pill>}</td>
+                  <td>{m.tier==="probable"
+                    ? <Pill kind="warn">confirm ({m.match_similarity})</Pill>
+                    : m.verified
+                      ? <Pill kind="ok">known drug</Pill>
+                      : <Pill kind="danger">unverified</Pill>}</td>
                 </tr>
               ))}
             </tbody>
@@ -161,6 +175,23 @@ function Rx({data}){
           <h3>Uncertain terms — not interpreted</h3>
           <ul className="clean bn muted">
             {data.raw_uncertain_terms.map((t,i)=><li key={i}>{t}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Shown, not hidden. These were proposed as medications and refused
+          by the gazetteer. Surfacing them is the only way a reviewer can
+          catch the gate being WRONG - a silent drop would look identical to
+          a term that was never extracted at all. */}
+      {data.rejected_terms?.length>0 && (
+        <div className="card">
+          <h3>Rejected as medications</h3>
+          <p className="muted" style={{marginTop:0,fontSize:13}}>
+            The model proposed these as drugs; the clinical gazetteer refused
+            them. Check for anything that is genuinely a medication.
+          </p>
+          <ul className="clean bn muted">
+            {data.rejected_terms.map((t,i)=><li key={i}>{t}</li>)}
           </ul>
         </div>
       )}

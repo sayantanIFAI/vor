@@ -21,7 +21,14 @@ def rx_to_dict(rx: ExtractedRx) -> dict:
 
 
 def main():
-    audio_files = sys.argv[1:] or sorted(glob.glob("*.wav"))
+    args = sys.argv[1:]
+    # --translate turns on the bn->en bridge (translate.py). Off by default:
+    # the Bengali-only path is the verified one, and the point of the flag is
+    # to A/B them on the SAME audio rather than assume the bridge is better.
+    use_translate = "--translate" in args
+    args = [a for a in args if a != "--translate"]
+
+    audio_files = args or sorted(glob.glob("*.wav"))
     if not audio_files:
         print("No audio files given and none found in cwd.")
         sys.exit(1)
@@ -29,7 +36,21 @@ def main():
     print(f"Processing {len(audio_files)} file(s): {audio_files}", flush=True)
     print("Loading models (ASR + VAD)...", flush=True)
     t0 = time.time()
-    pipeline = VoiceToRxPipeline()
+
+    translator = None
+    if use_translate:
+        from voicerx.translate import Translator
+        translator = Translator()
+        if translator.load():
+            print("  bn->en bridge ENABLED", flush=True)
+        else:
+            # Loud, not silent: a run that quietly fell back to Bengali
+            # would be scored as if the bridge had been tested.
+            print(f"  WARNING: bridge requested but unavailable "
+                  f"({translator.load_error}) - running Bengali-only",
+                  flush=True)
+
+    pipeline = VoiceToRxPipeline(translator=translator)
     print(f"models loaded in {time.time()-t0:.1f}s", flush=True)
 
     summary = {
