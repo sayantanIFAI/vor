@@ -87,6 +87,33 @@ def top_molecules(n: int) -> list[str]:
     return out
 
 
+def _write(dest, molecules, discovered, dropped) -> None:
+    with open(dest, "w", encoding="utf-8") as out:
+        out.write('"""AUTO-GENERATED - do not edit by hand.\n\n')
+        out.write("Regenerate with:\n")
+        out.write("    python3 tools/discover_bengali_forms.py 300 "
+                  "voicerx/forms_discovered.py\n\n")
+        out.write("Bengali spellings the ASR ACTUALLY produces for each drug\n")
+        out.write("name, obtained by speaking the name with Indic Parler-TTS and\n")
+        out.write("transcribing it with the same IndicConformer the pipeline uses.\n")
+        out.write("Correct by construction: these are the model's own outputs, not\n")
+        out.write("a transliterator's guess at how the name ought to be spelled.\n\n")
+        out.write("MACHINE-DISCOVERED, NOT CLINICALLY REVIEWED.\n\n")
+        out.write(f"molecules probed        : {len(molecules)}\n")
+        out.write(f"molecules with forms    : {len(discovered)}\n")
+        out.write(f"total surface forms     : {sum(len(v) for v in discovered.values())}\n")
+        out.write(f"dropped for collisions  : {len(dropped)}\n\n")
+        out.write("dropped (each would have made a real drug resolve wrongly):\n")
+        for m, f, why in dropped[:40]:
+            out.write(f"    {m} -> {f} : {why}\n")
+        out.write('"""\n\n')
+        out.write("DISCOVERED_FORMS: dict[str, tuple[str, ...]] = {\n")
+        for m in sorted(discovered):
+            forms = ", ".join(f'"{f}"' for f in sorted(discovered[m]))
+            out.write(f'    "{m}": ({forms},),\n')
+        out.write("}\n")
+
+
 def main() -> None:
     import torch
     from transformers import AutoTokenizer
@@ -116,6 +143,13 @@ def main() -> None:
     discovered: dict[str, set[str]] = {}
     dropped: list[tuple[str, str, str]] = []
 
+    # Written after EVERY molecule, not at the end. Two earlier runs died
+    # around molecule 25 and discarded everything, because the file was
+    # only produced on clean exit. Probing is expensive; losing it to a
+    # crash is inexcusable.
+    def flush() -> None:
+        _write(dest, molecules, discovered, dropped)
+
     for i, molecule in enumerate(molecules, 1):
         forms: set[str] = set()
         for voice in VOICES:
@@ -136,7 +170,17 @@ def main() -> None:
                     if t and len(t) >= 3:
                         forms.add(t)
             except Exception as exc:                    # noqa: BLE001
-                print(f"  [{i}] {molecule}: TTS/ASR failed: {exc}", flush=True)
+                # A CUDA error leaves the context unusable, and every later
+                # call then dies WITHOUT a traceback - which is how two runs
+                # vanished mid-transcription with no error recorded. Clear
+                # the cache and carry on; if the context is truly gone the
+                # next molecule fails loudly rather than silently.
+                print(f"  [{i}] {molecule}: TTS/ASR failed: "
+                      f"{type(exc).__name__}: {exc}", flush=True)
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
 
         keep = set()
         for f in forms:
@@ -160,34 +204,11 @@ def main() -> None:
 
         if keep:
             discovered[molecule] = keep
+        flush()
         if i % 25 == 0:
             print(f"  ...{i}/{len(molecules)}  kept={len(discovered)}", flush=True)
 
-    with open(dest, "w", encoding="utf-8") as out:
-        out.write('"""AUTO-GENERATED - do not edit by hand.\n\n')
-        out.write("Regenerate with:\n")
-        out.write("    python3 tools/discover_bengali_forms.py 300 "
-                  "voicerx/forms_discovered.py\n\n")
-        out.write("Bengali spellings the ASR ACTUALLY produces for each drug\n")
-        out.write("name, obtained by speaking the name with Indic Parler-TTS and\n")
-        out.write("transcribing it with the same IndicConformer the pipeline uses.\n")
-        out.write("Correct by construction: these are the model's own outputs, not\n")
-        out.write("a transliterator's guess at how the name ought to be spelled.\n\n")
-        out.write("MACHINE-DISCOVERED, NOT CLINICALLY REVIEWED.\n\n")
-        out.write(f"molecules probed        : {len(molecules)}\n")
-        out.write(f"molecules with forms    : {len(discovered)}\n")
-        out.write(f"total surface forms     : {sum(len(v) for v in discovered.values())}\n")
-        out.write(f"dropped for collisions  : {len(dropped)}\n\n")
-        out.write("dropped (each would have made a real drug resolve wrongly):\n")
-        for m, f, why in dropped[:40]:
-            out.write(f"    {m} -> {f} : {why}\n")
-        out.write('"""\n\n')
-        out.write("DISCOVERED_FORMS: dict[str, tuple[str, ...]] = {\n")
-        for m in sorted(discovered):
-            forms = ", ".join(f'"{f}"' for f in sorted(discovered[m]))
-            out.write(f'    "{m}": ({forms},),\n')
-        out.write("}\n")
-
+    flush()
     print(f"DONE probed={len(molecules)} kept={len(discovered)} "
           f"forms={sum(len(v) for v in discovered.values())} dropped={len(dropped)}",
           flush=True)

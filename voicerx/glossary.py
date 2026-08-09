@@ -35,7 +35,7 @@ class Drug:
     brands: tuple[str, ...] = ()  # common Indian brand names
     bengali: tuple[str, ...] = () # transliterations the ASR actually emits
     indication: str = ""          # what it treats - shown to the reviewer
-    department: str = "general"
+    department: str = "general"   #
 
 
 # ---------------------------------------------------------------------------
@@ -44,48 +44,64 @@ class Drug:
 CARDIAC = [
     Drug("Nitroglycerin", ("Nitrocontin", "Sorbitrate", "Angispan"),
          ("নাইট্রোকন্টিন", "নাইট্রোগ্লিসারিন", "সরবিট্রেট"),
-         "angina / severe chest pain", "cardiac"),
+         "angina / severe chest pain", "cardiac"), #
     Drug("Aspirin", ("Ecosprin", "Ecospirin", "Disprin"),
          ("ইকোস্পিরিন", "একোস্পিরিন", "অ্যাসপিরিন"),
-         "antiplatelet / blood thinner", "cardiac"),
+         "antiplatelet / blood thinner", "cardiac"), #
     Drug("Clopidogrel", ("Plavix", "Clopilet", "Deplatt"),
          ("ক্লোপিডোগ্রেল", "ক্লোপিলেট"),
+         "antiplatelet", "cardiac"), #
+    Drug("Ticagrelor", ("Brilinta", "Axcer"),
+         ("টিকাগ্রেলর", "ব্রিলিন্টা"),
          "antiplatelet", "cardiac"),
     Drug("Atorvastatin", ("Atorva", "Lipitor", "Storvas"),
          ("অ্যাটোরভাস্ট্যাটিন", "এটোরভা"),
-         "cholesterol / statin", "cardiac"),
-    Drug("Rosuvastatin", ("Rosuvas", "Crestor"),
+         "cholesterol / statin", "cardiac"), #
+    Drug("Rosuvastatin", ("Rosuvas", "Crestor", "Rozavel"),
          ("রোসুভাস্ট্যাটিন", "রোসুভাস", "রসু ভাস্টাটিন", "রসুভাস্টাটিন",
-          "রোসু ভাস্ট্যাটিন", "ভাস্টাটিন"),
-         "cholesterol / statin", "cardiac"),
+          "রোসু ভাস্ট্যাটিন", "ভাস্টাটিন", "রোজ়াভেল"),
+         "cholesterol / statin", "cardiac"), #
     Drug("Amlodipine", ("Amlopres", "Amlokind", "Stamlo"),
          ("অ্যামলোডিপিন", "অ্যামলোপ্রেস"),
-         "hypertension", "cardiac"),
-    Drug("Telmisartan", ("Telma", "Telsartan"),
+         "hypertension", "cardiac"), #
+    Drug("Cilnidipine", ("Cilacar", "Cilnid"),
+         ("সিলনিডিপিন", "সিলাকার"),
+         "hypertension / calcium channel blocker", "cardiac"),
+    Drug("Telmisartan", ("Telma", "Telsartan", "Tsart"),
          ("টেলমিসারটান", "টেলমা"),
-         "hypertension", "cardiac"),
+         "hypertension", "cardiac"), #
+    # FDC ENHANCEMENT: Explicit combinations to prevent ASR split drop-offs
+    Drug("Telmisartan+Amlodipine", ("Telma-AM", "Telsartan-AM", "Creser-AM"),
+         ("টেলমা এ এম", "টেলমিসারটান অ্যামলোডিপিন", "টেলমিসারটান আর অ্যামলোডিপিন"),
+         "hypertension / FDC", "cardiac"),
+    Drug("Sacubitril/Valsartan", ("Cidmus", "Vymada"),
+         ("ভায়মাডা", "সিডমাস", "স্যাকুবিট্রিল", "স্যাকুবিট্রিল ভালসারটান"),
+         "heart failure / ARNI", "cardiac"),
     Drug("Metoprolol", ("Metolar", "Betaloc", "Metoprolol Succinate"),
          ("মেটোপ্রোলল", "মেটোলার", "মেটো প্রোল", "মেটোপ্রোল",
           "মেটো প্রোলল", "মেটোপ্রোল সাক্সিনেট"),
-         "beta blocker", "cardiac"),
+         "beta blocker", "cardiac"), #
     Drug("Bisoprolol", ("Concor", "Bisolol"),
          ("বিসোপ্রোলল", "কনকর"),
-         "beta blocker", "cardiac"),
+         "beta blocker", "cardiac"), #
     Drug("Ramipril", ("Cardace", "Ramistar"),
          ("রামিপ্রিল", "কার্ডেস"),
-         "ACE inhibitor / hypertension", "cardiac"),
-    Drug("Torsemide", ("Dytor", "Dytor Plus"),
+         "ACE inhibitor / hypertension", "cardiac"), #
+    Drug("Torsemide", ("Dytor", "Dytor Plus", "Tide"),
          ("ডাইটর", "টরসেমাইড", "ডায়টর"),
-         "diuretic / fluid retention", "cardiac"),
+         "diuretic / fluid retention", "cardiac"), #
     Drug("Furosemide", ("Lasix", "Frusenex"),
          ("ফুরোসেমাইড", "ল্যাসিক্স"),
-         "diuretic", "cardiac"),
+         "diuretic", "cardiac"), #
     Drug("Spironolactone", ("Aldactone",),
          ("স্পাইরোনোল্যাকটোন", "অ্যালড্যাকটোন"),
-         "diuretic", "cardiac"),
+         "diuretic / heart failure", "cardiac"), #
     Drug("Isosorbide mononitrate", ("Monotrate", "Ismo"),
          ("আইসোসরবাইড", "মোনোট্রেট"),
-         "angina prophylaxis", "cardiac"),
+         "angina prophylaxis", "cardiac"), #
+    Drug("Ivabradine", ("Ivabrad", "Bradia"),
+         ("ইভাগ্রাডিন", "ইভাব্রাডিন"),
+         "heart failure / angina", "cardiac"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -94,36 +110,52 @@ CARDIAC = [
 ENDOCRINE = [
     Drug("Semaglutide", ("Rybelsus", "Ozempic"),
          ("রাইবেলসাস", "সেমাগ্লুটাইড", "রাইবেলসাস"),
-         "oral GLP-1 / type 2 diabetes", "endocrine"),
+         "oral GLP-1 / type 2 diabetes", "endocrine"), #
     Drug("Metformin", ("Glycomet", "Glucophage", "Okamet"),
          ("মেটফরমিন", "গ্লাইকোমেট", "মেট ফর্মিন", "মেটফর্মিন", "ফর্মিন"),
-         "type 2 diabetes, first line", "endocrine"),
-    Drug("Glimepiride", ("Amaryl", "Glimestar"),
-         ("গ্লিমিপিরাইড", "অ্যামারিল"),
-         "sulfonylurea / diabetes", "endocrine"),
-    Drug("Gliclazide", ("Diamicron", "Glizid"),
+         "type 2 diabetes, first line", "endocrine"), #
+    Drug("Glimepiride", ("Amaryl", "Glimestar", "Zoryl"),
+         ("গ্লিমিপিরাইড", "অ্যামারিল", "গ্লিমেপিরাইড"),
+         "sulfonylurea / diabetes", "endocrine"), #
+    # FDC ENHANCEMENT
+    Drug("Glimepiride+Metformin", ("Amaryl M", "Glycomet GP", "Glimestar M"),
+         ("গ্লিমিপিরাইড মেটফরমিন", "অ্যামারিল এম", "গ্লাইকোমেট জিপি"),
+         "diabetes FDC", "endocrine"),
+    Drug("Gliclazide", ("Diamicron", "Glizid", "Reclimet"),
          ("গ্লিক্লাজাইড", "ডায়ামিক্রন"),
-         "sulfonylurea / diabetes", "endocrine"),
+         "sulfonylurea / diabetes", "endocrine"), #
     Drug("Sitagliptin", ("Januvia", "Istavel"),
          ("সিটাগ্লিপটিন", "জানুভিয়া"),
+         "DPP-4 inhibitor / diabetes", "endocrine"), #
+    Drug("Teneligliptin", ("Zita Plus", "Tenepride", "Tenglyn"),
+         ("টেনেগ্লিপটিন", "জিতা প্লাস"),
          "DPP-4 inhibitor / diabetes", "endocrine"),
-    Drug("Dapagliflozin", ("Forxiga", "Dapa"),
-         ("ড্যাপাগ্লিফ্লোজিন", "ফরজিগা"),
+    Drug("Linagliptin", ("Trajenta", "Linox"),
+         ("লিনাগ্লিপটিন", "ট্রাজেন্টা"),
+         "DPP-4 inhibitor / diabetes", "endocrine"),
+    Drug("Dapagliflozin", ("Forxiga", "Dapa", "Oxra"),
+         ("ড্যাপাগ্লিফ্লোজিন", "ফরজিগা", "ডাপা"),
+         "SGLT2 inhibitor / diabetes", "endocrine"), #
+    Drug("Empagliflozin", ("Jardiance", "Gibtulio"),
+         ("এম্পাগ্লিফ্লোজিন", "জার্ডিয়ান্স"),
          "SGLT2 inhibitor / diabetes", "endocrine"),
     Drug("Insulin degludec/aspart", ("Ryzodeg",),
-         ("রাইজোডেগ", "রাইজোডেগ ইনসুলিন"),
-         "combination insulin", "endocrine"),
+         ("রাইজোডেগ", "রাইজোডেগ ইনসুলিন", "ইনসুলিন ডিগ্লুডেক অ্যাসপার্ট"),
+         "combination insulin", "endocrine"), #
     Drug("Insulin glargine", ("Lantus", "Basalog", "Glaritus"),
-         ("ল্যান্টাস", "ইনসুলিন গ্লার্জিন"),
-         "long-acting insulin", "endocrine"),
+         ("ল্যান্টাস", "ইনসুলিন গ্লার্জিন", "ব্যাসালগ"),
+         "long-acting insulin", "endocrine"), #
     Drug("Human insulin", ("Huminsulin", "Actrapid", "Mixtard"),
          ("ইনসুলিন", "হিউমিনসুলিন", "মিক্সটার্ড"),
-         "insulin", "endocrine"),
+         "insulin", "endocrine"), #
     Drug("Levothyroxine", ("Thyronorm", "Eltroxin", "Thyrox"),
          ("থাইরোনর্ম", "থাইরক্স", "লেভোথাইরক্সিন", "এলট্রক্সিন"),
-         "hypothyroidism", "endocrine"),
+         "hypothyroidism", "endocrine"), #
+    Drug("Carbimazole", ("Neo-Mercazole", "Thyrocab"),
+         ("কার্বিমাজোল", "নিও মার্কাজোল"),
+         "hyperthyroidism", "endocrine"),
     Drug("Voglibose", ("Volix", "Vogs"),
-         ("ভোগলিবোস",), "diabetes", "endocrine"),
+         ("ভোগলিবোস", "ভোলিক্স"), "diabetes", "endocrine"), #
 ]
 
 # ---------------------------------------------------------------------------
@@ -131,74 +163,108 @@ ENDOCRINE = [
 # ---------------------------------------------------------------------------
 RESPIRATORY = [
     Drug("Salbutamol", ("Asthalin", "Ventolin", "Levolin"),
-         ("সালবুটামল", "অ্যাসথালিন", "ভেন্টোলিন"),
-         "bronchodilator / nebulisation", "respiratory"),
+         ("সালবুটামল", "অ্যাসথালিন", "ভেন্টোলিন", "লেভোলিন"),
+         "bronchodilator / nebulisation", "respiratory"), #
     Drug("Budesonide", ("Budecort", "Pulmicort"),
          ("বুডেসোনাইড", "বুডেকর্ট"),
-         "inhaled steroid", "respiratory"),
+         "inhaled steroid", "respiratory"), #
+    # FDC ENHANCEMENT
+    Drug("Formoterol+Budesonide", ("Foracort", "Budamate"),
+         ("ফোরকোর্ট", "বুডামেট", "ফরমোটেরল বুডেসোনাইড", "ফরমোটেরল এবং বুডেসোনাইড"),
+         "ICS+LABA / asthma / COPD", "respiratory"),
     Drug("Ipratropium", ("Duolin", "Ipravent"),
          ("আইপ্রাট্রোপিয়াম", "ডুওলিন"),
-         "bronchodilator", "respiratory"),
-    Drug("Montelukast", ("Montair", "Montek", "Monticope"),
+         "bronchodilator", "respiratory"), #
+    Drug("Tiotropium", ("Tiova", "Tiotrop"),
+         ("টিওট্রোপিয়াম", "টিওভা"),
+         "LAMA / COPD", "respiratory"),
+    Drug("Montelukast", ("Montair", "Montek"),
          ("মন্টিকুলাষ্ট", "মন্টিকুলাস", "মন্টেয়ার", "মন্টেক"),
-         "asthma / allergic rhinitis", "respiratory"),
+         "asthma / allergic rhinitis", "respiratory"), #
+    # FDC ENHANCEMENT
+    Drug("Montelukast+Levocetirizine", ("Montair LC", "Montek LC", "Monticope"),
+         ("মন্টেয়ার এল সি", "মন্টেক এল সি", "মন্টিকোপ", "মন্টিকুলাষ্ট লেভোসেট্রিজিন", "মন্টিকুলাষ্ট আর লেভোসেট্রিজিন"),
+         "asthma / severe allergic rhinitis", "respiratory"),
     Drug("Ambroxol", ("Ambrodil", "Mucolite"),
          ("অ্যামব্রক্সল", "অ্যামব্রোডিল"),
-         "mucolytic / cough", "respiratory"),
+         "mucolytic / cough", "respiratory"), #
     Drug("Ascoril", ("Ascoril LS", "Ascoril D"),
          ("এস্কোরিল", "আস্কোরিল", "অ্যাসকোরিল"),
-         "cough syrup (combination)", "respiratory"),
+         "cough syrup (combination)", "respiratory"), #
     Drug("Levocetirizine", ("Levocet", "Xyzal"),
          ("লেভোসেটিরিজিন", "লেভোসেট"),
-         "antihistamine", "respiratory"),
+         "antihistamine", "respiratory"), #
     Drug("Cetirizine", ("Cetzine", "Alerid"),
          ("সেটিরিজিন", "সেটজিন"),
-         "antihistamine", "respiratory"),
-    Drug("Fexofenadine", ("Allegra", "Fexova"),
+         "antihistamine", "respiratory"), #
+    Drug("Fexofenadine", ("Allegra", "Fexova", "Altiva"),
          ("ফেক্সোফেনাডিন", "অ্যালেগ্রা"),
-         "antihistamine", "respiratory"),
+         "antihistamine", "respiratory"), #
     Drug("Deriphyllin", ("Deriphyllin",),
-         ("ডেরিফাইলিন",), "bronchodilator", "respiratory"),
+         ("ডেরিফাইলিন",), "bronchodilator", "respiratory"), #
+    Drug("Doxofylline", ("Doxovent", "Doxiflo"),
+         ("ডক্সোফাইলিন", "ডক্সোভেন্ট"), "bronchodilator", "respiratory"),
 ]
 
 # ---------------------------------------------------------------------------
 # GASTROINTESTINAL
 # ---------------------------------------------------------------------------
 GI = [
-    Drug("Norfloxacin+Tinidazole", ("Norflox-TZ", "Norflox TZ", "Normet"),
-         ("নরফ্লক্স টি জেড", "নরফ্লক্স", "নলাক্স", "নরফ্লক্স-টিজেড"),
-         "infective diarrhoea", "gastro"),
-    Drug("Pantoprazole", ("Pantocid", "Pan-D", "Pantop"),
-         ("প্যান্টোপ্রাজল", "প্যানটোসিড", "প্যান ডি"),
-         "acidity / PPI", "gastro"),
+    # FDC ENHANCEMENT
+    Drug("Norfloxacin+Tinidazole", ("Norflox-TZ", "Normet"),
+         ("নরফ্লক্স টি জেড", "নরফ্লক্স-টিজেড", "নরফ্লক্সাসিন টিনিডাজোল", "নরফ্লক্সাসিন এবং টিনিডাজোল"),
+         "infective diarrhoea", "gastro"), #
+    Drug("Pantoprazole", ("Pantocid", "Pantop"),
+         ("প্যান্টোপ্রাজল", "প্যানটোসিড", "প্যান্টপ"),
+         "acidity / PPI", "gastro"), #
+    # FDC ENHANCEMENT
+    Drug("Pantoprazole+Domperidone", ("Pan-D", "Pantocid DSR"),
+         ("প্যান ডি", "প্যানটোসিড ডিএসআর", "প্যান্টোপ্রাজল ডমপেরিডন"),
+         "GERD / acidity", "gastro"),
     Drug("Omeprazole", ("Omez", "Ocid"),
          ("ওমিপ্রাজল", "ওমেজ"),
-         "acidity / PPI", "gastro"),
-    Drug("Rabeprazole", ("Razo", "Rabekind"),
-         ("র‍্যাবিপ্রাজল", "রাজো"),
+         "acidity / PPI", "gastro"), #
+    Drug("Rabeprazole", ("Razo", "Rabekind", "Veloz"),
+         ("র‍্যাবিপ্রাজল", "রাজো", "রাবেপ্রাজল"),
+         "acidity / PPI", "gastro"), #
+    Drug("Esomeprazole", ("Nexpro", "Sompraz", "Esomac"),
+         ("ইসোমিপ্রাজোল", "নেক্সপ্রো", "সমপ্রাজ"),
          "acidity / PPI", "gastro"),
     Drug("Domperidone", ("Domstal", "Vomistop"),
          ("ডমপেরিডন", "ডমস্টাল"),
-         "nausea / vomiting", "gastro"),
+         "nausea / vomiting", "gastro"), #
+    Drug("Itopride", ("Itomac", "Ganaton"),
+         ("ইটোপ্রাইড", "ইটম্যাক"),
+         "prokinetic / dyspepsia", "gastro"),
+    Drug("Levosulpiride", ("Nexpro L", "Lesuride"),
+         ("লেভোসালপিরাইড", "লেসুরাইড"),
+         "prokinetic / GERD", "gastro"),
     Drug("Ondansetron", ("Emeset", "Vomikind", "Zofer"),
          ("অনডানসেট্রন", "ইমিসেট"),
-         "antiemetic", "gastro"),
+         "antiemetic", "gastro"), #
     Drug("Metronidazole", ("Flagyl", "Metrogyl"),
          ("মেট্রোনিডাজল", "মেট্রোজিল", "ফ্ল্যাজিল"),
-         "anaerobic / amoebic infection", "gastro"),
-    Drug("Ofloxacin+Ornidazole", ("O2", "Oflomac-OZ"),
-         ("অফ্লক্সাসিন", "ওফ্লোম্যাক"),
-         "diarrhoea / infection", "gastro"),
+         "anaerobic / amoebic infection", "gastro"), #
+    # FDC ENHANCEMENT
+    Drug("Ofloxacin+Ornidazole", ("O2", "Oflomac-OZ", "Zenflox-OZ"),
+         ("অফ্লক্সাসিন অর্নিডাজোল", "ওফ্লোম্যাক ওজেড", "ও টু", "অফ্লক্সাসিন এবং অর্নিডাজোল"),
+         "diarrhoea / infection", "gastro"), #
     Drug("Racecadotril", ("Redotil", "Zedott"),
-         ("রেসিকাডোট্রিল",), "acute diarrhoea", "gastro"),
+         ("রেসিকাডোট্রিল", "রেডোটিল"), "acute diarrhoea", "gastro"), #
     Drug("Sucralfate", ("Sucral", "Sucrafil"),
-         ("সুক্রালফেট",), "gastric ulcer", "gastro"),
+         ("সুক্রালফেট", "সুক্রাফিল"), "gastric ulcer", "gastro"), #
     Drug("Dicyclomine", ("Cyclopam", "Meftal-Spas"),
-         ("ডাইসাইক্লোমিন", "সাইক্লোপাম"),
-         "abdominal cramps", "gastro"),
+         ("ডাইসাইক্লোমিন", "সাইক্লোপাম", "মেফটাল স্পাস"),
+         "abdominal cramps", "gastro"), #
+    Drug("Mebeverine", ("Colospa", "Morease"),
+         ("মেবেভেরিন", "কোলোস্পা"),
+         "IBS / antispasmodic", "gastro"),
     Drug("Lactulose", ("Duphalac", "Looz"),
          ("ল্যাকটুলোজ", "ডুফালাক"),
-         "constipation", "gastro"),
+         "constipation", "gastro"), #
+    Drug("Ursodeoxycholic acid", ("Udapa", "Udiliv", "Ursocol"),
+         ("ইউডিসিএ", "আরসোডিঅক্সিকোলিক", "উডিলিভ"),
+         "gallstones / liver disease", "gastro"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -207,76 +273,100 @@ GI = [
 GENERAL = [
     Drug("Paracetamol", ("Crocin", "Dolo", "Calpol", "Pyrigesic"),
          ("প্যারাসিটামল", "প্যারাসিটাম", "ক্রোসিন", "ডোলো", "কালপল"),
-         "fever / pain", "general"),
+         "fever / pain", "general"), #
     Drug("Ibuprofen", ("Brufen", "Combiflam"),
          ("আইবুপ্রোফেন", "ব্রুফেন", "কম্বিফ্লাম"),
-         "pain / inflammation", "general"),
+         "pain / inflammation", "general"), #
     Drug("Diclofenac", ("Voveran", "Volini"),
          ("ডাইক্লোফেনাক", "ভোভেরান"),
-         "pain / inflammation", "general"),
+         "pain / inflammation", "general"), #
     Drug("Aceclofenac", ("Zerodol", "Hifenac"),
-         ("এসিক্লোফেনাক", "জেরোডল"),
+         ("এসিক্লোফেনাক", "জেরোডল", "অ্যাসেক্লোফেনাক"),
+         "pain / inflammation", "general"), #
+    # FDC ENHANCEMENT
+    Drug("Aceclofenac+Paracetamol", ("Zerodol-P", "Hifenac-P", "Aldigesic-P"), 
+         ("জেরোডল পি", "অ্যাসিক্লোফেনাক প্যারাসিটামল", "অ্যাসিক্লোফেনাক এবং প্যারাসিটামল"), 
+         "pain / fever", "general"),
+    Drug("Nimesulide", ("Nise", "Nimulid"),
+         ("নিমেসুলাইড", "নাইস"),
          "pain / inflammation", "general"),
+    Drug("Etoricoxib", ("Nucoxia", "Etoshine"),
+         ("ইটোরিকক্সিব", "নুকক্সিয়া", "ইটোশাইন"),
+         "NSAID / pain", "general"),
+    # FDC ENHANCEMENT
     Drug("Amoxicillin+Clavulanate", ("Augmentin", "Clavam", "Moxikind-CV"),
-         ("ক্ল্যাভাম", "ক্লাব", "অগমেন্টিন", "অ্যামোক্সিক্লাভ"),
-         "broad-spectrum antibiotic", "general"),
+         ("ক্ল্যাভাম", "ক্লাব", "অগমেন্টিন", "অ্যামোক্সিক্লাভ", "মক্সিকাইন্ড সি ভি", "অ্যামোক্সিসিলিন ক্ল্যাভুলানেট", "অ্যামোক্সিসিলিন পটাশিয়াম ক্ল্যাভুলানেট"),
+         "broad-spectrum antibiotic", "general"), #
     Drug("Amoxicillin", ("Mox", "Novamox"),
          ("অ্যামোক্সিসিলিন", "মক্স"),
-         "antibiotic", "general"),
+         "antibiotic", "general"), #
     Drug("Azithromycin", ("Azithral", "Azee", "Zithromax"),
-         ("অ্যাজিথ্রোমাইসিন", "অ্যাজিথ্রাল"),
-         "antibiotic", "general"),
+         ("অ্যাজিথ্রোমাইসিন", "অ্যাজিথ্রাল", "অ্যাজি"),
+         "antibiotic", "general"), #
     Drug("Cefixime", ("Taxim-O", "Zifi", "Mahacef"),
          ("সেফিক্সিম", "ট্যাক্সিম ও", "জিফি"),
+         "antibiotic", "general"), #
+    Drug("Cefpodoxime", ("Monocef-O", "Gudcef", "Macpod"),
+         ("সেফপোডক্সিম", "মনোসেফ ও", "গুডসেফ"),
          "antibiotic", "general"),
     Drug("Ciprofloxacin", ("Ciplox", "Cifran"),
          ("সিপ্রোফ্লক্সাসিন", "সিপ্লক্স"),
-         "antibiotic", "general"),
-    Drug("Levofloxacin", ("Levoflox", "Levotas"),
+         "antibiotic", "general"), #
+    Drug("Levofloxacin", ("Levoflox", "Levotas", "Loxof"),
          ("লেভোফ্লক্সাসিন", "লেভোফ্লক্স"),
+         "antibiotic", "general"), #
+    Drug("Linezolid", ("Lizolid", "Linid"),
+         ("লিনেজোলিড", "লিঞ্জোলিড"),
          "antibiotic", "general"),
     Drug("Doxycycline", ("Doxt", "Doxy-1"),
-         ("ডক্সিসাইক্লিন",), "antibiotic", "general"),
+         ("ডক্সিসাইক্লিন", "ডক্সি"), "antibiotic", "general"), #
     Drug("Diazepam", ("Valium", "Calmpose"),
          ("ভ্যালিয়াম", "ভ্যালুম", "ডায়াজেপাম"),
-         "anxiolytic / sedative", "general"),
+         "anxiolytic / sedative", "general"), #
     Drug("Alprazolam", ("Alprax", "Restyl"),
          ("অ্যালপ্রাজোলাম", "অ্যালপ্র্যাক্স"),
-         "anxiolytic", "general"),
+         "anxiolytic", "general"), #
     Drug("Prednisolone", ("Omnacortil", "Wysolone"),
-         ("প্রেডনিসোলন", "ওমনাকর্টিল"),
+         ("প্রেডনিসোলন", "ওমনাকর্টিল", "ওয়াইসোলন"),
+         "steroid", "general"), #
+    Drug("Methylprednisolone", ("Medrol", "Macpred"),
+         ("মিথাইলপ্রেডনিসোলন", "মেড্রোল"),
          "steroid", "general"),
     Drug("Vitamin B complex", ("Becosules", "Neurobion"),
          ("বিকোসুলস", "নিউরোবিন", "ভিটামিন বি"),
-         "supplement", "general"),
+         "supplement", "general"), #
     Drug("Vitamin D3", ("Calcirol", "Uprise-D3"),
-         ("ভিটামিন ডি", "ক্যালসিরল"),
-         "supplement", "general"),
+         ("ভিটামিন ডি", "ক্যালসিরল", "আপরাইজ ডি থ্রি"),
+         "supplement", "general"), #
     Drug("Calcium carbonate", ("Shelcal", "Calcimax"),
          ("শেলক্যাল", "ক্যালসিয়াম"),
-         "supplement", "general"),
+         "supplement", "general"), #
     # The bare "ফলিক অ্যাসিড" belongs to Folic acid alone. Sharing it here
     # meant one spoken phrase resolved to two different products, which the
     # strengthened collisions() check caught.
     Drug("Iron/Folic acid", ("Autrin", "Fefol", "Orofer"),
-         ("আয়রন", "আয়রন ফলিক অ্যাসিড", "আয়রন ট্যাবলেট"),
-         "supplement / anaemia", "general"),
-    Drug("Multivitamin", ("Zincovit", "A to Z"),
-         ("জিঙ্কোভিট", "মাল্টিভিটামিন"),
-         "supplement", "general"),
+         ("আয়রন", "আয়রন ফলিক অ্যাসিড", "আয়রন ট্যাবলেট", "ওরোফার", "আয়রন এবং ফলিক অ্যাসিড"),
+         "supplement / anaemia", "general"), #
+    Drug("Multivitamin", ("Zincovit", "A to Z", "Supradyn"),
+         ("জিঙ্কোভিট", "মাল্টিভিটামিন", "সুপ্রাডিন"),
+         "supplement", "general"), #
 ]
 
 # ---------------------------------------------------------------------------
 # UROLOGY / PROSTATE
 # ---------------------------------------------------------------------------
 UROLOGY = [
-    Drug("Tamsulosin", ("Urimax", "Veltam"),
-         ("ট্যামসুলোসিন", "ইউরিম্যাক্স"),
-         "prostate / BPH", "urology"),
+    Drug("Tamsulosin", ("Urimax", "Veltam", "Contiflo"),
+         ("ট্যামসুলোসিন", "ইউরিম্যাক্স", "কন্টিফ্লো"),
+         "prostate / BPH", "urology"), #
     Drug("Finasteride", ("Finast", "Fincar"),
-         ("ফিনাস্টেরাইড",), "prostate / BPH", "urology"),
+         ("ফিনাস্টেরাইড", "ফিনাস্ট"), "prostate / BPH", "urology"), #
+    Drug("Dutasteride", ("Dutas", "Veltride"),
+         ("ডুটাস্টেরাইড", "দুতাস"), "prostate / BPH", "urology"),
     Drug("Nitrofurantoin", ("Niftran", "Martifur"),
-         ("নাইট্রোফুরানটোইন",), "urinary tract infection", "urology"),
+         ("নাইট্রোফুরানটোইন", "নিফট্রান"), "urinary tract infection", "urology"), #
+    Drug("Silodosin", ("Silodal", "Rapilif"),
+         ("সিলোডোসিন", "সিলোডাল"), "BPH / enlarged prostate", "urology"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -290,26 +380,26 @@ UROLOGY = [
 # ---------------------------------------------------------------------------
 BONE = [
     Drug("Alendronate", ("Fosamax", "Osteofos", "Restofos", "Alendra"),
-         ("অ্যালেনড্রোনেট", "অ্যালেন্ড্রোনেট", "ফোসাম্যাক্স"),
-         "bisphosphonate / osteoporosis", "bone"),
+         ("অ্যালেনড্রোনেট", "অ্যালেন্ড্রোনেট", "ফোসাম্যাক্স", "অস্টিওফস"),
+         "bisphosphonate / osteoporosis", "bone"), #
     Drug("Risedronate", ("Actonel", "Risofos"),
-         ("রাইসেড্রোনেট",), "bisphosphonate / osteoporosis", "bone"),
+         ("রাইসেড্রোনেট",), "bisphosphonate / osteoporosis", "bone"), #
     Drug("Zoledronic acid", ("Zoldria", "Aclasta", "Zybone"),
-         ("জোলেড্রনিক অ্যাসিড", "জোলেড্রোনিক"),
-         "IV bisphosphonate, yearly", "bone"),
+         ("জোলেড্রনিক অ্যাসিড", "জোলেড্রোনিক", "জোলড্রিয়া"),
+         "IV bisphosphonate, yearly", "bone"), #
     Drug("Teriparatide", ("Forteo", "Bonista"),
-         ("টেরিপ্যারাটাইড",), "anabolic / severe osteoporosis", "bone"),
+         ("টেরিপ্যারাটাইড",), "anabolic / severe osteoporosis", "bone"), #
     Drug("Denosumab", ("Prolia", "Xgeva"),
-         ("ডেনোসুম্যাব",), "RANKL inhibitor / osteoporosis", "bone"),
+         ("ডেনোসুম্যাব",), "RANKL inhibitor / osteoporosis", "bone"), #
     # Calcirol is CHOLECALCIFEROL, not calcitriol - three entries claimed
     # that brand and the strengthened collision check caught it.
     Drug("Calcitriol", ("Rocaltrol", "Calcijunc"),
-         ("ক্যালসিট্রায়ল",), "active vitamin D", "bone"),
-    Drug("Etoricoxib", ("Etoshine", "Nucoxia"),
-         ("ইটোরিকক্সিব", "ইটোশাইন"), "NSAID / joint pain", "bone"),
+         ("ক্যালসিট্রায়ল",), "active vitamin D", "bone"), #
     Drug("Methylcobalamin", ("Nurokind", "Meconerv"),
          ("মিথাইলকোবালামিন", "নিউরোকাইন্ড"),
-         "neuropathy / B12", "bone"),
+         "neuropathy / B12", "bone"), #
+    Drug("Pregabalin", ("Pregabid", "Maxgalin"),
+         ("প্রিগাবালিন", "প্রেগাবালিন"), "nerve pain", "bone"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -317,29 +407,39 @@ BONE = [
 # ---------------------------------------------------------------------------
 DERMATOLOGY = [
     Drug("Clotrimazole", ("Candid", "Canesten", "Clop-G"),
-         ("ক্লোট্রিমাজল", "ক্যান্ডিড"), "antifungal cream", "dermatology"),
+         ("ক্লোট্রিমাজল", "ক্যান্ডিড", "ক্লোট্রিমাজোল"), "antifungal cream", "dermatology"), #
     Drug("Ketoconazole", ("Nizral", "Ketostar"),
-         ("কিটোকোনাজল", "নিজরাল"), "antifungal", "dermatology"),
+         ("কিটোকোনাজল", "নিজরাল", "কেটোকোনাজোল"), "antifungal", "dermatology"), #
+    Drug("Itraconazole", ("Itramac", "Canditral", "Sporanox"),
+         ("ইট্রাকোনাজোল", "ইট্রাম্যাক"), "systemic antifungal", "dermatology"),
+    Drug("Luliconazole", ("Lulican", "Luz"),
+         ("লুলিকোনাজোল", "লুলিক্যান"), "topical antifungal", "dermatology"),
     Drug("Terbinafine", ("Terbicip", "Lamisil", "Sebifin"),
-         ("টারবিনাফাইন", "টারবিসিপ"), "antifungal", "dermatology"),
+         ("টারবিনাফাইন", "টারবিসিপ", "টারবিনাফিন"), "antifungal", "dermatology"), #
     Drug("Fluconazole", ("Forcan", "Zocon", "Flucos"),
-         ("ফ্লুকোনাজল", "ফোরকান"), "systemic antifungal", "dermatology"),
+         ("ফ্লুকোনাজল", "ফোরকান", "ফ্লুকোনাজোল"), "systemic antifungal", "dermatology"), #
     Drug("Mupirocin", ("T-Bact", "Bactroban", "Mupinase"),
-         ("মিউপিরোসিন", "টি ব্যাক্ট"), "topical antibiotic", "dermatology"),
+         ("মিউপিরোসিন", "টি ব্যাক্ট"), "topical antibiotic", "dermatology"), #
     Drug("Betamethasone", ("Betnovate", "Betnesol"),
-         ("বিটামেথাসোন", "বেটনোভেট"), "topical steroid", "dermatology"),
+         ("বিটামেথাসোন", "বেটনোভেট"), "topical steroid", "dermatology"), #
+    Drug("Clobetasol", ("Tenovate", "Lobate", "Clobetamil"),
+         ("ক্লোবেটাসোল", "টেনোভেট", "লোবেট"), "topical steroid", "dermatology"),
+    Drug("Salicylic acid", ("Salicylix", "Clear"),
+         ("স্যালিসাইলিক অ্যাসিড", "স্যালিসাইলিক"), "keratolytic", "dermatology"),
     Drug("Permethrin", ("Permite", "Scabper"),
-         ("পারমেথ্রিন", "পারমাইট"), "scabies", "dermatology"),
+         ("পারমেথ্রিন", "পারমাইট"), "scabies", "dermatology"), #
     Drug("Ivermectin", ("Ivermectol", "Iverjohn"),
-         ("আইভারমেকটিন",), "scabies / parasites", "dermatology"),
+         ("আইভারমেকটিন", "আইভারমেকটোল"), "scabies / parasites", "dermatology"), #
     Drug("Isotretinoin", ("Sotret", "Isotroin", "Accufine"),
-         ("আইসোট্রেটিনয়েন", "আইসোট্রইন"), "severe acne", "dermatology"),
+         ("আইসোট্রেটিনয়েন", "আইসোট্রইন"), "severe acne", "dermatology"), #
     Drug("Adapalene", ("Deriva", "Adaferin"),
-         ("অ্যাডাপালিন", "ডেরিভা"), "acne", "dermatology"),
+         ("অ্যাডাপালিন", "ডেরিভা"), "acne", "dermatology"), #
     Drug("Tacrolimus ointment", ("Tacroz", "Protopic"),
-         ("ট্যাক্রোলিমাস",), "eczema / vitiligo", "dermatology"),
+         ("ট্যাক্রোলিমাস", "ট্যাকরোজ"), "eczema / vitiligo", "dermatology"), #
     Drug("Calamine", ("Calamine lotion", "Caladryl"),
-         ("ক্যালামিন",), "soothing lotion", "dermatology"),
+         ("ক্যালামিন", "ক্যালাড্রিল"), "soothing lotion", "dermatology"), #
+    Drug("Minoxidil", ("Mintop", "Morr"),
+         ("মিনক্সিডিল", "মিনটপ"), "hair loss", "dermatology"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -349,43 +449,57 @@ OPHTHALMOLOGY = [
     Drug("Moxifloxacin eye drops", ("Vigamox", "5-Moxi", "Milflox", "Moxicip"),
          ("মক্সিফ্লক্সাসিন", "ভিগাম্যাক্স", "মক্সি ফ্লক্সাসিম", "ফ্লক্সাসিম",
           "মক্সিফ্লক্সাসিম", "মক্সি ফ্লক্সাসিন", "মক্সিফ্লক্স"),
-         "eye infection", "ophthalmology"),
+         "eye infection", "ophthalmology"), #
+    Drug("Tobramycin eye drops", ("Toba", "Eyebrex"),
+         ("টোব্রামাইসিন", "টোবা"), "antibiotic eye drops", "ophthalmology"),
     Drug("Flurbiprofen eye drops", ("Flur", "Flubiprof", "Ocuflur"),
          ("ফ্লার্বিপ্রোফেন", "ফ্লুরবিপ্রোফেন", "ফ্লারবি"),
-         "ocular NSAID", "ophthalmology"),
+         "ocular NSAID", "ophthalmology"), #
+    Drug("Nepafenac eye drops", ("Nevanac", "Nepastar"),
+         ("নেপাফেনাক", "নেভান্যাক"), "ocular NSAID", "ophthalmology"),
     Drug("Carboxymethylcellulose", ("Refresh Tears", "Optive", "Lubrex"),
-         ("রিফ্রেশ টিয়ার্স", "কৃত্রিম অশ্রু"), "dry eye lubricant", "ophthalmology"),
+         ("রিফ্রেশ টিয়ার্স", "কৃত্রিম অশ্রু", "কার্বক্সিমিথাইলসেলুলোজ"), "dry eye lubricant", "ophthalmology"), #
     Drug("Olopatadine", ("Patanol", "Winolap"),
-         ("ওলোপাটাডিন", "প্যাটানল"), "allergic conjunctivitis", "ophthalmology"),
+         ("ওলোপাটাডিন", "প্যাটানল", "উইনোলাপ"), "allergic conjunctivitis", "ophthalmology"), #
     Drug("Timolol eye drops", ("Glucomol", "Iotim"),
-         ("টিমোলল",), "glaucoma", "ophthalmology"),
+         ("টিমোলল", "গ্লুকোমল"), "glaucoma", "ophthalmology"), #
     Drug("Latanoprost", ("Xalatan", "9PM", "Latoprost"),
-         ("ল্যাটানোপ্রস্ট",), "glaucoma", "ophthalmology"),
+         ("ল্যাটানোপ্রস্ট", "ল্যাটোপোস্ট"), "glaucoma", "ophthalmology"), #
+    Drug("Bimatoprost", ("Lumigan", "Bimat"),
+         ("বিমাটোপ্রস্ট", "লুমিগান"), "glaucoma", "ophthalmology"),
+    Drug("Dorzolamide", ("Dorzox", "Trusopt"),
+         ("ডোরজোলামাইড", "ডোরজক্স"), "glaucoma", "ophthalmology"),
     Drug("Brimonidine", ("Alphagan", "Brimolol"),
-         ("ব্রিমোনিডিন",), "glaucoma", "ophthalmology"),
+         ("ব্রিমোনিডিন", "অ্যালফাগান"), "glaucoma", "ophthalmology"), #
     Drug("Prednisolone eye drops", ("Predmet", "Omnipred"),
-         ("প্রেডনিসোলন ড্রপ",), "ocular inflammation", "ophthalmology"),
+         ("প্রেডনিসোলন ড্রপ", "প্রেডনিসোলন আই ড্রপ"), "ocular inflammation", "ophthalmology"), #
+    Drug("Fluorometholone", ("FML", "Fluro"),
+         ("ফ্লুরোমেথোলোন", "এফএমএল"), "ocular steroid", "ophthalmology"),
     Drug("Tropicamide", ("Tropicacyl", "Mydriacyl"),
-         ("ট্রপিকামাইড",), "pupil dilation", "ophthalmology"),
+         ("ট্রপিকামাইড", "ট্রপিকাসিল"), "pupil dilation", "ophthalmology"), #
 ]
 
 # ---------------------------------------------------------------------------
 # ENT
 # ---------------------------------------------------------------------------
 ENT = [
-    Drug("Xylometazoline", ("Otrivin", "Nasivion"),
-         ("জাইলোমেটাজোলিন", "অট্রিভিন", "নাসিভিয়ন"),
-         "nasal decongestant drops", "ent"),
+    Drug("Xylometazoline", ("Otrivin",),
+         ("জাইলোমেটাজোলিন", "অট্রিভিন"),
+         "nasal decongestant drops", "ent"), #
+    Drug("Oxymetazoline", ("Nasivion",),
+         ("অক্সিমেটাজোলিন", "নাসিভিয়ন ড্রপ"), "nasal decongestant", "ent"),
     Drug("Fluticasone nasal spray", ("Flomist", "Nasoflo"),
-         ("ফ্লুটিকাসোন", "ফ্লোমিস্ট"), "allergic rhinitis", "ent"),
+         ("ফ্লুটিকাসোন", "ফ্লোমিস্ট", "ফ্লুটিকাসোন নেজাল স্প্রে"), "allergic rhinitis", "ent"), #
     Drug("Mometasone nasal spray", ("Nasonex", "Metaspray"),
-         ("মোমেটাসোন", "মেটাস্প্রে"), "allergic rhinitis", "ent"),
+         ("মোমেটাসোন", "মেটাস্প্রে"), "allergic rhinitis", "ent"), #
     Drug("Betahistine", ("Vertin", "Betavert"),
-         ("বিটাহিস্টিন", "ভার্টিন"), "vertigo", "ent"),
+         ("বিটাহিস্টিন", "ভার্টিন"), "vertigo", "ent"), #
     Drug("Candibiotic ear drops", ("Candibiotic", "Otek-AC"),
-         ("ক্যান্ডিবায়োটিক",), "ear infection", "ent"),
+         ("ক্যান্ডিবায়োটিক", "ওটেক"), "ear infection", "ent"), #
     Drug("Prochlorperazine", ("Stemetil", "Vertigon"),
-         ("প্রোক্লোরপেরাজিন", "স্টেমেটিল"), "vertigo / nausea", "ent"),
+         ("প্রোক্লোরপেরাজিন", "স্টেমেটিল"), "vertigo / nausea", "ent"), #
+    Drug("Paradichlorobenzene / Chlorbutol", ("Clearwax", "Waxolve"),
+         ("ক্লিয়ারওয়্যাক্স", "ওয়্যাক্স সলভেন্ট ড্রপ", "প্যারাডিক্লোরোবেনজিন"), "ear wax solvent", "ent"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -394,13 +508,13 @@ ENT = [
 DENTAL = [
     Drug("Chlorhexidine mouthwash", ("Hexidine", "Clohex", "Rexidin"),
          ("ক্লোরহেক্সিডিন", "হেক্সিডিন", "মাউথওয়াশ"),
-         "oral antiseptic", "dental"),
+         "oral antiseptic", "dental"), #
     Drug("Ketorolac", ("Ketorol", "Zerodol-K"),
-         ("কিটোরোলাক", "কেটোরল"), "severe dental pain", "dental"),
+         ("কিটোরোলাক", "কেটোরল"), "severe dental pain", "dental"), #
     Drug("Lignocaine gel", ("Mucopain", "Dentogel", "Xylocaine"),
-         ("লিগনোকেইন", "মিউকোপেইন"), "topical anaesthetic", "dental"),
+         ("লিগনোকেইন", "মিউকোপেইন", "ডেন্টোজেল"), "topical anaesthetic", "dental"), #
     Drug("Triamcinolone oral paste", ("Kenacort", "Tess"),
-         ("ট্রায়ামসিনোলোন", "কেনাকর্ট"), "mouth ulcer", "dental"),
+         ("ট্রায়ামসিনোলোন", "কেনাকর্ট"), "mouth ulcer", "dental"), #
 ]
 
 # ---------------------------------------------------------------------------
@@ -408,26 +522,35 @@ DENTAL = [
 # ---------------------------------------------------------------------------
 GYNAECOLOGY = [
     Drug("Folic acid", ("Folvite", "Fol-5"),
-         ("ফলিক অ্যাসিড", "ফলভাইট"), "pregnancy supplement", "gynaecology"),
+         ("ফলিক অ্যাসিড", "ফলভাইট"), "pregnancy supplement", "gynaecology"), #
     # NOTE: the iron+folic combination is a DIFFERENT product and must not
     # share the bare "ফলিক অ্যাসিড" alias - collisions() flagged the clash.
     Drug("Tranexamic acid", ("Trapic", "Pause", "Texid"),
          ("ট্রানেক্সামিক অ্যাসিড", "ট্রাপিক"),
-         "heavy menstrual bleeding", "gynaecology"),
+         "heavy menstrual bleeding", "gynaecology"), #
     Drug("Norethisterone", ("Primolut-N", "Regestrone"),
-         ("নরইথিস্টেরন", "প্রিমোলাট"), "menstrual regulation", "gynaecology"),
+         ("নরইথিস্টেরন", "প্রিমোলাট", "রেজেস্ট্রোন"), "menstrual regulation", "gynaecology"), #
     Drug("Medroxyprogesterone", ("Deviry", "Meprate"),
-         ("মেড্রক্সিপ্রোজেস্টেরন", "ডেভিরি"), "progestin", "gynaecology"),
+         ("মেড্রক্সিপ্রোজেস্টেরন", "ডেভিরি", "মেপ্রেট"), "progestin", "gynaecology"), #
     Drug("Progesterone", ("Susten", "Duphaston", "Dubagest"),
          ("প্রোজেস্টেরন", "সাসটেন", "ডুফাস্টন"),
-         "luteal support", "gynaecology"),
+         "luteal support", "gynaecology"), #
+    Drug("Dienogest", ("Visanne", "Dinogest"),
+         ("ডাইনোজেস্ট", "ভিসান"), "endometriosis", "gynaecology"),
+    Drug("Drospirenone", ("Crisanta", "Yaz"),
+         ("ড্রোসপিরেনোন", "ক্রিসান্টা"), "PCOS / OCP", "gynaecology"),
+    Drug("Myo-inositol", ("Myo-inositol", "Oosure"),
+         ("মায়ো ইনোসিটল", "ইনোসিটল"), "PCOS", "gynaecology"),
     Drug("Clomiphene", ("Fertyl", "Clomi"),
-         ("ক্লোমিফেন", "ফার্টিল"), "ovulation induction", "gynaecology"),
+         ("ক্লোমিফেন", "ফার্টিল"), "ovulation induction", "gynaecology"), #
     Drug("Letrozole", ("Letroz", "Fempro"),
-         ("লেট্রোজল", "লেট্রোজ"), "ovulation induction", "gynaecology"),
+         ("লেট্রোজল", "লেট্রোজ"), "ovulation induction", "gynaecology"), #
+    Drug("Cabergoline", ("Cabgolin",),
+         ("ক্যাবারগোলিন", "ক্যাবগোলিন"), "hyperprolactinemia", "gynaecology"),
+    # FDC ENHANCEMENT
     Drug("Mifepristone+Misoprostol", ("MTP Kit", "Unwanted Kit"),
-         ("মিফেপ্রিস্টোন", "মাইসোপ্রোস্টল"),
-         "medical termination", "gynaecology"),
+         ("মিফেপ্রিস্টোন", "মাইসোপ্রোস্টল", "এমটিপি কিট", "মিফেপ্রিস্টোন মাইসোপ্রোস্টল"),
+         "medical termination", "gynaecology"), #
 ]
 
 # ---------------------------------------------------------------------------
@@ -435,70 +558,89 @@ GYNAECOLOGY = [
 # ---------------------------------------------------------------------------
 NEPHROLOGY = [
     Drug("Sevelamer", ("Renvela", "Sevcar"),
-         ("সেভেলামার",), "phosphate binder / CKD", "nephrology"),
+         ("সেভেলামার", "রেণভেলা"), "phosphate binder / CKD", "nephrology"), #
     Drug("Calcium acetate", ("Nephrocal", "Royal-CA"),
-         ("ক্যালসিয়াম অ্যাসিটেট",), "phosphate binder", "nephrology"),
+         ("ক্যালসিয়াম অ্যাসিটেট", "নেফ্রোকেল"), "phosphate binder", "nephrology"), #
     Drug("Erythropoietin", ("Eprex", "Epofit", "Relipoietin"),
-         ("এরিথ্রোপয়েটিন", "ইপ্রেক্স"), "anaemia of CKD", "nephrology"),
+         ("এরিথ্রোপয়েটিন", "ইপ্রেক্স", "ইপোফিট"), "anaemia of CKD", "nephrology"), #
     Drug("Sodium bicarbonate", ("Sodamint", "Nodosis"),
-         ("সোডিয়াম বাইকার্বোনেট", "নোডোসিস"),
-         "metabolic acidosis", "nephrology"),
+         ("সোডিয়াম বাইকার্বোনেট", "নোডোসিস", "সোডামিন্ট"),
+         "metabolic acidosis", "nephrology"), #
+    Drug("Alpha ketoanalogue", ("Ketosteril", "Renolog"),
+         ("কিটোস্টেরিল", "আলফা কিটোঅ্যানালগ"), "CKD supplement", "nephrology"),
     Drug("Febuxostat", ("Febutaz", "Zurig", "Feburic"),
-         ("ফেবুক্সোস্ট্যাট", "ফেবুটাজ"), "gout / uric acid", "nephrology"),
+         ("ফেবুক্সোস্ট্যাট", "ফেবুটাজ", "ফেবুরিক"), "gout / uric acid", "nephrology"), #
     Drug("Allopurinol", ("Zyloric", "Ciploric"),
-         ("অ্যালোপিউরিনল", "জাইলোরিক"), "gout / uric acid", "nephrology"),
+         ("অ্যালোপিউরিনল", "জাইলোরিক"), "gout / uric acid", "nephrology"), #
+    Drug("Mycophenolate", ("Cellcept", "Mycept"),
+         ("মাইকোফেনোলেট", "সেলসেপ্ট"), "immunosuppressant", "nephrology"),
 ]
 
 # ---------------------------------------------------------------------------
-# NEUROLOGY
+# NEUROLOGY & PSYCHIATRY
 # ---------------------------------------------------------------------------
 NEUROLOGY = [
     Drug("Levetiracetam", ("Levipil", "Keppra", "Torleva"),
-         ("লেভেটিরাসিটাম", "লেভিপিল"), "epilepsy", "neurology"),
+         ("লেভেটিরাসিটাম", "লেভিপিল", "কেপরা"), "epilepsy", "neurology"), #
     Drug("Sodium valproate", ("Valparin", "Encorate", "Divaa"),
          ("সোডিয়াম ভালপ্রোয়েট", "ভালপারিন", "এনকোরেট"),
-         "epilepsy / migraine", "neurology"),
+         "epilepsy / migraine", "neurology"), #
     Drug("Phenytoin", ("Eptoin", "Dilantin"),
-         ("ফেনিটয়েন", "এপটোইন"), "epilepsy", "neurology"),
+         ("ফেনিটয়েন", "এপটোইন"), "epilepsy", "neurology"), #
     Drug("Carbamazepine", ("Tegretol", "Mazetol", "Zeptol"),
          ("কার্বামাজেপিন", "টেগ্রেটল"),
-         "epilepsy / trigeminal neuralgia", "neurology"),
+         "epilepsy / trigeminal neuralgia", "neurology"), #
     Drug("Clobazam", ("Frisium", "Lobazam"),
-         ("ক্লোবাজাম", "ফ্রিজিয়াম"), "epilepsy", "neurology"),
-    Drug("Pregabalin", ("Pregabid", "Lyrica", "Maxgalin"),
-         ("প্রিগাবালিন", "প্রিগাবিড"), "neuropathic pain", "neurology"),
+         ("ক্লোবাজাম", "ফ্রিজিয়াম"), "epilepsy", "neurology"), #
     Drug("Gabapentin", ("Gabapin", "Neurontin"),
-         ("গ্যাবাপেন্টিন", "গ্যাবাপিন"), "neuropathic pain", "neurology"),
+         ("গ্যাবাপেন্টিন", "গ্যাবাপিন"), "neuropathic pain", "neurology"), #
     Drug("Donepezil", ("Aricept", "Donep", "Dompezil"),
-         ("ডোনেপেজিল", "অ্যারিসেপ্ট"), "dementia", "neurology"),
+         ("ডোনেপেজিল", "অ্যারিসেপ্ট", "ডনেপ"), "dementia", "neurology"), #
     Drug("Memantine", ("Admenta", "Nemdaa"),
-         ("মেমান্টিন",), "dementia", "neurology"),
+         ("মেমান্টিন", "অ্যাডমেন্টা"), "dementia", "neurology"), #
+    # FDC ENHANCEMENT
     Drug("Levodopa+Carbidopa", ("Syndopa", "Tidomet", "Sinemet"),
-         ("লেভোডোপা", "সিনডোপা", "টিডোমেট"),
-         "Parkinson's disease", "neurology"),
+         ("লেভোডোপা", "সিনডোপা", "টিডোমেট", "কার্বিডোপা", "লেভোডোপা কার্বিডোপা"),
+         "Parkinson's disease", "neurology"), #
     Drug("Sumatriptan", ("Suminat", "Imitrex"),
-         ("সুমাট্রিপটান", "সুমিন্যাট"), "migraine", "neurology"),
+         ("সুমাট্রিপটান", "সুমিন্যাট"), "migraine", "neurology"), #
     Drug("Flunarizine", ("Sibelium", "Flunarin"),
-         ("ফ্লুনারিজিন", "সিবেলিয়াম"), "migraine prophylaxis", "neurology"),
+         ("ফ্লুনারিজিন", "সিবেলিয়াম"), "migraine prophylaxis", "neurology"), #
     Drug("Amitriptyline", ("Amitone", "Tryptomer"),
-         ("অ্যামিট্রিপটাইলিন", "ট্রিপটোমার"),
-         "neuropathic pain / migraine", "neurology"),
+         ("অ্যামিট্রিপটাইলিন", "ট্রিপটোমার", "অ্যামিটোন"),
+         "neuropathic pain / migraine", "neurology"), #
+    # FDC ENHANCEMENT
     Drug("Clopidogrel+Aspirin", ("Clopitab-A", "Deplatt-A", "Ecosprin-AV"),
-         ("ক্লোপিটাব", "ইকোস্পিরিন এভি"), "stroke prevention", "neurology"),
+         ("ক্লোপিটাব", "ইকোস্পিরিন এভি", "ডেপ্ল্যাট এ", "ক্লোপিডোগ্রেল অ্যাসপিরিন", "ক্লোপিডোগ্রেল এবং অ্যাসপিরিন"), "stroke prevention", "neurology"), #
+    Drug("Escitalopram", ("Nexito", "Cilentra"),
+         ("এস্কিটালোপ্রাম", "নেক্সিটো"), "depression / anxiety", "psychiatry"),
+    Drug("Sertraline", ("Daxid", "Zosert"),
+         ("সারট্রালিন", "ড্যাক্সিড"), "depression", "psychiatry"),
+    Drug("Clonazepam", ("Clonotril", "Lonazep"),
+         ("ক্লোনাজিপাম", "ক্লোনোট্রিল"), "anxiety / panic", "psychiatry"),
+    Drug("Zolpidem", ("Zolfresh", "Nitrest"),
+         ("জোলপিডেম", "জোলফ্রেশ"), "insomnia", "psychiatry"),
+    Drug("Olanzapine", ("Oleanz", "Olanex"),
+         ("ওলানজাপিন", "ওলিয়েঞ্জ"), "antipsychotic", "psychiatry"),
+    Drug("Quetiapine", ("Qutan", "Seroquel"),
+         ("কোয়েটিয়াপিন", "কিউটান"), "antipsychotic", "psychiatry"),
 ]
 
 # ---------------------------------------------------------------------------
 # SURGERY
 # ---------------------------------------------------------------------------
 SURGERY = [
-    Drug("Tramadol", ("Ultracet", "Tramazac", "Domadol"),
-         ("ট্রামাডল", "আলট্রাসেট"), "moderate-severe pain", "surgery"),
+    Drug("Tramadol", ("Tramazac", "Domadol"),
+         ("ট্রামাডল", "ট্রামাজ্যাক"), "moderate-severe pain", "surgery"), #
+    # FDC ENHANCEMENT
+    Drug("Tramadol+Paracetamol", ("Ultracet", "Tramazac Plus"),
+         ("ট্রামাডল প্যারাসিটামল", "আলট্রাসেট", "ট্রামাডল এবং প্যারাসিটামল"), "moderate-severe pain", "surgery"),
     Drug("Ceftriaxone", ("Monocef", "Intacef", "Oframax"),
-         ("সেফট্রায়াক্সোন", "মনোসেফ"), "injectable antibiotic", "surgery"),
+         ("সেফট্রায়াক্সোন", "মনোসেফ"), "injectable antibiotic", "surgery"), #
     Drug("Enoxaparin", ("Clexane", "Lomoh"),
-         ("এনোক্সাপারিন", "ক্লেক্সেন"), "DVT prophylaxis", "surgery"),
+         ("এনোক্সাপারিন", "ক্লেক্সেন"), "DVT prophylaxis", "surgery"), #
     Drug("Povidone iodine", ("Betadine", "Cipladine"),
-         ("পোভিডোন আয়োডিন", "বিটাডিন"), "antiseptic", "surgery"),
+         ("পোভিডোন আয়োডিন", "বিটাডিন", "সিপ্লাডিন"), "antiseptic", "surgery"), #
 ]
 
 ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
@@ -517,134 +659,148 @@ ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
 # tests across 255 real segments. Always include the spaced form.
 LAB_TESTS: dict[str, tuple[str, ...]] = {
     # cardiac
-    "ECG": ("ইসিজি", "ই সি জি", "ইকেজি", "electrocardiogram", "e c g"),
+    "ECG": ("ইসিজি", "ই সি জি", "ইকেজি", "electrocardiogram", "e c g"), #
     # ONE entry. There used to be a separate "2D Echo" as well, and since
     # "2d echo" was an alias of both, a single spoken test resolved to TWO
     # entries - 297 of 311 apparent lab false positives in a 500-transcript
     # eval were this one duplication.
     "2D Echo": ("ইকো", "echo", "echocardiogram", "2d echo", "টু ডি ইকো",
                  "two d echo", "ইকোকার্ডিওগ্রাফি", "ইকোকার্ডিওগ্রাম",
-                 "echocardiography", "ইকো কার্ডিওগ্রাফি"),
-    "TMT": ("টিএমটি", "টি এম টি", "treadmill test", "stress test", "t m t"),
+                 "echocardiography", "ইকো কার্ডিওগ্রাফি"), #
+    "TMT": ("টিএমটি", "টি এম টি", "treadmill test", "stress test", "t m t"), #
     "Angiography": ("অ্যাঞ্জিওগ্রাফি", "angiogram", "অ্যাঞ্জিওগ্রাম",
-                     "এনজিওগ্রাম", "এঞ্জিওগ্রাফি"),
-    "Lipid profile": ("লিপিড প্রোফাইল", "cholesterol test", "লিপিড"),
+                     "এনজিওগ্রাম", "এঞ্জিওগ্রাফি"), #
+    "Lipid profile": ("লিপিড প্রোফাইল", "cholesterol test", "লিপিড", "লিপিড টেস্ট"), #
     "Troponin": ("ট্রপোনিন", "ট্রপ", "troponin i", "troponin t",
-                  "troponin i/t"),
+                  "troponin i/t"), #
     # Cardiology-specific tests. Added after 200 real cardiac prescriptions
     # showed only 12/20 labs recognised - the table was built for general
     # OPD and had no Holter, no tilt table, no electrophysiology study.
     "Holter monitor": ("holter", "holter monitor", "হোল্টার",
-                        "holter monitor (24-48 hr)", "24 hour holter"),
-    "Tilt table test": ("tilt table", "tilt table test", "টিল্ট টেবিল"),
+                        "holter monitor (24-48 hr)", "24 hour holter"), #
+    "Tilt table test": ("tilt table", "tilt table test", "টিল্ট টেবিল"), #
     "Electrophysiology study": ("electrophysiology study", "ep study",
-                                 "ইপি স্টাডি"),
-    "CK-MB": ("ck-mb", "ck mb", "সিকে এমবি", "creatine kinase"),
-    "BNP": ("bnp", "nt-probnp", "bnp or nt-probnp", "pro bnp"),
+                                 "ইপি স্টাডি"), #
+    "CK-MB": ("ck-mb", "ck mb", "সিকে এমবি", "creatine kinase"), #
+    "BNP": ("bnp", "nt-probnp", "bnp or nt-probnp", "pro bnp"), #
     "Serum electrolytes": ("serum electrolytes", "electrolytes",
-                            "ইলেক্ট্রোলাইট", "na k cl"),
+                            "ইলেক্ট্রোলাইট", "na k cl", "সিরাম ইলেকট্রোলাইটস"), #
     # neuro
-    "EEG": ("ইইজি", "ই ই জি", "electroencephalogram", "e e g"),
-    "MRI": ("এমআরআই", "এম আর আই", "m r i"),
-    "CT scan": ("সিটি স্ক্যান", "সি টি স্ক্যান", "সিটি"),
+    "EEG": ("ইইজি", "ই ই জি", "electroencephalogram", "e e g"), #
+    "MRI": ("এমআরআই", "এম আর আই", "m r i"), #
+    "CT scan": ("সিটি স্ক্যান", "সি টি স্ক্যান", "সিটি"), #
     # metabolic / blood
-    "Creatinine": ("ক্রিয়েটিনিন", "creatine", "ক্রিয়েটিন"),
-    "Urea": ("ইউরিয়া",),
+    "Creatinine": ("ক্রিয়েটিনিন", "creatine", "ক্রিয়েটিন", "সিরাম ক্রিয়েটিনিন"), #
+    "Urea": ("ইউরিয়া", "ব্লাড ইউরিয়া"), #
     # Spoken forms, verbatim from real audio:
     #   "ওসিটি ফাস্টিং ব্লাড সুগার পিপি ইসিজি ব্লাড প্রেসার চেক"
     # Note "ফাস্টিং ব্লাড সুগার" - the interposed "ব্লাড" broke the n-gram
     # against the key "ফাস্টিং সুগার", and bare "পিপি" was never an alias.
     "PP sugar": ("পিপি সুগার", "পি পি সুগার", "পোস্ট প্রান্ডিয়াল",
-                  "post prandial sugar", "খাওয়ার পরের সুগার", "পিপি"),
+                  "post prandial sugar", "খাওয়ার পরের সুগার", "পিপি"), #
     "Fasting sugar": ("ফাস্টিং সুগার", "FBS", "খালি পেটে সুগার",
-                       "এফ বি এস", "ফাস্টিং"),
-    "HbA1c": ("এইচবিএ১সি", "এইচ বি এ ওয়ান সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন"),
-    "TSH": ("টিএসএইচ", "টি এস এইচ", "থাইরয়েড টেস্ট", "thyroid profile"),
+                       "এফ বি এস", "ফাস্টিং", "ফাস্টিং ব্লাড সুগার"), #
+    "HbA1c": ("এইচবিএ১সি", "এইচ বি এ ওয়ান সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন", "hba1c"), #
+    "TSH": ("টিএসএইচ", "টি এস এইচ", "থাইরয়েড টেস্ট", "thyroid profile", "থাইরয়েড প্রোফাইল", "t3 t4 tsh"), #
     # NOTE: "রক্ত পরীক্ষা" / "ব্লাড টেস্ট" are deliberately NOT CBC aliases.
     # "Blood test" is not necessarily a complete blood count, and turning a
     # generic phrase into a specific named order would be the pipeline
     # inventing a clinical decision. They fall through to "blood test
     # (unspecified)" so the reviewer names it.
     "CBC": ("সিবিসি", "সি বি সি", "complete blood count", "c b c",
-             "কমপ্লিট ব্লাড কাউন্ট", "কমপ্লিট ব্লাড"),
-    "LFT": ("এলএফটি", "এল এফ টি", "liver function test"),
+             "কমপ্লিট ব্লাড কাউন্ট", "কমপ্লিট ব্লাড"), #
+    "LFT": ("এলএফটি", "এল এফ টি", "liver function test", "লিভার ফাংশন টেস্ট"), #
     "KFT": ("কেএফটি", "কে এফ টি", "kidney function test", "RFT",
-             "আর এফ টি"),
+             "আর এফ টি"), #
     "Urine routine": ("ইউরিন", "প্রস্রাব পরীক্ষা", "urine test",
                        "ইউরিন টেস্ট", "urine r/e", "urine re",
-                       "urine routine examination"),
-    "Uric acid": ("ইউরিক অ্যাসিড", "ইউরিক"),
+                       "urine routine examination", "ইউরিন রুটিন"), #
+    "Urine culture": ("ইউরিন কালচার", "urine culture"),
+    "Stool routine": ("স্টুল টেস্ট", "পায়খানা পরীক্ষা", "stool routine"),
+    "Blood culture": ("ব্লাড কালচার", "blood culture"),
+    "Uric acid": ("ইউরিক অ্যাসিড", "ইউরিক", "সিরাম ইউরিক অ্যাসিড"), #
     # NOT the bare "ভিটামিন ডি" - that is ambiguous between the supplement
     # and the blood test, and collisions() flagged it against the
     # Vitamin D3 drug entry. Only unambiguously test-shaped forms here.
     "Vitamin D": ("ভিটামিন ডি টেস্ট", "25 oh vitamin d", "vitamin d3 level",
-                   "ভিটামিন ডি লেভেল"),
+                   "ভিটামিন ডি লেভেল"), #
+    "Vitamin B12": ("ভিটামিন বি টুয়েলভ টেস্ট", "ভিটামিন বি ১২ লেভেল", "vitamin b12"),
     # Bone / metabolic. A live osteoporosis consultation ordered every one
     # of these and the table knew none of them.
     "Serum calcium": ("সিরাম ক্যালসিয়াম", "serum calcium", "রক্তে ক্যালসিয়াম",
-                       "calcium level", "ক্যালসিয়াম টেস্ট"),
+                       "calcium level", "ক্যালসিয়াম টেস্ট"), #
     "Serum phosphorus": ("সিরাম ফসফরাস", "phosphorus", "phosphate",
-                          "ফসফরাস", "serum phosphate"),
+                          "ফসফরাস", "serum phosphate"), #
     "DEXA scan": ("dexa", "dexa scan", "ডেক্সা", "ডেক্সা স্ক্যান",
                    "bone mineral density", "bmd", "বিএমডি", "বোন ডেনসিটি",
-                   "bone densitometry"),
+                   "bone densitometry"), #
     "X-ray LS spine": ("ls spine", "l s spine", "lumbosacral spine",
                         "এল এস স্পাইন", "কোমরের এক্স রে", "ap view ls spine",
-                        "ls spine ap view", "এলএস স্পাইন"),
-    "PTH": ("pth", "parathyroid hormone", "পিটিএইচ", "প্যারাথাইরয়েড"),
+                        "ls spine ap view", "এলএস স্পাইন", "এমআরআই লাম্বোস্যাক্রাল স্পাইন"), #
+    "X-ray Knee": ("এক্স রে হাঁটু", "x-ray knee", "xray knee", "হাঁটুর এক্স রে"),
+    "PTH": ("pth", "parathyroid hormone", "পিটিএইচ", "প্যারাথাইরয়েড"), #
     "Alkaline phosphatase": ("alp", "alkaline phosphatase",
-                              "অ্যালকালাইন ফসফেটেজ"),
-    "X-ray": ("এক্স রে", "এক্সরে", "চেস্ট এক্স রে", "এক্স-রে"),
+                              "অ্যালকালাইন ফসফেটেজ"), #
+    "X-ray": ("এক্স রে", "এক্সরে", "চেস্ট এক্স রে", "এক্স-রে"), #
     "USG": ("ইউএসজি", "ইউ এস জি", "আল্ট্রাসাউন্ড", "ultrasound",
-             "sonography", "আলট্রাসনোগ্রাফি"),
-    "PSA": ("পিএসএ", "পি এস এ"),
+             "sonography", "আলট্রাসনোগ্রাফি"), #
+    "USG Whole Abdomen": ("ইউএসজি হোল অ্যাবডোমেন", "হোল অ্যাবডোমেন", "usg whole abdomen"),
+    "PSA": ("পিএসএ", "পি এস এ", "প্রস্টেট স্পেসিফিক অ্যান্টিজেন"), #
+    "CRP": ("সিআরপি", "সি আর পি", "c reactive protein", "crp"),
+    "ESR": ("ইএসআর", "ই এস আর", "esr"),
+    "Dengue NS1": ("ডেঙ্গু এনএসওয়ান", "dengue ns1", "ns1 antigen", "ডেঙ্গু টেস্ট"),
+    "Widal Test": ("উইডাল টেস্ট", "widal", "টাইফয়েড টেস্ট"),
+    "Iron Profile": ("আয়রন প্রোফাইল", "iron profile", "ferritin", "ফেরিটিন"),
+    "Lipase": ("লাইপেজ", "lipase", "amylase", "অ্যামাইলেজ"),
+    "Hb Electrophoresis": ("হিমোগ্লোবিন ইলেক্ট্রোফোরেসিস", "hb electrophoresis"),
     # --- department-specific investigations ---------------------------
     # dermatology
-    "KOH mount": ("koh mount", "koh", "কেওএইচ", "skin scraping"),
-    "Skin biopsy": ("skin biopsy", "ত্বকের বায়োপসি"),
-    "Patch test": ("patch test", "প্যাচ টেস্ট", "allergy patch test"),
+    "KOH mount": ("koh mount", "koh", "কেওএইচ", "skin scraping"), #
+    "Skin biopsy": ("skin biopsy", "ত্বকের বায়োপসি"), #
+    "Patch test": ("patch test", "প্যাচ টেস্ট", "allergy patch test"), #
     # ophthalmology
-    "Fundus examination": ("fundus", "ফান্ডাস", "fundoscopy", "retina check"),
+    "Fundus examination": ("fundus", "ফান্ডাস", "fundoscopy", "retina check"), #
     "Intraocular pressure": ("iop", "tonometry", "চোখের প্রেশার",
-                              "eye pressure"),
-    "Visual acuity": ("visual acuity", "দৃষ্টিশক্তি পরীক্ষা", "vision test"),
-    "OCT": ("oct", "optical coherence tomography", "ওসিটি", "ও সি টি"),
+                              "eye pressure"), #
+    "Visual acuity": ("visual acuity", "দৃষ্টিশক্তি পরীক্ষা", "vision test"), #
+    "OCT": ("oct", "optical coherence tomography", "ওসিটি", "ও সি টি"), #
     "Biometry": ("biometry", "বায়োমেট্রি", "বায়োমিট্রিক", "বায়োমেট্রিক",
-                  "a-scan", "iol power", "আইওএল পাওয়ার"),
+                  "a-scan", "iol power", "আইওএল পাওয়ার"), #
     "Viral markers": ("viral marker", "viral markers", "ভাইরাল মার্কার",
                        "hiv", "এইচআইভি", "এইচ আই ভি", "hbsag", "এইচবিএসএজি",
-                       "anti hcv", "hiv hbsag hcv"),
-    "Refraction": ("refraction", "power test", "চশমার পাওয়ার"),
+                       "anti hcv", "hiv hbsag hcv"), #
+    "Refraction": ("refraction", "power test", "চশমার পাওয়ার", "রিফ্র্যাকশন টেস্ট"), #
     # ENT
     "Audiometry": ("audiometry", "pta", "pure tone audiometry",
-                    "অডিওমেট্রি", "কানের পরীক্ষা"),
-    "Tympanometry": ("tympanometry", "টিমপ্যানোমেট্রি"),
-    "Nasal endoscopy": ("nasal endoscopy", "dnc", "নাকের এন্ডোস্কোপি"),
+                    "অডিওমেট্রি", "কানের পরীক্ষা", "পিওর টোন অডিওমেট্রি"), #
+    "Tympanometry": ("tympanometry", "টিমপ্যানোমেট্রি"), #
+    "Nasal endoscopy": ("nasal endoscopy", "dnc", "নাকের এন্ডোস্কোপি"), #
     # dental
-    "OPG": ("opg", "orthopantomogram", "ওপিজি", "dental x-ray"),
-    "IOPA": ("iopa", "intraoral periapical"),
+    "OPG": ("opg", "orthopantomogram", "ওপিজি", "dental x-ray"), #
+    "IOPA": ("iopa", "intraoral periapical", "আইওপিএ"), #
     # gynaecology
     "USG pelvis": ("usg pelvis", "pelvic ultrasound", "তলপেটের আল্ট্রাসাউন্ড",
-                    "tvs", "transvaginal scan"),
-    "Pap smear": ("pap smear", "pap test", "প্যাপ স্মিয়ার"),
-    "Beta hCG": ("beta hcg", "bhcg", "pregnancy test", "প্রেগন্যান্সি টেস্ট"),
-    "Mammography": ("mammography", "mammogram", "ম্যামোগ্রাফি"),
+                    "tvs", "transvaginal scan", "টিভিএস"), #
+    "Pap smear": ("pap smear", "pap test", "প্যাপ স্মিয়ার"), #
+    "Beta hCG": ("beta hcg", "bhcg", "pregnancy test", "প্রেগন্যান্সি টেস্ট"), #
+    "Mammography": ("mammography", "mammogram", "ম্যামোগ্রাফি"), #
+    "Prolactin": ("প্রোল্যাকটিন", "prolactin", "সিরাম প্রোল্যাকটিন"),
     # nephrology
-    "eGFR": ("egfr", "gfr", "creatinine clearance", "জিএফআর"),
+    "eGFR": ("egfr", "gfr", "creatinine clearance", "জিএফআর"), #
     "Urine ACR": ("urine acr", "albumin creatinine ratio", "microalbumin",
-                   "মাইক্রোঅ্যালবুমিন"),
-    "USG KUB": ("usg kub", "kub", "kidney ultrasound", "কিডনি আল্ট্রাসাউন্ড"),
+                   "মাইক্রোঅ্যালবুমিন"), #
+    "USG KUB": ("usg kub", "kub", "kidney ultrasound", "কিডনি আল্ট্রাসাউন্ড", "ইউএসজি কেইউবি"), #
     # neurology
-    "CT brain": ("ct brain", "ct head", "সিটি ব্রেন", "brain ct"),
-    "MRI brain": ("mri brain", "এমআরআই ব্রেন", "brain mri"),
-    "NCV": ("ncv", "nerve conduction", "এনসিভি"),
-    "EMG": ("emg", "electromyography", "ইএমজি"),
-    "Carotid doppler": ("carotid doppler", "ক্যারোটিড ডপলার"),
+    "CT brain": ("ct brain", "ct head", "সিটি ব্রেন", "brain ct"), #
+    "MRI brain": ("mri brain", "এমআরআই ব্রেন", "brain mri"), #
+    "NCV": ("ncv", "nerve conduction", "এনসিভি"), #
+    "EMG": ("emg", "electromyography", "ইএমজি"), #
+    "Carotid doppler": ("carotid doppler", "ক্যারোটিড ডপলার"), #
     # Generic orders - a test WAS ordered even if unnamed. Surfaced so the
     # reviewer names it, rather than dropped silently or guessed at.
-    "blood test (unspecified)": ("রক্ত পরীক্ষা", "ব্লাড টেস্ট", "রক্ত টেস্ট"),
+    "blood test (unspecified)": ("রক্ত পরীক্ষা", "ব্লাড টেস্ট", "রক্ত টেস্ট"), #
     "test (unspecified)": ("পরীক্ষা করাতে", "টেস্ট দিচ্ছি", "টেস্ট করবেন",
-                            "পরীক্ষা করতে", "পরীক্ষা করতে হবে"),
+                            "পরীক্ষা করতে", "পরীক্ষা করতে হবে"), #
 }
 
 # ---------------------------------------------------------------------------
@@ -657,113 +813,122 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # ASR-observed spellings, not textbook ones. A live consultation
     # produced "ইয়ার্ট অযাটাক" and "হয়াট অ্যাটাক" for "heart attack".
     "heart attack": ("হার্ট অ্যাটাক", "ইয়ার্ট অযাটাক", "হয়াট অ্যাটাক",
-                      "হার্ট অ্যাটাক", "হার্ট এটাক", "মায়োকার্ডিয়াল ইনফার্কশন"),
-    "heart failure": ("হার্ট ফেইলিওর", "হার্ট ফেলুআর", "হৃদযন্ত্রের অক্ষমতা"),
-    "ischemia": ("ইস্কিমিয়া", "ইস্কামিয়া", "ইসকিমিয়া"),
-    "diabetes": ("ডায়াবেটিস", "ডায়াবেটিজ", "ডায়াবিটিস", "মধুমেহ"),
-    "stent": ("স্টেন্ট", "স্ট্যান্ট", "রিং পরানো"),
-    "angioplasty": ("অ্যাঞ্জিওপ্লাস্টি", "এনজিওপ্লাস্টি"),
-    "angina": ("অ্যাঞ্জাইনা", "অঞ্জিনা", "এনজাইনা"),
-    "chest pain": ("বুকে ব্যথা", "বুক ব্যথা", "চেস্ট পেইন"),
-    "blockage": ("ব্লকেজ", "ব্লক"),
-    "palpitations": ("ধড়ফড়", "হার্ট বিট"),
-    "breathlessness": ("শ্বাসকষ্ট", "দম বন্ধ"),
-    "cholesterol": ("কোলেস্টেরল", "কলেস্টেরল"),
-    "HDL": ("এইচডিএল",),
-    "LDL": ("এলডিএল",),
-    "blood pressure": ("প্রেশার", "ব্লাড প্রেশার", "রক্তচাপ", "প্রেসার"),
+                      "হার্ট অ্যাটাক", "হার্ট এটাক", "মায়োকার্ডিয়াল ইনফার্কশন"), #
+    "heart failure": ("হার্ট ফেইলিওর", "হার্ট ফেলুআর", "হৃদযন্ত্রের অক্ষমতা"), #
+    "ischemia": ("ইস্কিমিয়া", "ইস্কামিয়া", "ইসকিমিয়া"), #
+    "diabetes": ("ডায়াবেটিস", "ডায়াবেটিজ", "ডায়াবিটিস", "মধুমেহ"), #
+    "stent": ("স্টেন্ট", "স্ট্যান্ট", "রিং পরানো"), #
+    "angioplasty": ("অ্যাঞ্জিওপ্লাস্টি", "এনজিওপ্লাস্টি"), #
+    "angina": ("অ্যাঞ্জাইনা", "অঞ্জিনা", "এনজাইনা", "অ্যানজাইনা পেক্টোরিস"), #
+    "chest pain": ("বুকে ব্যথা", "বুক ব্যথা", "চেস্ট পেইন", "বুক চেপে ধরা"), #
+    "blockage": ("ব্লকেজ", "ব্লক"), #
+    "palpitations": ("ধড়ফড়", "হার্ট বিট", "বুক ধড়ফড়"), #
+    "breathlessness": ("শ্বাসকষ্ট", "দম বন্ধ"), #
+    "cholesterol": ("কোলেস্টেরল", "কলেস্টেরল"), #
+    "HDL": ("এইচডিএল",), #
+    "LDL": ("এলডিএল",), #
+    "blood pressure": ("প্রেশার", "ব্লাড প্রেশার", "রক্তচাপ", "প্রেসার"), #
     # metabolic
-    "blood sugar": ("সুগার", "রক্তে চিনি", "ব্লাড সুগার"),
-    "thyroid": ("থাইরয়েড",),
+    "blood sugar": ("সুগার", "রক্তে চিনি", "ব্লাড সুগার"), #
+    "thyroid": ("থাইরয়েড",), #
     # general symptoms
-    "fever": ("জ্বর",),
-    "cough": ("কাশি",),
-    "headache": ("মাথা ব্যথা", "মাথাব্যথা"),
-    "abdominal pain": ("পেট ব্যথা", "পেটে ব্যথা"),
-    "loose stools": ("পাতলা পায়খানা", "ডায়রিয়া", "পায়খানা"),
-    "vomiting": ("বমি",),
-    "nausea": ("গা গোলানো",),
-    "body ache": ("শরীর ব্যথা", "গা ব্যথা"),
-    "sore throat": ("গলা ব্যথা",),
-    "swelling": ("ফোলা", "ফুলে যাওয়া"),
-    "weakness": ("দুর্বলতা", "দুর্বল"),
+    "fever": ("জ্বর",), #
+    "cough": ("কাশি",), #
+    "headache": ("মাথা ব্যথা", "মাথাব্যথা", "চাপ ধরা মাথা ব্যথা"), #
+    "abdominal pain": ("পেট ব্যথা", "পেটে ব্যথা", "তলপেটে ব্যথা"), #
+    "loose stools": ("পাতলা পায়খানা", "ডায়রিয়া", "পায়খানা", "diarrhea"), #
+    "constipation": ("কোষ্ঠকাঠিন্য", "পায়খানা শক্ত", "constipation"),
+    "vomiting": ("বমি",), #
+    "nausea": ("গা গোলানো", "বমি ভাব"), #
+    "body ache": ("শরীর ব্যথা", "গা ব্যথা", "গা হাত-পা ম্যাজম্যাজ", "হাড়ে ব্যথা"), #
+    "sore throat": ("গলা ব্যথা", "গলা খুসখুস", "ঢোঁক গিলতে ব্যথা"), #
+    "swelling": ("ফোলা", "ফুলে যাওয়া", "সোয়েলিং"), #
+    "weakness": ("দুর্বলতা", "দুর্বল"), #
+    "anxiety": ("দুশ্চিন্তা", "উদ্বেগ", "anxiety"),
+    "insomnia": ("অনিদ্রা", "ঘুম না হওয়া", "insomnia"),
     # English symptom phrases the SLM proposes verbatim. Present because
     # fuzzy matching scored them against real drugs once the folded forms
     # got close - "hair loss" folds to "hairlos" and scored 0.714 against
     # Levothyroxine, over the 0.65 floor, so it was being offered as a
     # PROBABLE medication. Naming them positively is more robust than
     # raising the floor, which would start losing real garbled drug names.
-    "hair loss": ("চুল পড়া", "চুল পড়ে যাওয়া"),
-    "weight loss": ("ওজন কমা", "ওজন কমে যাওয়া"),
-    "weight gain": ("ওজন বাড়া", "ওজন বেড়ে যাওয়া"),
-    "bone loss": ("হাড় ক্ষয়",),
-    "memory loss": ("স্মৃতিশক্তি কমে যাওয়া", "ভুলে যাওয়া"),
-    "loss of appetite": ("খিদে কমে যাওয়া", "খাওয়ার ইচ্ছে নেই", "অরুচি"),
-    "shortness of breath": ("দম ফুরিয়ে যাওয়া", "হাঁপ ধরা"),
-    "loss of consciousness": ("জ্ঞান হারানো", "অজ্ঞান"),
-    "blurred vision": ("ঝাপসা দেখা",),
-    "dizziness": ("মাথা ঘোরা", "মাথা ঘুরছে"),
-    "difficulty swallowing": ("গিলতে কষ্ট",),
-    "phlegm": ("কফ", "শ্লেষ্মা"),
-    "infection": ("ইনফেকশন", "সংক্রমণ"),
+    "hair loss": ("চুল পড়া", "চুল পড়ে যাওয়া"), #
+    "weight loss": ("ওজন কমা", "ওজন কমে যাওয়া"), #
+    "weight gain": ("ওজন বাড়া", "ওজন বেড়ে যাওয়া"), #
+    "bone loss": ("হাড় ক্ষয়", "বোন লস"), #
+    "memory loss": ("স্মৃতিশক্তি কমে যাওয়া", "ভুলে যাওয়া"), #
+    "loss of appetite": ("খিদে কমে যাওয়া", "খাওয়ার ইচ্ছে নেই", "অরুচি", "খাবারে অরুচি"), # #
+    "loss of consciousness": ("জ্ঞান হারানো", "অজ্ঞান"), #
+    "blurred vision": ("ঝাপসা দেখা", "ঘোলাটে দৃষ্টি"), #
+    "dizziness": ("মাথা ঘোরা", "মাথা ঘুরছে"), #
+    "difficulty swallowing": ("গিলতে কষ্ট",), #
+    "phlegm": ("কফ", "শ্লেষ্মা", "সাদা কফ"), #
+    "infection": ("ইনফেকশন", "সংক্রমণ"), #
     # --- department-specific symptoms and findings --------------------
     # dermatology
-    "itching": ("চুলকানি", "চুলকায়", "খুজলি"),
-    "rash": ("র‍্যাশ", "ফুসকুড়ি", "চাকা চাকা দাগ"),
-    "acne": ("ব্রণ", "একনি"),
-    "hives": ("আমবাত",),
-    "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন"),
-    "hair fall": ("চুল উঠছে",),
-    "dry skin": ("শুষ্ক ত্বক", "চামড়া শুকিয়ে"),
-    "boil": ("ফোঁড়া", "বিচি"),
+    "itching": ("চুলকানি", "চুলকায়", "খুজলি", "ইচিং"), #
+    "rash": ("র‍্যাশ", "ফুসকুড়ি", "চাকা চাকা দাগ"), #
+    "acne": ("ব্রণ", "একনি"), #
+    "hives": ("আমবাত", "আর্টিকেরিয়া"), #
+    "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন"), #
+    "hair fall": ("চুল উঠছে",), #
+    "dry skin": ("শুষ্ক ত্বক", "চামড়া শুকিয়ে"), #
+    "boil": ("ফোঁড়া", "বিচি"), #
+    "corn": ("কড়া পড়া", "কর্ন"),
     # ophthalmology
-    "blurred vision far": ("দূরে ঝাপসা", "দূরের জিনিস দেখতে"),
-    "eye pain": ("চোখে ব্যথা", "চোখ ব্যথা"),
-    "watering eyes": ("চোখ দিয়ে জল", "চোখে জল পড়া"),
-    "red eye": ("চোখ লাল", "লাল চোখ"),
-    "cataract": ("ছানি", "ক্যাটারাক্ট"),
-    "glaucoma": ("গ্লুকোমা", "চোখের প্রেশার বেশি"),
+    "blurred vision far": ("দূরে ঝাপসা", "দূরের জিনিস দেখতে"), #
+    "eye pain": ("চোখে ব্যথা", "চোখ ব্যথা"), #
+    "watering eyes": ("চোখ দিয়ে জল", "চোখে জল পড়া"), #
+    "red eye": ("চোখ লাল", "লাল চোখ"), #
+    "cataract": ("ছানি", "ক্যাটারাক্ট"), #
+    "glaucoma": ("গ্লুকোমা", "চোখের প্রেশার বেশি"), #
     # ENT
-    "ear pain": ("কানে ব্যথা", "কান ব্যথা"),
-    "hearing loss": ("কানে শুনতে অসুবিধা", "কম শুনছি", "শ্রবণশক্তি কমে"),
-    "tinnitus": ("কানে শব্দ", "কানে ভোঁ ভোঁ"),
-    "vertigo": ("মাথা ঘোরা ভার্টিগো", "ভার্টিগো", "সবকিছু ঘুরছে"),
-    "nasal block": ("নাক বন্ধ", "নাক দিয়ে শ্বাস"),
-    "runny nose": ("নাক দিয়ে জল", "সর্দি"),
-    "tonsillitis": ("টনসিল", "টনসিলাইটিস"),
+    "ear pain": ("কানে ব্যথা", "কান ব্যথা"), #
+    "hearing loss": ("কানে শুনতে অসুবিধা", "কম শুনছি", "শ্রবণশক্তি কমে", "হিয়ারিং লস"), #
+    "tinnitus": ("কানে শব্দ", "কানে ভোঁ ভোঁ"), #
+    "vertigo": ("মাথা ঘোরা ভার্টিগো", "ভার্টিগো", "সবকিছু ঘুরছে"), #
+    "nasal block": ("নাক বন্ধ", "নাক দিয়ে শ্বাস"), #
+    "runny nose": ("নাক দিয়ে জল", "সর্দি", "হলদে সর্দি"), #
+    "tonsillitis": ("টনসিল", "টনসিলাইটিস"), #
     # dental
-    "toothache": ("দাঁতে ব্যথা", "দাঁত ব্যথা"),
-    "bleeding gums": ("মাড়ি থেকে রক্ত", "মাড়িতে রক্ত"),
-    "mouth ulcer": ("মুখে ঘা", "মুখের ঘা"),
-    "swollen gums": ("মাড়ি ফোলা", "মাড়ি ফুলে"),
+    "toothache": ("দাঁতে ব্যথা", "দাঁত ব্যথা", "টুথএক"), #
+    "bleeding gums": ("মাড়ি থেকে রক্ত", "মাড়িতে রক্ত", "গাম ব্লিডিং"), #
+    "mouth ulcer": ("মুখে ঘা", "মুখের ঘা", "অ্যাপথাস আলসার"), #
+    "swollen gums": ("মাড়ি ফোলা", "মাড়ি ফুলে"), #
     # gynaecology
-    "irregular periods": ("অনিয়মিত পিরিয়ড", "মাসিক অনিয়মিত"),
-    "heavy bleeding": ("বেশি রক্তপাত", "অতিরিক্ত রক্তক্ষরণ"),
-    "white discharge": ("সাদা স্রাব", "লিউকোরিয়া"),
-    "menopause": ("মেনোপজ", "মাসিক বন্ধ"),
-    "pregnancy": ("গর্ভাবস্থা", "প্রেগন্যান্ট", "অন্তঃসত্ত্বা"),
-    "lower abdominal pain": ("তলপেটে ব্যথা", "তলপেট ব্যথা"),
+    "irregular periods": ("অনিয়মিত পিরিয়ড", "মাসিক অনিয়মিত", "ইরেগুলার পিরিয়ড"), #
+    "heavy bleeding": ("বেশি রক্তপাত", "অতিরিক্ত রক্তক্ষরণ", "হেভি ব্লিডিং"), #
+    "white discharge": ("সাদা স্রাব", "লিউকোরিয়া"), #
+    "menopause": ("মেনোপজ", "মাসিক বন্ধ"), #
+    "pregnancy": ("গর্ভাবস্থা", "প্রেগন্যান্ট", "অন্তঃসত্ত্বা"), # #
     # nephrology
-    "reduced urine": ("প্রস্রাব কম", "কম প্রস্রাব"),
-    "burning urination": ("প্রস্রাবে জ্বালা", "জ্বালাপোড়া"),
-    "facial puffiness": ("মুখ ফোলা", "চোখ মুখ ফোলা"),
-    "kidney failure": ("কিডনি ফেইলিওর", "কিডনি খারাপ"),
-    "dialysis": ("ডায়ালিসিস",),
+    "reduced urine": ("প্রস্রাব কম", "কম প্রস্রাব", "ইউরিন আউটপুট কমে যাওয়া"), #
+    "burning urination": ("প্রস্রাবে জ্বালা", "জ্বালাপোড়া"), #
+    "facial puffiness": ("মুখ ফোলা", "চোখ মুখ ফোলা", "পেরিঅরবিটাল এডিমা"), #
+    "kidney failure": ("কিডনি ফেইলিওর", "কিডনি খারাপ"), #
+    "dialysis": ("ডায়ালিসিস",), #
     # neurology
-    "seizure": ("খিঁচুনি", "ফিট", "মৃগী"),
-    "stroke": ("স্ট্রোক", "প্যারালাইসিস", "পক্ষাঘাত"),
-    "numbness": ("অবশ", "ঝিনঝিন", "অসাড়"),
-    "tremor": ("কাঁপুনি", "হাত কাঁপে"),
-    "migraine": ("মাইগ্রেন",),
-    "memory problem": ("ভুলে যাচ্ছি", "স্মৃতি সমস্যা"),
-    "weakness one side": ("একদিক অবশ", "এক পাশ দুর্বল"),
+    "seizure": ("খিঁচুনি", "ফিট", "মৃগী"), #
+    "stroke": ("স্ট্রোক", "প্যারালাইসিস", "পক্ষাঘাত"), #
+    "numbness": ("অবশ", "ঝিনঝিন", "অসাড়"), #
+    "tremor": ("কাঁপুনি", "হাত কাঁপে", "রেস্টিং ট্রেমর"), #
+    "migraine": ("মাইগ্রেন",), #
+    "memory problem": ("ভুলে যাচ্ছি", "স্মৃতি সমস্যা"), #
+    "weakness one side": ("একদিক অবশ", "এক পাশ দুর্বল"), #
     # surgery
-    "lump": ("চাকা", "গোটা", "টিউমার"),
-    "hernia": ("হার্নিয়া",),
-    "piles": ("পাইলস", "অর্শ"),
-    "gallstone": ("পিত্তথলির পাথর", "গলব্লাডার স্টোন"),
-    "appendicitis": ("অ্যাপেন্ডিক্স", "অ্যাপেন্ডিসাইটিস"),
-    "wound": ("ক্ষত", "ঘা", "কাটা"),
+    "lump": ("চাকা", "গোটা", "টিউমার"), #
+    "hernia": ("হার্নিয়া",), #
+    "piles": ("পাইলস", "অর্শ", "হেমোরয়েডস"), #
+    "gallstone": ("পিত্তথলির পাথর", "গলব্লাডার স্টোন", "কোলিথিওসিস"), #
+    "appendicitis": ("অ্যাপেন্ডিক্স", "অ্যাপেন্ডিসাইটিস"), #
+    "wound": ("ক্ষত", "ঘা", "কাটা"), #
+    # respiratory
+    "asthma": ("হাঁপানি", "অ্যাজমা", "ব্রঙ্কিয়াল অ্যাজমা"),
+    "wheezing": ("শোঁ শোঁ আওয়াজ", "wheezing"),
+    # orthopedics
+    "arthritis": ("বাতের ব্যথা", "গাঁটে ব্যথা", "অস্টিওআর্থারাইটিস"),
+    "joint pain": ("জয়েন্টে ব্যথা", "হাঁটুতে ব্যথা"),
+    "muscle cramp": ("শিরায় টান", "পেশিতে টান"),
     # --- DRUG CLASSES, not drugs -------------------------------------
     # A doctor says "I'll give you an antibiotic" without naming one. These
     # must never resolve to a specific product.
@@ -773,32 +938,32 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # statement became a specific ear medication. Naming the classes
     # positively stops that for every future entry too, because the class
     # check runs before the brand table and before fuzzy.
-    "antibiotic": ("অ্যান্টিবায়োটিক", "antibiotics", "এন্টিবায়োটিক"),
-    "painkiller": ("পেইনকিলার", "ব্যথার ওষুধ", "analgesic", "pain killer"),
-    "antacid": ("অ্যান্টাসিড", "গ্যাসের ওষুধ"),
-    "steroid": ("স্টেরয়েড", "steroids"),
-    "vitamin supplement": ("ভিটামিন", "vitamins", "supplement", "সাপ্লিমেন্ট"),
-    "antihistamine": ("অ্যান্টিহিস্টামিন",),
-    "eye drops": ("চোখের ড্রপ", "আই ড্রপ"),
-    "ear drops": ("কানের ড্রপ",),
-    "nasal spray": ("নাকের স্প্রে",),
-    "ointment": ("মলম", "অয়েন্টমেন্ট"),
-    "syrup": ("সিরাপ",),
-    "tablet": ("ট্যাবলেট", "বড়ি"),
-    "injection": ("ইনজেকশন", "ইঞ্জেকশন"),
-    "medicine": ("ওষুধ", "মেডিসিন", "ঔষধ"),
+    "antibiotic": ("অ্যান্টিবায়োটিক", "antibiotics", "এন্টিবায়োটিক"), #
+    "painkiller": ("পেইনকিলার", "ব্যথার ওষুধ", "analgesic", "pain killer"), #
+    "antacid": ("অ্যান্টাসিড", "গ্যাসের ওষুধ"), #
+    "steroid": ("স্টেরয়েড", "steroids"), #
+    "vitamin supplement": ("ভিটামিন", "vitamins", "supplement", "সাপ্লিমেন্ট"), #
+    "antihistamine": ("অ্যান্টিহিস্টামিন",), #
+    "eye drops": ("চোখের ড্রপ", "আই ড্রপ"), #
+    "ear drops": ("কানের ড্রপ",), #
+    "nasal spray": ("নাকের স্প্রে", "নেজাল স্প্রে"), #
+    "ointment": ("মলম", "অয়েন্টমেন্ট"), #
+    "syrup": ("সিরাপ",), #
+    "tablet": ("ট্যাবলেট", "বড়ি"), #
+    "injection": ("ইনজেকশন", "ইঞ্জেকশন"), #
+    "medicine": ("ওষুধ", "মেডিসিন", "ঔষধ"), #
     # advice - explicitly NOT medications
-    "exercise": ("ব্যায়াম", "এক্সারসাইজ", "হাঁটা", "walking"),
-    "lean diet": ("লিন ডায়েট", "হালকা খাবার", "light food"),
-    "avoid oily food": ("তেল মশলা এড়িয়ে", "তেলমশলা"),
-    "drink water": ("বেশি পানি", "জল খাবেন"),
+    "exercise": ("ব্যায়াম", "এক্সারসাইজ", "হাঁটা", "walking"), #
+    "lean diet": ("লিন ডায়েট", "হালকা খাবার", "light food"), #
+    "avoid oily food": ("তেল মশলা এড়িয়ে", "তেলমশলা"), #
+    "drink water": ("বেশি পানি", "জল খাবেন"), #
     "ORS": ("ওআরএস", "ওরস"),   # rehydration, NOT a pharmaceutical
-    "rest": ("বিশ্রাম",),
-    "follow up": ("ফলো আপ", "আবার দেখাবেন"),
-    "bandage": ("ব্যাণ্ডেজ", "ব্যান্ডেজ"),
-    "dressing": ("ড্রেসিং",),
-    "nebulization": ("নেবুলাইজেশন", "নেবুলাইজার"),
-    "prescription": ("প্রেসক্রিপশন",),
+    "rest": ("বিশ্রাম",), #
+    "follow up": ("ফলো আপ", "আবার দেখাবেন"), #
+    "bandage": ("ব্যাণ্ডেজ", "ব্যান্ডেজ"), #
+    "dressing": ("ড্রেসিং",), #
+    "nebulization": ("নেবুলাইজেশন", "নেবুলাইজার"), #
+    "prescription": ("প্রেসক্রিপশন",), #
 }
 
 
@@ -892,7 +1057,7 @@ _BN_FOLD = str.maketrans({
 _LAT_FOLD = (
     ("ph", "f"), ("ck", "k"), ("qu", "k"), ("x", "ks"),
     ("y", "i"), ("z", "s"), ("c", "k"), ("w", "v"), ("j", "z"),
-)
+) #
 
 
 # TRIED AND REJECTED: stripping vowel diacritics (matras).
@@ -913,23 +1078,23 @@ def fold(s: str) -> str:
     Lossy by design - see the block comment above. Never use the output for
     display; it is a lookup key only.
     """
-    s = unicodedata.normalize("NFC", s).strip().lower()
-    s = s.translate(_BN_DROP).translate(_BN_FOLD)
-    for a, b in _LAT_FOLD:
-        s = s.replace(a, b)
+    s = unicodedata.normalize("NFC", s).strip().lower() #
+    s = s.translate(_BN_DROP).translate(_BN_FOLD) #
+    for a, b in _LAT_FOLD: #
+        s = s.replace(a, b) #
     # strip spacing and punctuation LAST, so "সি বি সি" == "সিবিসি"
-    out = [c for c in s if not (c.isspace() or unicodedata.category(c).startswith("P"))]
-    s = "".join(out)
+    out = [c for c in s if not (c.isspace() or unicodedata.category(c).startswith("P"))] #
+    s = "".join(out) #
     # Collapse doubled letters ("Ecosprinn", "pantopp") - ASCII ONLY.
     # Applying this to Bengali corrupts spelled-out acronyms: EEG is
     # "ই ই জি", and deduping it to "ইজি" made a 3-character key that
     # false-matched "এই জিভটা" ("stick your tongue out").
-    deduped: list[str] = []
-    for c in s:
-        if deduped and deduped[-1] == c and c.isascii():
-            continue
-        deduped.append(c)
-    return "".join(deduped)
+    deduped: list[str] = [] #
+    for c in s: #
+        if deduped and deduped[-1] == c and c.isascii(): #
+            continue #
+        deduped.append(c) #
+    return "".join(deduped) #
 
 
 # ---------------------------------------------------------------------------
@@ -945,66 +1110,103 @@ def fold(s: str) -> str:
 # ---------------------------------------------------------------------------
 DOSING_TERMS: dict[str, tuple[str, ...]] = {
     "after lunch": ("দুপুরে খাওয়ার পর", "দুপুরে খাবার পরে", "দুপুরের খাবারের পর",
-                     "দুপুরে খেয়ে"),
+                     "দুপুরে খেয়ে"), #
     "after dinner": ("রাতে খাবার পরে", "রাতে খাওয়ার পর", "রাতের খাবারের পর",
-                      "রাতে খেয়ে"),
-    "after breakfast": ("সকালে খাওয়ার পর", "সকালে খাবার পরে", "ব্রেকফাস্টের পর"),
-    "before food": ("খাওয়ার আগে", "খাবার আগে", "খালি পেটে", "খাওয়ার পূর্বে"),
-    "after food": ("খাওয়ার পরে", "খাবার পরে", "ভরা পেটে", "খাওয়ার পর"),
-    "in the morning": ("সকালে", "সকাল বেলা", "রোজ সকালে"),
-    "at night": ("রাতে", "রাত্রে", "শোয়ার আগে", "ঘুমানোর আগে"),
-    "twice daily": ("দিনে দুবার", "দুবেলা", "সকাল বিকেল", "সকালে আর রাতে"),
-    "three times daily": ("দিনে তিনবার", "তিনবেলা", "তিন বেলা"),
-    "once daily": ("দিনে একবার", "রোজ একটা", "একবেলা", "প্রতিদিন একবার"),
-    "when required": ("দরকার হলে", "প্রয়োজন হলে", "যখন লাগবে", "কষ্ট হলে"),
+                      "রাতে খেয়ে"), #
+    "after breakfast": ("সকালে খাওয়ার পর", "সকালে খাবার পরে", "ব্রেকফাস্টের পর"), #
+    "before food": ("খাওয়ার আগে", "খাবার আগে", "খালি পেটে", "খাওয়ার পূর্বে"), #
+    "after food": ("খাওয়ার পরে", "খাবার পরে", "ভরা পেটে", "খাওয়ার পর"), #
+    "in the morning": ("সকালে", "সকাল বেলা", "রোজ সকালে"), #
+    "at night": ("রাতে", "রাত্রে", "শোয়ার আগে", "ঘুমানোর আগে"), #
+    "twice daily": ("দিনে দুবার", "দুবেলা", "সকাল বিকেল", "সকালে আর রাতে"), #
+    "three times daily": ("দিনে তিনবার", "তিনবেলা", "তিন বেলা"), #
+    "once daily": ("দিনে একবার", "রোজ একটা", "একবেলা", "প্রতিদিন একবার"), #
+    "when required": ("দরকার হলে", "প্রয়োজন হলে", "যখন লাগবে", "কষ্ট হলে"), #
 }
 
 # Frequency shorthand a printed prescription expects.
 DOSING_CODES: dict[str, str] = {
-    "once daily": "OD",
-    "twice daily": "BD",
-    "three times daily": "TDS",
-    "when required": "SOS",
-    "in the morning": "OD (morning)",
-    "at night": "OD (night)",
+    "once daily": "OD", #
+    "twice daily": "BD", #
+    "three times daily": "TDS", #
+    "when required": "SOS", #
+    "in the morning": "OD (morning)", #
+    "at night": "OD (night)", #
 }
 
 DURATION_TERMS: dict[str, tuple[str, ...]] = {
-    "3 days": ("তিন দিন", "তিনদিন"),
-    "5 days": ("পাঁচ দিন", "পাঁচদিন"),
-    "7 days": ("সাত দিন", "সাতদিন", "এক সপ্তাহ"),
-    "10 days": ("দশ দিন", "দশদিন"),
-    "15 days": ("পনেরো দিন", "পনেরদিন", "দুই সপ্তাহ"),
-    "1 month": ("এক মাস", "একমাস", "৩০ দিন"),
-    "2 months": ("দুই মাস", "দুমাস"),
-    "3 months": ("তিন মাস", "তিনমাস"),
-    "6 months": ("ছয় মাস", "ছমাস"),
-    "continue": ("চালিয়ে যান", "চলতে থাকবে", "একটানা", "নিয়মিত"),
+    "3 days": ("তিন দিন", "তিনদিন"), #
+    "5 days": ("পাঁচ দিন", "পাঁচদিন"), #
+    "7 days": ("সাত দিন", "সাতদিন", "এক সপ্তাহ"), #
+    "10 days": ("দশ দিন", "দশদিন"), #
+    "15 days": ("পনেরো দিন", "পনেরদিন", "দুই সপ্তাহ"), #
+    "1 month": ("এক মাস", "একমাস", "৩০ দিন"), #
+    "2 months": ("দুই মাস", "দুমাস"), #
+    "3 months": ("তিন মাস", "তিনমাস"), #
+    "6 months": ("ছয় মাস", "ছমাস"), #
+    "continue": ("চালিয়ে যান", "চলতে থাকবে", "একটানা", "নিয়মিত"), #
 }
 
 
 def _norm(s: str) -> str:
     """Display normalisation only. Matching goes through fold()."""
-    return unicodedata.normalize("NFC", s.strip().lower())
+    return unicodedata.normalize("NFC", s.strip().lower()) #
 
 
 # Build lookup tables once at import, keyed on the FOLD.
-_DRUG_LOOKUP: dict[str, Drug] = {}
-for _d in ALL_DRUGS:
-    for _key in (_d.generic, *_d.brands, *_d.bengali):
-        _DRUG_LOOKUP[fold(_key)] = _d
+_DRUG_LOOKUP: dict[str, Drug] = {} #
+for _d in ALL_DRUGS: #
+    for _key in (_d.generic, *_d.brands, *_d.bengali): #
+        _DRUG_LOOKUP[fold(_key)] = _d #
 
-_LAB_LOOKUP: dict[str, str] = {}
-for _canon, _alts in LAB_TESTS.items():
-    _LAB_LOOKUP[fold(_canon)] = _canon
-    for _a in _alts:
-        _LAB_LOOKUP[fold(_a)] = _canon
+_LAB_LOOKUP: dict[str, str] = {} #
+for _canon, _alts in LAB_TESTS.items(): #
+    _LAB_LOOKUP[fold(_canon)] = _canon #
+    for _a in _alts: #
+        _LAB_LOOKUP[fold(_a)] = _canon #
 
-_TERM_LOOKUP: dict[str, str] = {}
-for _canon, _alts in CLINICAL_TERMS.items():
-    _TERM_LOOKUP[fold(_canon)] = _canon
-    for _a in _alts:
-        _TERM_LOOKUP[fold(_a)] = _canon
+_TERM_LOOKUP: dict[str, str] = {} #
+for _canon, _alts in CLINICAL_TERMS.items(): #
+    _TERM_LOOKUP[fold(_canon)] = _canon #
+    for _a in _alts: #
+        _TERM_LOOKUP[fold(_a)] = _canon #
+
+# Bengali spellings LEARNED from human-labelled transcripts.
+#
+# Higher trust than anything machine-inferred: a human wrote the Bengali
+# form next to the English drug name. Coverage on 188 real department
+# transcripts was 62.2% for drugs, and most misses were not unknown drugs -
+# they were known drugs under a spelling the gazetteer did not have:
+#
+#     transcript  মন্টিলোকাস্ট     gazetteer  মন্টিকুলাষ্ট     Montelukast
+#     transcript  লিভোসেট্রিজিন    gazetteer  লেভোসেটিরিজিন    Levocetirizine
+#
+# The fold cannot bridge those - the vowels differ too much - and loosening
+# it far enough was tried and broke other matching. Recording the observed
+# spelling is the correct fix.
+try:
+    from .learned_forms import LEARNED_DRUG_FORMS, LEARNED_LAB_FORMS
+except ImportError:                              # pragma: no cover
+    LEARNED_DRUG_FORMS, LEARNED_LAB_FORMS = {}, {}
+
+_LEARNED_COUNT = 0
+for _generic, _forms in LEARNED_DRUG_FORMS.items():
+    _drug = _DRUG_LOOKUP.get(fold(_generic))
+    if _drug is None:
+        continue
+    for _f in _forms:
+        _k = fold(_f)
+        if _k and _k not in _DRUG_LOOKUP and _k not in _LAB_LOOKUP:
+            _DRUG_LOOKUP[_k] = _drug
+            _LEARNED_COUNT += 1
+
+for _canon, _forms in LEARNED_LAB_FORMS.items():
+    for _f in _forms:
+        _k = fold(_f)
+        if _k and _k not in _LAB_LOOKUP and _k not in _DRUG_LOOKUP:
+            _LAB_LOOKUP[_k] = _canon
+            _LEARNED_COUNT += 1
+
 
 # Machine-imported terms from the MedER dataset - a LOWER trust tier than
 # the curated table above, and loaded second so a curated entry always wins.
@@ -1018,19 +1220,19 @@ for _canon, _alts in CLINICAL_TERMS.items():
 # Optional by design: the file is generated, so glossary.py must still
 # import cleanly in a fresh checkout before anyone has run the importer.
 try:
-    from .terms_imported import IMPORTED_TERMS
+    from .terms_imported import IMPORTED_TERMS #
 except ImportError:                              # pragma: no cover
-    IMPORTED_TERMS = {}
+    IMPORTED_TERMS = {} #
 
-_IMPORTED_COUNT = 0
-for _canon, _alts in IMPORTED_TERMS.items():
-    for _a in _alts:
-        _k = fold(_a)
+_IMPORTED_COUNT = 0 #
+for _canon, _alts in IMPORTED_TERMS.items(): #
+    for _a in _alts: #
+        _k = fold(_a) #
         # never let an import shadow a curated term, a drug or a lab test
-        if _k in _TERM_LOOKUP or _k in _DRUG_LOOKUP or _k in _LAB_LOOKUP:
-            continue
-        _TERM_LOOKUP[_k] = _canon
-        _IMPORTED_COUNT += 1
+        if _k in _TERM_LOOKUP or _k in _DRUG_LOOKUP or _k in _LAB_LOOKUP: #
+            continue #
+        _TERM_LOOKUP[_k] = _canon #
+        _IMPORTED_COUNT += 1 #
 
 
 def _build_collisions() -> list[tuple[str, str, str]]:
@@ -1046,22 +1248,23 @@ def _build_collisions() -> list[tuple[str, str, str]]:
     evaluation and sending me looking for a detection bug that did not
     exist.
     """
-    found: list[tuple[str, str, str]] = []
-    for label, table in (("lab", LAB_TESTS), ("term", CLINICAL_TERMS)):
-        seen: dict[str, str] = {}
-        for canon, aliases in table.items():
-            for alias in (canon, *aliases):
-                key = fold(alias)
-                if key in seen and seen[key] != canon:
-                    found.append((alias, f"{label}:{seen[key]}", f"{label}:{canon}"))
+    found: list[tuple[str, str, str]] = [] #
+    for label, table in (("lab", LAB_TESTS), ("term", CLINICAL_TERMS)): #
+        seen: dict[str, str] = {} #
+        for canon, aliases in table.items(): #
+            for alias in (canon, *aliases): #
+                key = fold(alias) #
+                if key in seen and seen[key] != canon: #
+                    found.append((alias, f"{label}:{seen[key]}", f"{label}:{canon}")) #
                 else:
-                    seen[key] = canon
-    for i, d1 in enumerate(ALL_DRUGS):
-        for d2 in ALL_DRUGS[i + 1:]:
-            shared = {fold(a) for a in (d1.generic, *d1.brands, *d1.bengali)} &                      {fold(a) for a in (d2.generic, *d2.brands, *d2.bengali)}
-            for key in shared:
-                found.append((key, f"drug:{d1.generic}", f"drug:{d2.generic}"))
-    return found
+                    seen[key] = canon #
+    for i, d1 in enumerate(ALL_DRUGS): #
+        for d2 in ALL_DRUGS[i + 1:]: #
+            shared = {fold(a) for a in (d1.generic, *d1.brands, *d1.bengali)} & \
+                     {fold(a) for a in (d2.generic, *d2.brands, *d2.bengali)} #
+            for key in shared: #
+                found.append((key, f"drug:{d1.generic}", f"drug:{d2.generic}")) #
+    return found #
 
 
 def collisions() -> list[tuple[str, str, str]]:
@@ -1072,19 +1275,19 @@ def collisions() -> list[tuple[str, str, str]]:
     bug - the fold has over-merged and must be made less aggressive.
     Exercised by the test suite; returns [] when the gazetteer is clean.
     """
-    found: list[tuple[str, str, str]] = _build_collisions()
-    seen: dict[str, tuple[str, str]] = {}
-    for kind, table in (("drug", {k: v.generic for k, v in _DRUG_LOOKUP.items()}),
-                        ("lab", _LAB_LOOKUP),
-                        ("term", _TERM_LOOKUP)):
-        for key, canon in table.items():
-            if key in seen:
-                prev_kind, prev_canon = seen[key]
-                if prev_canon != canon:
-                    found.append((key, f"{prev_kind}:{prev_canon}", f"{kind}:{canon}"))
+    found: list[tuple[str, str, str]] = _build_collisions() #
+    seen: dict[str, tuple[str, str]] = {} #
+    for kind, table in (("drug", {k: v.generic for k, v in _DRUG_LOOKUP.items()}), #
+                        ("lab", _LAB_LOOKUP), #
+                        ("term", _TERM_LOOKUP)): #
+        for key, canon in table.items(): #
+            if key in seen: #
+                prev_kind, prev_canon = seen[key] #
+                if prev_canon != canon: #
+                    found.append((key, f"{prev_kind}:{prev_canon}", f"{kind}:{canon}")) #
             else:
-                seen[key] = (kind, canon)
-    return found
+                seen[key] = (kind, canon) #
+    return found #
 
 
 # Dosage-form noise the SLM prepends. Folded, because that is the space
@@ -1092,7 +1295,7 @@ def collisions() -> list[tuple[str, str, str]]:
 _DOSAGE_PREFIXES = tuple(fold(p) for p in (
     "tab.", "tab", "cap.", "cap", "syp.", "syp", "inj.", "inj",
     "tablet", "capsule", "syrup", "injection", "ট্যাব", "ক্যাপ",
-))
+)) #
 
 
 def lookup_drug(text: str) -> Drug | None:
@@ -1101,23 +1304,23 @@ def lookup_drug(text: str) -> Drug | None:
     Folding means one entry covers its whole spelling family, so
     "মন্টিকুলাষ্ট", "মনটিকুলাসট" and "Montelukast" all land on the same Drug.
     """
-    t = fold(text)
-    if not t:
-        return None
-    if t in _DRUG_LOOKUP:
-        return _DRUG_LOOKUP[t]
-    for prefix in _DOSAGE_PREFIXES:
-        if prefix and t.startswith(prefix):
-            stripped = t[len(prefix):]
-            if stripped in _DRUG_LOOKUP:
-                return _DRUG_LOOKUP[stripped]
-    return _ngram_match(text, _DRUG_LOOKUP)
+    t = fold(text) #
+    if not t: #
+        return None #
+    if t in _DRUG_LOOKUP: #
+        return _DRUG_LOOKUP[t] #
+    for prefix in _DOSAGE_PREFIXES: #
+        if prefix and t.startswith(prefix): #
+            stripped = t[len(prefix):] #
+            if stripped in _DRUG_LOOKUP: #
+                return _DRUG_LOOKUP[stripped] #
+    return _ngram_match(text, _DRUG_LOOKUP) #
 
 
 # How many consecutive words a gazetteer entry may span. Covers the longest
 # real cases: "সি বি সি" (3), "খাওয়ার পরের সুগার" (3), "তেল মশলা এড়িয়ে" (3),
 # plus headroom for a spelled-out four-letter acronym.
-_MAX_NGRAM = 5
+_MAX_NGRAM = 5 #
 
 
 # Minimum folded length for a DRUG key to be matched inside free text.
@@ -1137,12 +1340,12 @@ _MAX_NGRAM = 5
 # consonant clusters, not word-shaped. A short drug name still resolves via
 # the whole-string exact lookup in lookup_drug(); it just cannot be fished
 # out of the middle of a sentence.
-_MIN_DRUG_NGRAM = 4
+_MIN_DRUG_NGRAM = 4 #
 
 
 def _too_short_for_text(gram: str, table: dict) -> bool:
     """Guard against short DRUG keys being fished out of free text."""
-    return table is _DRUG_LOOKUP and len(gram) < _MIN_DRUG_NGRAM
+    return table is _DRUG_LOOKUP and len(gram) < _MIN_DRUG_NGRAM #
 
 
 def _ngram_match(text: str, table: dict):
@@ -1159,18 +1362,18 @@ def _ngram_match(text: str, table: dict):
     the same word. Prefix matching is capped at keys of >= 4 folded
     characters so short keys cannot run away.
     """
-    tokens = text.split()
-    if not tokens:
-        return None
-    best = None
-    best_len = 0
-    for i in range(len(tokens)):
-        for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1):
-            hit, key = _lookup_span(_span_variants(tokens, i, n), table)
+    tokens = text.split() #
+    if not tokens: #
+        return None #
+    best = None #
+    best_len = 0 #
+    for i in range(len(tokens)): #
+        for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1): #
+            hit, key = _lookup_span(_span_variants(tokens, i, n), table) #
             # prefer the longest match, so "PP sugar" beats "blood sugar"
-            if hit is not None and len(key) > best_len:
-                best, best_len = hit, len(key)
-    return best
+            if hit is not None and len(key) > best_len: #
+                best, best_len = hit, len(key) #
+    return best #
 
 
 # Bengali negation and interrogative particles. Both follow the verb, so a
@@ -1183,9 +1386,9 @@ def _ngram_match(text: str, table: dict):
 # precision without this: "নতুন কোনো টেস্ট দিচ্ছি না" ("I am NOT giving a new
 # test") was reported as a test ordered, and "কোনো পরীক্ষা করাতে হবে কি"
 # ("do I need any tests?") is the patient ASKING, not the doctor ordering.
-_NEGATORS = {"না", "নি", "নেই", "নয়", "নাই", "কখনো"}
-_INTERROGATIVES = {"কি", "কী", "কিনা", "কিনা?"}
-_SCOPE_WINDOW = 3
+_NEGATORS = {"না", "নি", "নেই", "নয়", "নাই", "কখনো"} #
+_INTERROGATIVES = {"কি", "কী", "কিনা", "কিনা?"} #
+_SCOPE_WINDOW = 3 #
 
 
 def _span_is_negated(tokens: list[str], start: int, end: int) -> bool:
@@ -1198,11 +1401,11 @@ def _span_is_negated(tokens: list[str], start: int, end: int) -> bool:
     suppressed at n<=3 but reported at n=4, because the 4-token span
     absorbed the "না" and the window past it saw only "এখন".
     """
-    for tok in tokens[start:end + _SCOPE_WINDOW]:
-        clean = tok.strip("।,?!.")
-        if clean in _NEGATORS or clean in _INTERROGATIVES:
-            return True
-    return False
+    for tok in tokens[start:end + _SCOPE_WINDOW]: #
+        clean = tok.strip("।,?!.") #
+        if clean in _NEGATORS or clean in _INTERROGATIVES: #
+            return True #
+    return False #
 
 
 def _span_variants(tokens: list[str], i: int, n: int) -> list[str]:
@@ -1220,12 +1423,12 @@ def _span_variants(tokens: list[str], i: int, n: int) -> list[str]:
     are droppable - removing the first or last would match a different
     phrase entirely.
     """
-    span = tokens[i:i + n]
-    out = [fold("".join(span))]
-    if n >= 3:
-        for skip in range(1, n - 1):
-            out.append(fold("".join(span[:skip] + span[skip + 1:])))
-    return out
+    span = tokens[i:i + n] #
+    out = [fold("".join(span))] #
+    if n >= 3: #
+        for skip in range(1, n - 1): #
+            out.append(fold("".join(span[:skip] + span[skip + 1:]))) #
+    return out #
 
 
 def _lookup_span(grams: list[str], table: dict):
@@ -1241,17 +1444,17 @@ def _lookup_span(grams: list[str], table: dict):
     key. A gapped match is already a relaxation; a gapped match that also
     only has to match a prefix is barely a match at all.
     """
-    for idx, gram in enumerate(grams):
-        if not gram:
-            continue
-        hit = table.get(gram)
-        if hit is not None and not _too_short_for_text(gram, table):
-            return hit, gram
-        if idx == 0 and len(gram) >= 4:
-            for key, val in table.items():
-                if len(key) >= 4 and gram.startswith(key):
-                    return val, key
-    return None, ""
+    for idx, gram in enumerate(grams): #
+        if not gram: #
+            continue #
+        hit = table.get(gram) #
+        if hit is not None and not _too_short_for_text(gram, table): #
+            return hit, gram #
+        if idx == 0 and len(gram) >= 4: #
+            for key, val in table.items(): #
+                if len(key) >= 4 and gram.startswith(key): #
+                    return val, key #
+    return None, "" #
 
 
 def _ngram_scan_all(text: str, table: dict) -> list:
@@ -1267,62 +1470,62 @@ def _ngram_scan_all(text: str, table: dict) -> list:
     what the SLM proposed - they never propose on their own. Do not use
     them as a standalone extractor without adding negation scope.
     """
-    tokens = text.split()
-    found: list = []
-    for i in range(len(tokens)):
-        for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1):
-            hit, _key = _lookup_span(_span_variants(tokens, i, n), table)
-            if hit is not None and hit not in found:
-                if _span_is_negated(tokens, i, i + n):
-                    continue
-                found.append(hit)
-    return found
+    tokens = text.split() #
+    found: list = [] #
+    for i in range(len(tokens)): #
+        for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1): #
+            hit, _key = _lookup_span(_span_variants(tokens, i, n), table) #
+            if hit is not None and hit not in found: #
+                if _span_is_negated(tokens, i, i + n): #
+                    continue #
+                found.append(hit) #
+    return found #
 
 
 def scan_labs(text: str) -> list[str]:
     """All lab tests ordered in this segment."""
-    return _ngram_scan_all(text, _LAB_LOOKUP)
+    return _ngram_scan_all(text, _LAB_LOOKUP) #
 
 
 def scan_drugs(text: str) -> list[Drug]:
     """All gazetteer drugs named in this segment."""
-    return _ngram_scan_all(text, _DRUG_LOOKUP)
+    return _ngram_scan_all(text, _DRUG_LOOKUP) #
 
 
 def scan_terms(text: str) -> list[str]:
     """All clinical terms (symptoms / findings / advice) in this segment."""
-    return _ngram_scan_all(text, _TERM_LOOKUP)
+    return _ngram_scan_all(text, _TERM_LOOKUP) #
 
 
 def is_lab_test(text: str) -> str | None:
     """Folded n-gram match - this is what makes spelled-out acronyms work:
     the tokens "সি বি সি" join and fold to the CBC key."""
-    t = fold(text)
-    if not t:
-        return None
-    if t in _LAB_LOOKUP:
-        return _LAB_LOOKUP[t]
-    return _ngram_match(text, _LAB_LOOKUP)
+    t = fold(text) #
+    if not t: #
+        return None #
+    if t in _LAB_LOOKUP: #
+        return _LAB_LOOKUP[t] #
+    return _ngram_match(text, _LAB_LOOKUP) #
 
 
 def is_clinical_term(text: str) -> str | None:
     """True for symptoms, findings and advice - i.e. things that are
     definitively NOT medications."""
-    t = fold(text)
-    if not t:
-        return None
-    if t in _TERM_LOOKUP:
-        return _TERM_LOOKUP[t]
-    return _ngram_match(text, _TERM_LOOKUP)
+    t = fold(text) #
+    if not t: #
+        return None #
+    if t in _TERM_LOOKUP: #
+        return _TERM_LOOKUP[t] #
+    return _ngram_match(text, _TERM_LOOKUP) #
 
 
 def stats() -> dict:
     return {
-        "drugs": len(ALL_DRUGS),
-        "drug_aliases": len(_DRUG_LOOKUP),
-        "lab_tests": len(LAB_TESTS),
-        "clinical_terms": len(CLINICAL_TERMS),
-        "departments": sorted({d.department for d in ALL_DRUGS}),
+        "drugs": len(ALL_DRUGS), #
+        "drug_aliases": len(_DRUG_LOOKUP), #
+        "lab_tests": len(LAB_TESTS), #
+        "clinical_terms": len(CLINICAL_TERMS), #
+        "departments": sorted({d.department for d in ALL_DRUGS}), #
     }
 
 
@@ -1338,38 +1541,38 @@ def scan_dosing(text: str) -> tuple[str, str]:
     otherwise the plain-English gloss, which is still unambiguous to a
     pharmacist.
     """
-    freqs = _ngram_scan_all(text, _DOSING_LOOKUP)
-    durs = _ngram_scan_all(text, _DURATION_LOOKUP)
+    freqs = _ngram_scan_all(text, _DOSING_LOOKUP) #
+    durs = _ngram_scan_all(text, _DURATION_LOOKUP) #
 
     # Drop terms implied by a more specific one already present. "after
     # dinner" also matches "at night" and "after food", and printing all
     # three reads like three separate instructions.
-    for specific, implied in _SUBSUMES.items():
-        if specific in freqs:
-            freqs = [f for f in freqs if f == specific or f not in implied]
+    for specific, implied in _SUBSUMES.items(): #
+        if specific in freqs: #
+            freqs = [f for f in freqs if f == specific or f not in implied] #
 
-    freq_parts = [DOSING_CODES.get(f, f) for f in freqs]
-    return ", ".join(freq_parts), ", ".join(durs)
+    freq_parts = [DOSING_CODES.get(f, f) for f in freqs] #
+    return ", ".join(freq_parts), ", ".join(durs) #
 
 
 _SUBSUMES: dict[str, tuple[str, ...]] = {
-    "after dinner": ("at night", "after food"),
-    "after lunch": ("after food",),
-    "after breakfast": ("in the morning", "after food"),
+    "after dinner": ("at night", "after food"), #
+    "after lunch": ("after food",), #
+    "after breakfast": ("in the morning", "after food"), #
 }
 
 
-_DOSING_LOOKUP: dict[str, str] = {}
-for _canon, _alts in DOSING_TERMS.items():
-    _DOSING_LOOKUP[fold(_canon)] = _canon
-    for _a in _alts:
-        _DOSING_LOOKUP[fold(_a)] = _canon
+_DOSING_LOOKUP: dict[str, str] = {} #
+for _canon, _alts in DOSING_TERMS.items(): #
+    _DOSING_LOOKUP[fold(_canon)] = _canon #
+    for _a in _alts: #
+        _DOSING_LOOKUP[fold(_a)] = _canon #
 
-_DURATION_LOOKUP: dict[str, str] = {}
-for _canon, _alts in DURATION_TERMS.items():
-    _DURATION_LOOKUP[fold(_canon)] = _canon
-    for _a in _alts:
-        _DURATION_LOOKUP[fold(_a)] = _canon
+_DURATION_LOOKUP: dict[str, str] = {} #
+for _canon, _alts in DURATION_TERMS.items(): #
+    _DURATION_LOOKUP[fold(_canon)] = _canon #
+    for _a in _alts: #
+        _DURATION_LOOKUP[fold(_a)] = _canon #
 
 # ---------------------------------------------------------------------------
 # WHICH CLINICAL TERMS ARE WHAT
@@ -1395,7 +1598,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "kidney failure", "stroke", "migraine", "seizure", "hernia", "piles",
     "gallstone", "appendicitis", "tonsillitis", "fungal infection",
     "infection", "acne", "menopause", "pregnancy", "dementia",
-    "osteoporosis", "arthritis",
+    "osteoporosis", "arthritis", "asthma",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -1411,10 +1614,10 @@ NON_CLINICAL_TERMS: frozenset[str] = frozenset({
 
 def scan_conditions(text: str) -> list[str]:
     """Diagnosable conditions named in the text."""
-    return [t for t in _ngram_scan_all(text, _TERM_LOOKUP) if t in CONDITIONS]
+    return [t for t in _ngram_scan_all(text, _TERM_LOOKUP) if t in CONDITIONS] #
 
 
 def scan_symptoms(text: str) -> list[str]:
     """Symptoms named in the text - excludes conditions, advice and classes."""
     return [t for t in _ngram_scan_all(text, _TERM_LOOKUP)
-            if t not in CONDITIONS and t not in NON_CLINICAL_TERMS]
+            if t not in CONDITIONS and t not in NON_CLINICAL_TERMS] #
