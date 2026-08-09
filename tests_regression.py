@@ -368,7 +368,42 @@ check("as-needed has a home", _m.instructions, "when chest pain starts")
 
 print()
 print("=" * 70)
-print("16. GAZETTEER INTEGRITY")
+print("16. A DOSAGE FORM IS NOT A VERDICT ON THE DRUG")
+print("=" * 70)
+# "অ্যাম্ব্রুডিল সিরাপ" was REJECTED as "clinical term, not a drug: syrup".
+# The form matched the non-drug term and took the drug down with it, while
+# the bare name resolves perfectly well. Ambrodil cough syrup was dropped
+# from a real prescription this way.
+check("drug named with its form",
+      judge_medication("অ্যাম্ব্রুডিল সিরাপ").canonical, "Ambroxol")
+check("  same in Latin", judge_medication("Ambrodil syrup").canonical, "Ambroxol")
+check("  and kept, not rejected",
+      judge_medication("অ্যাম্ব্রুডিল সিরাপ").keep, True)
+# The whole name is tried FIRST, so a generic that legitimately contains a
+# form word is not mangled by stripping it.
+check("form word inside a real name",
+      judge_medication("Tobramycin eye drops").canonical, "Tobramycin eye drops")
+# A bare form is still not a drug.
+check("a form alone is still rejected", judge_medication("সিরাপ").keep, False)
+
+# The doctor stated a diagnosis and the consultation returned none: only
+# "allergies" existed, which is a symptom entry, not a diagnosable one.
+check("stated diagnosis is found",
+      scan_conditions("আপনার ডাস্ট আলার্জি তাহলে বুঝতে পারবো"), ["dust allergy"])
+# Region is the point of the order, and this is the ASR's real output for
+# "চেস্ট এক্স-রে" on a chest consultation.
+check("garbled chest film",
+      scan_labs("একটা চেস টেক্সটে করিয়ে নেবেন"), ["Chest X-ray"])
+# One order must not print as two - a patient sent for both pays twice.
+check("generic dropped for the specific",
+      scan_labs("চেস্ট এক্স রে করাবেন"), ["Chest X-ray"])
+check("  but distinct orders both survive",
+      scan_labs("খালি পেটে সুগার আর খাওয়ার পরে সুগার"),
+      ["Fasting sugar", "PP sugar"])
+
+print()
+print("=" * 70)
+print("17. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

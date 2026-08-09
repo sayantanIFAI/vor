@@ -111,6 +111,40 @@ SIMILARITY_FLOOR = 0.65
 # identified as something else.
 _MIN_FUZZY_LEN = 5
 
+# A prescription names the FORM alongside the drug - "অ্যাম্ব্রুডিল সিরাপ",
+# "Pan ট্যাবলেট", "Asthalin ইনহেলার". The form is not part of the name.
+#
+# Leaving it attached was not merely untidy, it lost the drug: the clinical
+# term check saw "সিরাপ" inside the phrase, matched the non-drug term
+# "syrup", and REJECTED the whole thing - so Ambrodil cough syrup was
+# demoted out of the medications list while "অ্যাম্ব্রুডিল" on its own
+# resolves perfectly well. The form has to come off before the name is
+# judged, not turn into a verdict about it.
+_FORM_WORDS = (
+    "সিরাপ", "ট্যাবলেট", "ট্যাব", "ক্যাপসুল", "ক্যাপ", "ইনজেকশন",
+    "ইনহেলার", "ড্রপ", "ড্রপস", "ক্রিম", "মলম", "জেল", "স্প্রে",
+    "পাউডার", "সাসপেনশন", "লোশন", "অয়েন্টমেন্ট",
+    "syrup", "tablet", "tab", "capsule", "cap", "injection", "inhaler",
+    "drops", "drop", "cream", "ointment", "gel", "spray", "powder",
+    "suspension", "lotion",
+)
+
+
+def _strip_form(name: str) -> str:
+    """Remove a leading/trailing dosage form. Returns "" if nothing is left."""
+    parts = [p for p in name.split() if p]
+    changed = True
+    while changed and parts:
+        changed = False
+        for end in (0, -1):
+            if parts and fold(parts[end]) in _FORM_FOLDED:
+                parts.pop(end)
+                changed = True
+    return " ".join(parts)
+
+
+_FORM_FOLDED = frozenset(fold(w) for w in _FORM_WORDS if fold(w))
+
 
 @dataclasses.dataclass
 class Verdict:
@@ -127,29 +161,61 @@ class Verdict:
         return self.tier in (VERIFIED, PROBABLE)
 
 
-def _fuzzy(text: str) -> tuple[Drug | None, float]:
-    """Closest gazetteer drug in folded space. Proposes only."""
+# How much a drug from the consultation's own department is favoured when
+# choosing between similar-sounding candidates.
+#
+# THIS REORDERS CANDIDATES; IT NEVER LOWERS THE BAR. The raw similarity
+# still has to clear SIMILARITY_FLOOR on its own - context decides WHICH
+# real drug a garbled name is, never WHETHER the garble is a drug at all.
+# That distinction is the whole safety argument: a neurology consultation
+# must not start turning noise into antiepileptics.
+#
+# This is the general form of what was otherwise being done by hand. A
+# seizure consultation returned "লোভা পল" and "ভাল পারিং" - Levipil and
+# Valparin, garbled - and each needed its own alias added. Knowing the
+# consultation is neurological is what should resolve them, and the
+# gazetteer already carries a department on every drug.
+_CONTEXT_BONUS = 0.12
+
+
+def _fuzzy(text: str, department: str = "") -> tuple[Drug | None, float]:
+    """Closest gazetteer drug in folded space. Proposes only.
+
+    Returns the RAW similarity, not the context-adjusted one, so callers
+    threshold on evidence rather than on a preference.
+    """
     t = fold(text)
     if len(t) < _MIN_FUZZY_LEN:
         return None, 0.0
     best: Drug | None = None
     best_score = 0.0
+    best_raw = 0.0
     for key, drug in _DRUG_LOOKUP.items():
         if len(key) < _MIN_FUZZY_LEN:
             continue
-        score = SequenceMatcher(a=t, b=key).ratio()
+        raw = SequenceMatcher(a=t, b=key).ratio()
+        score = raw + (_CONTEXT_BONUS
+                       if department and drug.department == department else 0.0)
         if score > best_score:
-            best, best_score = drug, score
-    return best, best_score
+            best, best_score, best_raw = drug, score, raw
+    return best, best_raw
 
 
-def judge_medication(name: str) -> Verdict:
-    """Classify one SLM-proposed medication name."""
+def judge_medication(name: str, department: str = "") -> Verdict:
+    """Classify one SLM-proposed medication name.
+
+    `department` is the consultation's own specialty, when known. It only
+    breaks ties between similar-sounding real drugs - see _CONTEXT_BONUS.
+    """
     raw = (name or "").strip()
     if not raw or raw.lower() in ("null", "none", "n/a"):
         return Verdict(REJECTED, reason="empty or null drug name")
 
     # 1. exact gazetteer hit, post-fold
+    #
+    # The WHOLE name is tried before any form is stripped, because some
+    # generics legitimately contain a form word - "Tobramycin eye drops"
+    # is the entry's own name, not a drug plus a form.
     hit = lookup_drug(raw)
     if hit is not None:
         return Verdict(VERIFIED, canonical=hit.generic,
@@ -172,6 +238,18 @@ def judge_medication(name: str) -> Verdict:
     # consulted.
     #
     # This also keeps fuzzy matching from ever reaching "sugar".
+    # The whole name did not resolve. If it carries a dosage form, take the
+    # form off and judge the NAME - before the clinical-term check, which
+    # is what turned the form into a rejection: "অ্যাম্ব্রুডিল সিরাপ" matched
+    # the non-drug term "syrup" and the drug was demoted out of the
+    # prescription, though "অ্যাম্ব্রুডিল" alone resolves.
+    bare = _strip_form(raw)
+    if bare and bare != raw:
+        inner = judge_medication(bare, department)
+        if inner.keep:
+            return dataclasses.replace(
+                inner, reason=f"{inner.reason} (dosage form dropped)")
+
     term = is_clinical_term(raw)
     if term:
         return Verdict(REJECTED, canonical=term,
@@ -214,7 +292,7 @@ def judge_medication(name: str) -> Verdict:
                            reason="combination product, all components resolved")
 
     # 5. close to a real drug - propose, never apply
-    cand, score = _fuzzy(raw)
+    cand, score = _fuzzy(raw, department)
     if cand is not None and score >= SIMILARITY_FLOOR:
         return Verdict(PROBABLE, canonical=cand.generic,
                        department=cand.department, indication=cand.indication,

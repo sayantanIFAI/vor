@@ -12,8 +12,8 @@ from __future__ import annotations
 import re
 
 from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
-from .glossary import (display_name, is_lab_test, lookup_drug,
-                        scan_conditions, scan_symptoms)
+from .glossary import (department_for, display_name, is_lab_test,
+                        lookup_drug, scan_conditions, scan_symptoms)
 from .schema import ExtractedRx, Medication
 
 # Below this CTC/RNNT agreement a segment is treated as too garbled to
@@ -191,11 +191,20 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
     # substring of some drug name and came back verified. Measured: 'a',
     # 'in', 'or', 'no' and 'Nala' all reported as known drugs, which is how
     # garbage reached medications[] wearing a verified flag.
+    # The consultation's own specialty, used ONLY to break ties between
+    # similar-sounding drugs. Clobazam and Clonazepam are 0.78 alike and
+    # differ by which clinic you are in; a garbled name should resolve the
+    # way a clinician reading the same page would resolve it. It cannot
+    # make a non-drug into a drug - see gate._CONTEXT_BONUS.
+    dept = department_for(
+        ([rx.diagnosis] if rx.diagnosis else []) +
+        scan_conditions(rx.source_transcript or ""))
+
     kept = []
     for med in rx.medications:
         if not med.drug.strip():
             continue
-        v = judge_medication(med.drug)
+        v = judge_medication(med.drug, dept)
         med.tier = v.tier
         med.canonical = v.canonical
         med.department = v.department
@@ -364,7 +373,7 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
 
         if n_tokens > 3:
             continue
-        v = judge_medication(candidate)
+        v = judge_medication(candidate, dept)
         if v.tier not in (VERIFIED, PROBABLE):
             continue
         key = (v.canonical or candidate).strip().lower()

@@ -187,8 +187,12 @@ RESPIRATORY = [
     Drug("Montelukast+Levocetirizine", ("Montair LC", "Montek LC", "Monticope"),
          ("মন্টেয়ার এল সি", "মন্টেক এল সি", "মন্টিকোপ", "মন্টিকুলাষ্ট লেভোসেট্রিজিন", "মন্টিকুলাষ্ট আর লেভোসেট্রিজিন"),
          "asthma / severe allergic rhinitis", "respiratory"),
+    # "অ্যাম্ব্রুডিল" is how it came back on a real chest consultation -
+    # ব্রু rather than ব্রো. Held only the ব্রো spelling, so the syrup was
+    # missed entirely.
     Drug("Ambroxol", ("Ambrodil", "Mucolite"),
-         ("অ্যামব্রক্সল", "অ্যামব্রোডিল"),
+         ("অ্যামব্রক্সল", "অ্যামব্রোডিল", "অ্যাম্ব্রুডিল", "অ্যামব্রুডিল",
+          "অ্যাম্ব্রোডিল"),
          "mucolytic / cough", "respiratory"), #
     Drug("Ascoril", ("Ascoril LS", "Ascoril D"),
          ("এস্কোরিল", "আস্কোরিল", "অ্যাসকোরিল"),
@@ -395,8 +399,13 @@ BONE = [
          ("ডেনোসুম্যাব",), "RANKL inhibitor / osteoporosis", "bone"), #
     # Calcirol is CHOLECALCIFEROL, not calcitriol - three entries claimed
     # that brand and the strengthened collision check caught it.
+    # "ক্যালসিড ট্রায়াল" is the ASR splitting ক্যালসিট্রায়ল across two
+    # tokens on a real osteoporosis consultation, where it was prescribed
+    # alongside the alendronate and missed entirely.
     Drug("Calcitriol", ("Rocaltrol", "Calcijunc"),
-         ("ক্যালসিট্রায়ল",), "active vitamin D", "bone"), #
+         ("ক্যালসিট্রায়ল", "ক্যালসিড ট্রায়াল", "ক্যালসি ট্রায়াল",
+          "ক্যালসিট্রায়েল"),
+         "active vitamin D", "bone"), #
     Drug("Methylcobalamin", ("Nurokind", "Meconerv"),
          ("মিথাইলকোবালামিন", "নিউরোকাইন্ড"),
          "neuropathy / B12", "bone"), #
@@ -583,9 +592,11 @@ NEPHROLOGY = [
 # ---------------------------------------------------------------------------
 NEUROLOGY = [
     Drug("Levetiracetam", ("Levipil", "Keppra", "Torleva"),
-         ("লেভেটিরাসিটাম", "লেভিপিল", "কেপরা"), "epilepsy", "neurology"), #
+         ("লেভেটিরাসিটাম", "লেভিপিল", "কেপরা", "লোভা পল", "লেভা পিল",
+          "লোভাপল"), "epilepsy", "neurology"), #
     Drug("Sodium valproate", ("Valparin", "Encorate", "Divaa"),
-         ("সোডিয়াম ভালপ্রোয়েট", "ভালপারিন", "এনকোরেট"),
+         ("সোডিয়াম ভালপ্রোয়েট", "ভালপারিন", "এনকোরেট", "ভাল পারিং",
+          "ভালপারিং", "ভাল পারিন"),
          "epilepsy / migraine", "neurology"), #
     Drug("Phenytoin", ("Eptoin", "Dilantin"),
          ("ফেনিটয়েন", "এপটোইন"), "epilepsy", "neurology"), #
@@ -812,7 +823,9 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "Serum electrolytes": ("serum electrolytes", "electrolytes",
                             "ইলেক্ট্রোলাইট", "na k cl", "সিরাম ইলেকট্রোলাইটস"), #
     # neuro
-    "EEG": ("ইইজি", "ই ই জি", "electroencephalogram", "e e g"), #
+    # "ইজি" is what came back on a seizure consultation - one token, the
+    # doubled vowel lost. It was rejected as an unknown MEDICATION.
+    "EEG": ("ইইজি", "ই ই জি", "electroencephalogram", "e e g", "ইজি"), #
     "MRI": ("এমআরআই", "এম আর আই", "m r i"), #
     "CT scan": ("সিটি স্ক্যান", "সি টি স্ক্যান", "সিটি"), #
     # metabolic / blood
@@ -868,7 +881,8 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
                        "calcium level", "ক্যালসিয়াম টেস্ট"), #
     "Serum phosphorus": ("সিরাম ফসফরাস", "phosphorus", "phosphate",
                           "ফসফরাস", "serum phosphate"), #
-    "DEXA scan": ("dexa", "dexa scan", "ডেক্সা", "ডেক্সা স্ক্যান",
+    "DEXA scan": ("dexa", "dexa scan", "ডেক্সা", "ডেক্সা স্ক্যান", "কোমরের ডেক্সা", "কমরে ডেক্সে",
+                   "কোমরে ডেক্সা",
                    "bone mineral density", "bmd", "বিএমডি", "বোন ডেনসিটি",
                    "bone densitometry"), #
     "X-ray LS spine": ("ls spine", "l s spine", "lumbosacral spine",
@@ -878,7 +892,16 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "PTH": ("pth", "parathyroid hormone", "পিটিএইচ", "প্যারাথাইরয়েড"), #
     "Alkaline phosphatase": ("alp", "alkaline phosphatase",
                               "অ্যালকালাইন ফসফেটেজ"), #
-    "X-ray": ("এক্স রে", "এক্সরে", "চেস্ট এক্স রে", "এক্স-রে"), #
+    "X-ray": ("এক্স রে", "এক্সরে", "এক্স-রে"), #
+    # Split out from the generic X-ray: it is the commonest film ordered in
+    # a chest clinic, and naming the region is the whole point of the
+    # order. "চেস টেক্সটে" is not a typo - it is what the ASR returned for
+    # "চেস্ট এক্স-রে" on a real consultation, where the doctor was asking
+    # after the lungs ("ফুসফুসের কি অবস্থা").
+    "Chest X-ray": ("চেস্ট এক্স রে", "চেস্ট এক্সরে", "চেস্ট এক্স-রে",
+                     "বুকের এক্স রে", "বুকের এক্সরে", "chest x-ray",
+                     "chest xray", "cxr", "সি এক্স আর",
+                     "চেস টেক্সটে", "চেস্ট টেক্সটে", "চেস এক্স রে"), #
     "USG": ("ইউএসজি", "ইউ এস জি", "আল্ট্রাসাউন্ড", "ultrasound",
              "sonography", "আলট্রাসনোগ্রাফি"), #
     "USG Whole Abdomen": ("ইউএসজি হোল অ্যাবডোমেন", "হোল অ্যাবডোমেন", "usg whole abdomen"),
@@ -929,7 +952,11 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "USG KUB": ("usg kub", "kub", "kidney ultrasound", "কিডনি আল্ট্রাসাউন্ড", "ইউএসজি কেইউবি"), #
     # neurology
     "CT brain": ("ct brain", "ct head", "সিটি ব্রেন", "brain ct"), #
-    "MRI brain": ("mri brain", "এমআরআই ব্রেন", "brain mri"), #
+    # "এম আর আই করতে হবে ব্রেনের" - the region IS the order, and a bare
+    # "MRI" does not tell radiology what to scan.
+    "MRI brain": ("mri brain", "এমআরআই ব্রেন", "brain mri",
+                   "এম আর আই ব্রেন", "ব্রেনের এমআরআই", "ব্রেনের এম আর আই",
+                   "মাথার এমআরআই", "এম আর আই মাথার", "ব্রেনের এম আর আই টা"), #
     "NCV": ("ncv", "nerve conduction", "এনসিভি"), #
     "EMG": ("emg", "electromyography", "ইএমজি"), #
     "Carotid doppler": ("carotid doppler", "ক্যারোটিড ডপলার"), #
@@ -1017,6 +1044,35 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "vomiting": ("বমি",), #
     "nausea": ("গা গোলানো", "বমি ভাব"), #
     "body ache": ("শরীর ব্যথা", "গা ব্যথা", "গা হাত-পা ম্যাজম্যাজ", "হাড়ে ব্যথা"), #
+    # An orthopaedic consultation about back and waist pain returned NO
+    # symptoms at all - neither phrase existed. "টনটন" (a dull throb) is
+    # anchored to a region, not left bare, which would be too generic.
+    "back pain": ("পিঠে ব্যথা", "পিঠের ব্যথা", "পিঠ ব্যথা", "পিঠে ব্যাথা",
+                   "পিঠের দিকটা টনটন", "পিঠ টনটন", "পিঠে টনটন"), #
+    "low back pain": ("কোমরে ব্যথা", "কোমরের ব্যথা", "কোমর ব্যথা",
+                       "কোমরে ব্যাথা"), #
+    # A child's seizure described exactly as a parent describes it.
+    # খিঁচুনি is NOT listed here - it already belongs to "seizure", and
+    # the fold drops the chandrabindu so খিচুনি/খিঁচুনি are one key. Claiming
+    # it here made both entries collide and neither matched.
+    "convulsions": ("হাত পা ছোঁড়া", "হাত পা ছুঁড়ে", "হাত পা ছোঁড়াছুঁড়ি"), #
+    "frothing at the mouth": ("মুখ দিয়ে গেঁজা", "মুখে ফেনা", "গেঁজা বেরোনো"), #
+    # These three sat in CONDITIONS with NO alias entry, so they could
+    # never be matched and never became a diagnosis. Hypertension is the
+    # commonest chronic diagnosis there is.
+    # NOT "হাড় ক্ষয়" - that is already "bone loss". A finding and a
+    # diagnosis can share the words, and whoever holds the key wins; the
+    # diagnosis is carried by the phrases the doctor actually used.
+    "osteoporosis": ("হার ক্ষয়", "হাড়ের ক্ষয়", "হাড় ভঙ্গুর",
+                      "হারগুলো ভঙ্গুর", "হাড়গুলো ভঙ্গুর", "হাড় দুর্বল",
+                      "অস্টিওপোরোসিস", "হাড় ক্ষয়ে যাওয়া"), #
+    "hypertension": ("উচ্চ রক্তচাপ", "হাই ব্লাড প্রেশার", "হাইপারটেনশন",
+                      "প্রেশার বেশি", "রক্তচাপ বেশি", "হাই প্রেশার",
+                      "ব্লাড প্রেশার বেশি"), #
+    "dementia": ("ডিমেনশিয়া", "স্মৃতিভ্রংশ"), #
+    # NOT "মৃগী" alone - that is already "seizure", which is itself a
+    # diagnosable condition, so the consultation still gets a diagnosis.
+    "epilepsy": ("মৃগী রোগ", "এপিলেপসি", "মৃগি রোগ"), #
     "sore throat": ("গলা ব্যথা", "গলা খুসখুস", "ঢোঁক গিলতে ব্যথা"), #
     "swelling": ("ফোলা", "ফুলে যাওয়া", "সোয়েলিং"), #
     "weakness": ("দুর্বলতা", "দুর্বল"), #
@@ -1124,6 +1180,14 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # respiratory
     "asthma": ("হাঁপানি", "অ্যাজমা", "ব্রঙ্কিয়াল অ্যাজমা"),
     "wheezing": ("শোঁ শোঁ আওয়াজ", "wheezing"),
+    # The doctor STATED this one - "আপনার ডাস্ট আলার্জি তাহলে বুঝতে পারবো" -
+    # and the consultation still came back with no diagnosis at all,
+    # because only "allergies" existed and that is a symptom entry, not a
+    # diagnosable condition.
+    "dust allergy": ("ডাস্ট অ্যালার্জি", "ডাস্ট আলার্জি", "ধুলোর অ্যালার্জি",
+                      "ধুলো অ্যালার্জি", "ধুলোয় অ্যালার্জি", "dust allergy"),
+    "allergic rhinitis": ("অ্যালার্জিক রাইনাইটিস", "নাকের অ্যালার্জি",
+                           "allergic rhinitis"),
     # orthopedics
     "arthritis": ("বাতের ব্যথা", "গাঁটে ব্যথা", "অস্টিওআর্থারাইটিস"),
     "joint pain": ("জয়েন্টে ব্যথা", "হাঁটুতে ব্যথা"),
@@ -1810,8 +1874,73 @@ def _ngram_scan_spans(text: str, table: dict) -> list[tuple]: #
 
 
 def scan_labs(text: str) -> list[str]:
-    """All lab tests ordered in this segment."""
-    return _ngram_scan_all(text, _LAB_LOOKUP) #
+    """All lab tests ordered in this segment, least specific dropped.
+
+    A REGION-SPECIFIC order also contains the generic one, so both matched
+    the same words: "চেস্ট এক্স রে" returned Chest X-ray AND X-ray, and
+    "USG pelvis" returned USG alongside it. Two lines for one order reads
+    as two investigations, and a patient sent for both pays twice.
+
+    Only exact name containment is dropped, so "Fasting sugar" and
+    "PP sugar" - genuinely two orders, neither inside the other - both
+    survive.
+    """
+    return _drop_subsumed_labs(_attach_region(_ngram_scan_all(text, _LAB_LOOKUP),
+                                               text)) #
+
+
+# An imaging order names a MODALITY and a REGION, and Bengali does not
+# require them to sit together: "এম আর আই করতে হবে ব্রেনের" puts two words
+# between them, where the n-gram scan tolerates one. The result was a bare
+# "MRI", which does not tell radiology what to scan.
+#
+# So the region is attached afterwards rather than matched inline: if a
+# generic modality was ordered and a region is named anywhere in the same
+# segment, and a specific entry exists for that pair, that entry is the
+# order. Nothing is invented - both halves were spoken.
+_REGIONS: dict[str, tuple[str, ...]] = { #
+    "brain": ("ব্রেন", "ব্রেনের", "মাথার", "মস্তিষ্ক", "brain"), #
+    "chest": ("চেস্ট", "বুকের", "বুক", "ফুসফুস", "ফুসফুসের", "chest"), #
+    "pelvis": ("পেলভিস", "তলপেট", "তলপেটের", "pelvis"), #
+    "knee": ("হাঁটু", "হাঁটুর", "knee"), #
+} #
+
+
+def _attach_region(found: list[str], text: str) -> list[str]: #
+    """Upgrade a bare modality to its region-specific entry when both were said.""" #
+    if not found: #
+        return found #
+    tokens = {fold(t) for t in text.split()} #
+    named = {region for region, words in _REGIONS.items() #
+             if any(fold(w) in tokens for w in words)} #
+    if not named: #
+        return found #
+    out = [] #
+    for lab in found: #
+        upgraded = lab #
+        for region in named: #
+            for canon in LAB_TESTS: #
+                if (canon != lab and lab.lower() in canon.lower() #
+                        and region in canon.lower()): #
+                    upgraded = canon #
+                    break #
+            if upgraded != lab: #
+                break #
+        if upgraded not in out: #
+            out.append(upgraded) #
+    return out #
+
+
+def _drop_subsumed_labs(found: list[str]) -> list[str]: #
+    """Drop a lab whose whole name sits inside another one found here.""" #
+    out = [] #
+    for lab in found: #
+        low = lab.lower() #
+        if any(other is not lab and low in other.lower() #
+               and len(other) > len(lab) for other in found): #
+            continue #
+        out.append(lab) #
+    return out #
 
 
 def scan_drugs(text: str) -> list[Drug]:
@@ -2041,6 +2170,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "gallstone", "appendicitis", "tonsillitis", "fungal infection",
     "infection", "acne", "menopause", "pregnancy", "dementia",
     "osteoporosis", "arthritis", "asthma",
+    "dust allergy", "allergic rhinitis", "epilepsy",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2052,6 +2182,40 @@ NON_CLINICAL_TERMS: frozenset[str] = frozenset({
     "ear drops", "nasal spray", "ointment", "syrup", "tablet",
     "injection", "medicine",
 })
+
+
+# Which specialty a diagnosis belongs to. Used ONLY to break ties between
+# similar-sounding drugs - see gate._CONTEXT_BONUS - never to suggest a
+# drug or a test. Clobazam and Clonazepam differ by 0.78 similarity and by
+# which clinic you are sitting in.
+DEPARTMENT_BY_CONDITION: dict[str, str] = {
+    "angina": "cardiac", "heart attack": "cardiac",
+    "heart failure": "cardiac", "ischemia": "cardiac",
+    "blockage": "cardiac", "hypertension": "cardiac",
+    "diabetes": "endocrine", "thyroid": "endocrine",
+    "seizure": "neurology", "epilepsy": "neurology",
+    "stroke": "neurology", "migraine": "neurology",
+    "dementia": "neurology",
+    "asthma": "respiratory", "dust allergy": "respiratory",
+    "allergic rhinitis": "respiratory",
+    "cataract": "ophthalmology", "glaucoma": "ophthalmology",
+    "osteoporosis": "bone", "arthritis": "bone",
+    "kidney failure": "nephrology",
+    "piles": "surgery", "hernia": "surgery",
+    "appendicitis": "surgery", "gallstone": "surgery",
+    "menopause": "gynaecology", "pregnancy": "gynaecology",
+    "acne": "dermatology", "fungal infection": "dermatology",
+    "tonsillitis": "ent",
+}
+
+
+def department_for(conditions: list[str]) -> str:
+    """The specialty a consultation belongs to, from its diagnoses."""
+    for c in conditions:
+        dept = DEPARTMENT_BY_CONDITION.get(c.strip().lower())
+        if dept:
+            return dept
+    return ""
 
 
 def scan_conditions(text: str) -> list[str]:
