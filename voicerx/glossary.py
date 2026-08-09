@@ -643,10 +643,134 @@ SURGERY = [
          ("পোভিডোন আয়োডিন", "বিটাডিন", "সিপ্লাডিন"), "antiseptic", "surgery"), #
 ]
 
+
+# ---------------------------------------------------------------------------
+# ADDED FROM CLINICAL REVIEW of 102 entries seen in real transcripts.
+# Bengali forms are the ones a human wrote beside the English name
+# wherever the transcripts supplied one - those are what the ASR must
+# match. Reviewed by the clinician; still not pharmacist-verified.
+# ---------------------------------------------------------------------------
+REVIEWED = [
+    Drug("Vitamin C", ("Limcee", "Celin", "Chewcee"),
+         ("ভিটামিন সি",),
+         "vitamin C supplement", "general"),
+    Drug("Evening Primrose Oil", ("Evanova", "EPO"),
+         ("ইভনিং প্রিমরোজ অয়েল",),
+         "PMS / menopause", "gynaecology"),
+    Drug("Biotin", ("Biotin", "Hairbon"),
+         ("বায়োটিন",),
+         "hair and nail supplement", "dermatology"),
+    Drug("Zinc", ("Z&D", "Zinconia"),
+         ("জিঙ্ক", "জিঙ্ক সিরাপ"),
+         "zinc supplement", "general"),
+    Drug("Lycopene", ("Lycostar", "Lycored"),
+         ("লাইকোপিন",),
+         "antioxidant supplement", "general"),
+    Drug("Dexamethasone", ("Decadron", "Dexona"),
+         ("ডেক্সামিথাসোন", "ডেক্সামিথাসোন ইনজেকশন"),
+         "corticosteroid", "general"),
+    Drug("Drotaverine", ("Drotin", "Doverin"),
+         ("ড্রোটাবেরিন", "ড্রোটাভেরিন"),
+         "antispasmodic", "gastro"),
+    Drug("Diltiazem", ("Dilzem", "Angizem"),
+         ("ডিলটিয়াজেম",),
+         "calcium channel blocker", "cardiac"),
+    Drug("Penicillin V", ("Pen-V", "Cilopen"),
+         ("পেনিসিলিন ভি",),
+         "antibiotic", "general"),
+    Drug("Diosmin", ("Daflon", "Venusmin"),
+         ("ডায়োসমিন",),
+         "venotonic / piles", "surgery"),
+    Drug("Methotrexate", ("Folitrax", "Imutrex"),
+         ("মেথোট্রেক্সেট",),
+         "DMARD / psoriasis", "bone"),
+    Drug("Pramipexole", ("Pramipex", "Parkitidin"),
+         ("প্রামিপেক্সোল",),
+         "Parkinson's / RLS", "neurology"),
+    Drug("Piperacillin-Tazobactam", ("Zosyn", "Pipzo"),
+         ("পাইপেরাসিলিন-ট্যাজোব্যাকটাম",),
+         "IV antibiotic", "surgery"),
+    Drug("Iron Sucrose", ("Orofer S", "Encicarb"),
+         ("আয়রন সুক্রোজ",),
+         "IV iron / anaemia", "general"),
+    Drug("Naproxen", ("Naprosyn", "Xenobid"),
+         ("ন্যাপ্রোক্সেন",),
+         "NSAID", "bone"),
+    Drug("Hydroxyzine", ("Atarax", "Hyzine"),
+         ("হাইড্রোক্সিজিন",),
+         "antihistamine / pruritus", "dermatology"),
+    Drug("Cefadroxil", ("Droxyl", "Cefadrox"),
+         ("সেফাড্রক্সিল",),
+         "antibiotic", "general"),
+    Drug("Promethazine", ("Phenergan", "Avomine"),
+         ("প্রোমিথাজিন",),
+         "antihistamine / antiemetic", "general"),
+    Drug("Colchicine", ("Zycolchin", "Goutnil"),
+         ("কোলচিসিন",),
+         "acute gout", "nephrology"),
+    Drug("Albendazole", ("Zentel", "Bandy"),
+         ("অ্যালবেনডাজল",),
+         "anthelmintic", "general"),
+    Drug("Ispaghula Husk", ("Isabgol", "Naturolax"),
+         ("ইসবগুল হাস্ক", "ইসবগুল"),
+         "bulk laxative", "gastro"),
+    Drug("Pheniramine", ("Avil",),
+         ("অ্যাভিল ইনজেকশন", "ফেনিরামিন"),
+         "antihistamine injection", "general"),
+    Drug("Choline Salicylate gel", ("Zytee", "Orasore"),
+         ("কোলিন স্যালিসাইলেট ওরাল জেল",),
+         "mouth ulcer gel", "dental"),
+    Drug("Tobramycin+Dexamethasone", ("Tobastar DM", "Tobradex"),
+         ("টোব্রামাইসিন + ডেক্সামিথাসোন আই অয়েন্টমেন্ট",),
+         "eye antibiotic-steroid", "ophthalmology"),
+    Drug("Tannic acid+Iodine gum paint", ("Tannic acid gum paint",),
+         ("ট্যানিক অ্যাসিড + আয়োডিন গাম পেইন্ট",),
+         "gingivitis", "dental"),
+    Drug("Conjugated Estrogen cream", ("Premarin",),
+         ("কনজুগেটেড ইস্ট্রোজেন ভ্যাজাইনাল ক্রিম",),
+         "atrophic vaginitis", "gynaecology"),
+    Drug("Griseofulvin", ("Grisovin", "Walavin"),
+         ("গ্রাইসিওফুলভিন",),
+         "antifungal", "dermatology"),
+    Drug("Petroleum Jelly", ("Vaseline",),
+         ("পেট্রোলিয়াম জেলি",),
+         "emollient", "dermatology"),
+    Drug("Clindamycin+Nicotinamide gel", ("Clinsol NA", "Faceclin"),
+         ("ক্লিনডামাইসিন + নিকোটিনামাইড জেল",),
+         "acne gel", "dermatology"),
+    Drug("Povidone iodine ointment", ("Isodine", "Betadine ointment"),
+         ("আইসোডিন অয়েন্টমেন্ট",),
+         "antiseptic ointment", "surgery"),
+    Drug("Potassium Permanganate", ("KMnO4",),
+         ("পটাশিয়াম পারম্যাঙ্গানেট",),
+         "antiseptic soak", "dermatology"),
+    Drug("Lignocaine+Hydrocortisone cream", ("Anobliss", "Proctosedyl"),
+         ("লিগনোকেইন + হাইড্রোকর্টিসোন ক্রিম",),
+         "piles cream", "surgery"),
+    Drug("Fluticasone cream", ("Flutivate",),
+         ("ফ্লুটিকাসোন ক্রিম",),
+         "topical steroid", "dermatology"),
+    Drug("Liquid Paraffin moisturizer", ("Moisturex", "Venusia"),
+         ("লিকুইড প্যারাফিন ময়েশ্চারাইজার",),
+         "emollient", "dermatology"),
+    Drug("Sodium Hyaluronate eye drops", ("Hyalur", "I-Kul"),
+         ("সোডিয়াম হাইলুরোনেট",),
+         "dry eye", "ophthalmology"),
+    Drug("Carbomer eye gel", ("Lubrigel", "Viscotears"),
+         ("কার্বোমার আই জেল",),
+         "dry eye gel", "ophthalmology"),
+    Drug("Potassium Citrate", ("Alkasol", "K-Cit"),
+         ("পটাশিয়াম সাইট্রেট + ম্যাগনেশিয়াম সাইট্রেট সিরাপ", "সিরাপ আলকাসল", "আলকালাইজার সিরাপ"),
+         "urinary alkaliniser", "urology"),
+    Drug("Disodium Hydrogen Citrate", ("Citralka", "Alkacitral"),
+         ("ডাইসোডিয়াম হাইড্রোজেন সাইট্রেট সিরাপ",),
+         "urinary alkaliniser", "urology"),
+]
+
 ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
                           + GENERAL + UROLOGY + BONE + DERMATOLOGY
                           + OPHTHALMOLOGY + ENT + DENTAL + GYNAECOLOGY
-                          + NEPHROLOGY + NEUROLOGY + SURGERY)
+                          + NEPHROLOGY + NEUROLOGY + SURGERY + REVIEWED)
 
 # ---------------------------------------------------------------------------
 # LAB TESTS / INVESTIGATIONS - these are ORDERS, never medications
@@ -796,6 +920,36 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "NCV": ("ncv", "nerve conduction", "এনসিভি"), #
     "EMG": ("emg", "electromyography", "ইএমজি"), #
     "Carotid doppler": ("carotid doppler", "ক্যারোটিড ডপলার"), #
+    # --- added from clinical review of real transcripts ---
+    "Serum IgE": ("serum total ige", "total ige", "সিরাম টোটাল আইজিই", "আইজিই"),
+    # NOT the bare "এইচবি". It is only 4 folded characters, and the gapped
+    # matcher then joins "এইচ [ওয়ান] বি" inside a spoken HbA1c and resolves
+    # it to Haemoglobin - caught by the regression suite immediately.
+    "Haemoglobin": ("haemoglobin", "hemoglobin", "হিমোগ্লোবিন",
+                     "হিমোগ্লোবিন লেভেল"),
+    "ASO titre": ("aso titer", "aso titre", "এএসও টাইটার"),
+    "C3 level": ("c3 level", "complement c3", "সি৩ লেভেল"),
+    "Absolute Eosinophil Count": ("aec", "absolute eosinophil count", "অ্যাবসোলিউট ইওসিনোফিল কাউন্ট"),
+    "CA-125": ("ca-125", "ca 125", "সিএ ১২৫"),
+    "Serum albumin": ("serum albumin", "সিরাম অ্যালবুমিন"),
+    "ABG": ("abg", "arterial blood gas", "এবিজি"),
+    "Random blood sugar": ("random blood sugar", "rbs", "র‍্যান্ডম ব্লাড সুগার"),
+    "Perimetry": ("perimetry", "vft", "visual field test", "পেরিমেট্রি", "ভিজুয়াল ফিল্ড টেস্ট"),
+    "Dix-Hallpike test": ("dix-hallpike", "dix hallpike", "ডিক্স হলপাইক"),
+    "Video laryngoscopy": ("video laryngoscopy", "ভিডিও ল্যারিঙ্গোস্কোপি"),
+    "Indirect laryngoscopy": ("indirect laryngoscopy", "ইনডাইরেক্ট ল্যারিঙ্গোস্কোপি"),
+    "HRCT temporal bone": ("hrct temporal bone", "hrct temporal", "এইচআরসিটি টেম্পোরাল বোন"),
+    "Upper GI endoscopy": ("upper gi endoscopy", "ugi endoscopy", "আপার জিআই এন্ডোস্কোপি"),
+    "Spirometry": ("spirometry", "pft", "pulmonary function test", "স্পাইরোমেট্রি", "পিএফটি"),
+    "Renal biopsy": ("renal biopsy", "kidney biopsy", "রেনাল বায়োপসি"),
+    "Incisional biopsy": ("incisional biopsy", "ইনসিশনাল বায়োপসি"),
+    "High vaginal swab": ("high vaginal swab", "hvs", "hvs culture", "হাই ভ্যাজাইনাল সোয়াব", "high vaginal swab for wet mount"),
+    "Ulcer swab culture": ("ulcer swab", "ulcer swab for culture", "আলসার সোয়াব"),
+    "FNAC": ("fnac", "fnac of breast lump", "এফএনএসি"),
+    "Tear film breakup time": ("tbut", "tbut test", "tear film breakup time", "টিয়ার ফিল্ম ব্রেকআপ টাইম"),
+    "Schirmer's test": ("schirmer", "schirmers test", "schirmer's test", "শির্মের্স টেস্ট"),
+    "Wood's lamp examination": ("wood's lamp", "woods lamp examination", "উডস ল্যাম্প এক্সামিনেশন"),
+    "Lacrimal sac syringing": ("lacrimal sac syringing", "syringing", "ল্যাক্রিমাল স্যাক সিরিঞ্জিং"),
     # Generic orders - a test WAS ordered even if unnamed. Surfaced so the
     # reviewer names it, rather than dropped silently or guessed at.
     "blood test (unspecified)": ("রক্ত পরীক্ষা", "ব্লাড টেস্ট", "রক্ত টেস্ট"), #
@@ -952,6 +1106,17 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "tablet": ("ট্যাবলেট", "বড়ি"), #
     "injection": ("ইনজেকশন", "ইঞ্জেকশন"), #
     "medicine": ("ওষুধ", "মেডিসিন", "ঔষধ"), #
+    # --- procedures, devices and instructions: NOT drugs, NOT labs ---
+    # Named positively so the gate rejects them with a reason. An absent
+    # term falls through to fuzzy matching instead.
+    "admit to ICU": ("admit in icu", "icu admission", "আইসিইউ তে ভর্তি", "আইসিইউ"),
+    "IV fluids": ("iv fluids", "iv fluids if hypotensive", "আইভি ফ্লুইডস", "স্যালাইন"),
+    "catheterisation": ("foley's catheterization", "foleys catheterisation", "catheterisation", "ফলিস ক্যাথেটারাইজেশন", "ক্যাথেটার"),
+    "compression stockings": ("compression stockings", "class ii compression stockings", "কম্প্রেশন স্টকিংস"),
+    "monofilament foot examination": ("foot examination with monofilament", "monofilament test", "মনোফিলামেন্ট"),
+    "proctoscopy": ("proctoscopy", "প্রক্টোস্কোপি"),
+    "otoscopy": ("otoscopy", "otoscopic examination", "ওটোস্কোপি"),
+    "slit lamp examination": ("slit lamp", "slit lamp examination", "স্লিট ল্যাম্প এক্সামিনেশন"),
     # advice - explicitly NOT medications
     "exercise": ("ব্যায়াম", "এক্সারসাইজ", "হাঁটা", "walking"), #
     "lean diet": ("লিন ডায়েট", "হালকা খাবার", "light food"), #
