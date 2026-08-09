@@ -238,8 +238,16 @@ function Rx({data}){
                         heard as “{m.heard_as}”
                       </div>)}
                   </td>
+                  {/* A dose heard as words was NOT resolved to a number -
+                      see validate._clean_dosing on why guessing "180mg"
+                      from "One Eightti EMI" is the one guess never worth
+                      making. The field is marked so it reads as a
+                      question, not as a recorded value. */}
                   <td><input value={m.dosage||""} placeholder="500mg"
-                             onChange={e=>edit(i,"dosage",e.target.value)} className="cell"/></td>
+                             onChange={e=>edit(i,"dosage",e.target.value)}
+                             className="cell"
+                             style={/CONFIRM the amount/.test(m.review_reason||"")
+                                    ? {borderColor:"var(--warn,#c80)"} : undefined}/></td>
                   <td><input value={m.frequency||""} placeholder="BD / after lunch"
                              onChange={e=>edit(i,"frequency",e.target.value)} className="cell"/></td>
                   <td><input value={m.duration||""} placeholder="7 days"

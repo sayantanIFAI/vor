@@ -1347,6 +1347,50 @@ for _canon, _alts in CLINICAL_TERMS.items(): #
     for _a in _alts: #
         _TERM_LOOKUP[fold(_a)] = _canon #
 
+# The CURATED terms alone, captured before the machine-imported vocabulary
+# is merged in below.
+#
+# WHY THE TWO ARE KEPT APART
+# A curated table may GENERATE a finding; an imported one may only
+# VALIDATE a candidate. This is the same rule gate.py already applies to
+# the 174k Indian brand register, and for the same reason - see the note
+# there on why fishing names out of raw transcripts is a different and
+# much more dangerous operation than checking a name the model proposed.
+#
+# The imported MedER vocabulary is pharmacology prose, not a symptom list.
+# Scanning transcripts with it put these on real prescriptions as findings:
+#
+#     doctor  report  age  serum  wound  inhaler  milk  dna  capacity
+#
+# and it holds ~1,900 more of the same kind - "absorption", "adult size",
+# "alternative splicing", "adverse effects", "HDL". No blocklist keeps up
+# with that; the table is simply not a source of symptoms. It stays fully
+# available to is_clinical_term(), which only ever VETOES - rejecting a
+# proposed medication that is really a symptom or finding, the safe
+# direction, where the worst case is a human reviewing it.
+# Folded keys that an ORDINARY Bengali word also lands on. Each alias here
+# is a genuine clinical word - the collision is with everyday vocabulary,
+# which is the gap collisions() explicitly cannot see: it compares
+# gazetteer entries against each other, never against the language.
+#
+# Measured on the 16 real consultations, matched tokens counted:
+#
+#   গা    ক্ষত/ঘা "sore"      also গা "body"        3 of 5 hits were wrong
+#   কসট   ক্ষত "wound"        also কষ্ট "difficulty" 2 of 2 hits were wrong
+#   বরন   ব্রণ "acne"         also ভ্রণ "embryo"     1 of 1 hits was wrong
+#
+# Blocked from GENERATING a finding, not from the gazetteer. They stay in
+# _TERM_LOOKUP, so is_clinical_term() still vetoes them as non-drugs - the
+# safe direction. If a patient really does say ঘা, the extraction model
+# reports it: the model understands ordinary words, and it is the fold, not
+# the model, that cannot tell these pairs apart.
+_AMBIGUOUS_WITH_COMMON_WORD = frozenset({"গা", "কসট", "বরন"}) #
+
+_CURATED_TERM_LOOKUP: dict[str, str] = { #
+    _k: _v for _k, _v in _TERM_LOOKUP.items() #
+    if _k not in _AMBIGUOUS_WITH_COMMON_WORD #
+} #
+
 # Bengali spellings LEARNED from human-labelled transcripts.
 #
 # Higher trust than anything machine-inferred: a human wrote the Bengali
@@ -1978,7 +2022,8 @@ NON_CLINICAL_TERMS: frozenset[str] = frozenset({
 
 def scan_conditions(text: str) -> list[str]:
     """Diagnosable conditions named in the text."""
-    return [t for t in _ngram_scan_all(text, _TERM_LOOKUP) if t in CONDITIONS] #
+    return [t for t in _ngram_scan_all(text, _CURATED_TERM_LOOKUP) #
+            if t in CONDITIONS] #
 
 
 # Terms too generic to be a symptom on their own. They arrive from the
@@ -2012,7 +2057,11 @@ def _drop_subsumed(found: list[str]) -> list[str]:
 
 
 def scan_symptoms(text: str) -> list[str]:
-    """Symptoms named in the text - excludes conditions, advice and classes."""
-    found = [t for t in _ngram_scan_all(text, _TERM_LOOKUP)
+    """Symptoms named in the text - excludes conditions, advice and classes.
+
+    Scans the CURATED table only. See _CURATED_TERM_LOOKUP for why the
+    imported vocabulary cannot be a source of findings.
+    """
+    found = [t for t in _ngram_scan_all(text, _CURATED_TERM_LOOKUP)
              if t not in CONDITIONS and t not in NON_CLINICAL_TERMS]
     return _drop_subsumed(found) #

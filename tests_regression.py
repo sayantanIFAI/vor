@@ -261,7 +261,57 @@ check("gate agrees with the scanner",
 
 print()
 print("=" * 70)
-print("12. GAZETTEER INTEGRITY")
+print("12. THE GAZETTEER MUST NOT INVENT FINDINGS")
+print("=" * 70)
+# The imported MedER vocabulary is pharmacology prose, and scanning
+# transcripts with it put these on real prescriptions as symptoms.
+for _junk in ("ডাক্তারবাবু", "রিপোর্ট", "বয়স"):
+    check(f"not a symptom: {_junk}", scan_symptoms(_junk), [])
+# ...while the curated table still RECOVERS what the model missed. These
+# three were spoken aloud on a cardiac consultation and all left out.
+check("still recovers sweating",
+      scan_symptoms("খুব ঘাম হয় দরদর করে ঘাম হয়"), ["sweating"])
+check("still recovers fever + vomiting",
+      scan_symptoms("জ্বর আর বমি হচ্ছে"), ["fever", "vomiting"])
+# Folding collides genuine clinical words with everyday Bengali. গা is
+# "body" far more often than it is ঘা "sore" - measured 3 of 5.
+check("body is not a wound", scan_symptoms("গা ব্যথা করছে"), ["body ache"])
+# ...but the veto still knows it, so it can never become a medication.
+check("veto still recognises it", is_clinical_term("ঘা"), "wound")
+
+print()
+print("=" * 70)
+print("13. DOSING - normalise filler, never invent a number")
+print("=" * 70)
+_rx = validate(ExtractedRx(medications=[
+    Medication(drug="Nitrofurantoin", dosage="Not specified",
+               frequency="Not specified", duration="Not specified"),
+    Medication(drug="Ecosprin", dosage="one per day",
+               frequency="after breakfast", duration="daily not specified"),
+    Medication(drug="Linagliptin", dosage="Tablet"),
+    Medication(drug="Fexofenadine", dosage="One Eightti EMI",
+               frequency="Tab", duration="Five Days"),
+    Medication(drug="Metformin", dosage="500mg", frequency="BD",
+               duration="10 days"),
+]))
+_m = {x.prescribed_name: x for x in _rx.medications}
+check("filler becomes blank", _m["Nitrofurantoin"].dosage, "")
+check("filler stripped from real content", _m["Ecosprin"].duration, "daily")
+check("a form is not a dose", _m["Linagliptin"].dosage, "")
+check("real dosing untouched", _m["Metformin"].dosage, "500mg")
+# A spelled-out number is fine on its own - "one per day" is clear.
+check("plain words are not flagged",
+      "CONFIRM the amount" in _m["Ecosprin"].review_reason, False)
+# A garbled strength is NOT resolved to a number. "One Eightti EMI" is
+# plainly 180mg, and guessing it would be a dosing error nothing signals.
+check("garbled dose kept verbatim",
+      _m["Fexofenadine"].dosage, "One Eightti EMI")
+check("  and flagged for a human",
+      "CONFIRM the amount" in _m["Fexofenadine"].review_reason, True)
+
+print()
+print("=" * 70)
+print("14. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

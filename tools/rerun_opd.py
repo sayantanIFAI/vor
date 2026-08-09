@@ -149,6 +149,7 @@ def _merge(result) -> dict:
                     "dosage": m.dosage, "frequency": m.frequency,
                     "duration": m.duration,
                     "verified": m.verified, "tier": m.tier,
+                    "review_reason": m.review_reason,
                 })
         for s in rx.symptoms:
             if s not in symptoms:
@@ -189,6 +190,8 @@ def _worksheet_row(fname: str, rx: dict) -> dict:
             line += f"   (heard: {m['heard_as']})"
         if not m["verified"]:
             line += "   ** CONFIRM **"
+        elif "CONFIRM the amount" in (m.get("review_reason") or ""):
+            line += "   ** CONFIRM DOSE **"
         med_lines.append(line)
 
     return {

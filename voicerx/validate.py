@@ -83,6 +83,103 @@ def _set_prescribed_name(med) -> None:
     med.heard_as = spoken if med.prescribed_name != spoken else ""
 
 
+# Values that carry no information. The model writes these instead of
+# leaving a field empty, and they were printed verbatim: a real
+# prescription line read "Nitrofurantoin [Not specified Not specified
+# Not specified]". A blank field is the honest representation - it prompts
+# the question, where filler reads as though something was recorded.
+_NO_INFORMATION = frozenset({
+    "not specified", "unspecified", "not mentioned", "not stated",
+    "not given", "unknown", "none", "null", "n/a", "na", "-", "--",
+})
+
+# A dosage FORM is not a dose. "Tablet" and "gel" arrived in the dosage
+# column, where a reader looking for a quantity finds a noun.
+_DOSAGE_FORMS = frozenset({
+    "tablet", "tab", "tabs", "capsule", "cap", "caps", "gel", "cream",
+    "ointment", "syrup", "drops", "drop", "injection", "inhaler",
+    "spray", "lotion", "powder", "sachet",
+})
+
+# Spelled-out quantities the ASR produced instead of digits.
+_NUMBER_WORDS = frozenset({
+    "one", "two", "three", "four", "five", "six", "seven", "eight",
+    "nine", "ten", "eleven", "twelve", "fifteen", "twenty", "thirty",
+    "forty", "fifty", "sixty", "eighty", "hundred", "half",
+})
+
+# Ordinary dosing English. A spelled-out number is NOT itself a problem -
+# "one per day" and "Five Days" are perfectly clear instructions. What
+# signals an unresolved dose is a number sitting next to a token that is
+# not a word at all: "One Eightti EMI" is a mangled "180 mg".
+_DOSING_VOCAB = _NUMBER_WORDS | _DOSAGE_FORMS | frozenset({
+    "per", "a", "an", "the", "day", "days", "daily", "week", "weeks",
+    "month", "months", "night", "nights", "morning", "evening",
+    "afternoon", "noon", "time", "times", "hourly", "hours", "hour",
+    "before", "after", "with", "without", "food", "meal", "meals",
+    "breakfast", "lunch", "dinner", "bed", "bedtime", "empty", "stomach",
+    "and", "at", "in", "on", "every", "once", "twice", "thrice",
+    "od", "bd", "tds", "qid", "hs", "sos", "prn", "stat",
+    "mg", "ml", "mcg", "gm", "g", "iu", "unit", "units", "drop", "puff",
+    "puffs", "week's", "as", "needed", "required", "continue", "continued",
+})
+
+
+def _strip_no_information(value: str) -> str:
+    """Remove filler phrases; return "" if nothing of substance remains."""
+    out = value.strip()
+    low = out.lower().strip(" .,;:")
+    if low in _NO_INFORMATION:
+        return ""
+    # Also strip a filler phrase trailing real content: the model wrote
+    # "daily not specified" into a duration field.
+    for filler in sorted(_NO_INFORMATION, key=len, reverse=True):
+        for pattern in (f" {filler}", f"{filler} "):
+            while pattern in f" {out.lower()} ":
+                idx = out.lower().find(filler)
+                if idx < 0:
+                    break
+                out = (out[:idx] + out[idx + len(filler):]).strip(" .,;:")
+                if not out:
+                    return ""
+    return out.strip(" .,;:")
+
+
+def _clean_dosing(med) -> bool:
+    """Normalise the dosing fields. Returns True if a dose needs confirming.
+
+    DELIBERATELY DOES NOT RESOLVE NUMBERS. "One Eightti EMI Tab Five Days"
+    is plainly an attempt at "180mg tab, 5 days", and turning it into that
+    would be inventing a specific dose out of garble - the same move that
+    once produced "Naloxone" from a garbled fragment, in the one field
+    where being wrong is a dosing error. A tenfold mistake here is not
+    recoverable by a reader who trusts the number.
+
+    So the text is kept exactly as heard and the row is FLAGGED. The doctor
+    reads "as heard" and types the dose; that is a five-second correction,
+    where a confidently wrong "18mg" is not a correction at all because
+    nothing signals it is wrong.
+    """
+    for field in ("dosage", "frequency", "duration"):
+        setattr(med, field, _strip_no_information(getattr(med, field, "") or ""))
+
+    # A form alone is not a dose. Kept only if it is all we have, moved out
+    # of the quantity column either way.
+    if med.dosage and med.dosage.strip().lower() in _DOSAGE_FORMS:
+        med.dosage = ""
+
+    words = [w.strip(" .,;:()").lower()
+             for f in ("dosage", "frequency", "duration")
+             for w in (getattr(med, f, "") or "").split()]
+    words = [w for w in words if w]
+    if not any(w in _NUMBER_WORDS for w in words):
+        return False
+    # A number is present. Flag only if something beside it is not a word
+    # this vocabulary recognises and is not itself a digit.
+    return any(w not in _DOSING_VOCAB and not any(c.isdigit() for c in w)
+               for w in words)
+
+
 def validate(rx: ExtractedRx) -> ExtractedRx:
     reasons: list[str] = []
 
@@ -106,6 +203,14 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
         if v.tier == VERIFIED:
             med.verified = True
             _set_prescribed_name(med)
+            if _clean_dosing(med):
+                med.review_reason = (
+                    "dose heard as words, not digits - CONFIRM the amount")
+                reasons.append(
+                    f'"{med.prescribed_name}" dose was spoken as words '
+                    f'("{med.dosage or med.frequency or med.duration}") '
+                    f'and was NOT resolved to a number - CONFIRM'
+                )
             kept.append(med)
         elif v.tier == PROBABLE:
             # Real drug, garbled name. Kept, but the canonical name stays a
@@ -113,6 +218,7 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
             med.verified = False
             med.review_reason = v.reason
             _set_prescribed_name(med)
+            _clean_dosing(med)      # already flagged by tier
             reasons.append(
                 f'medication heard as "{med.drug}" is not an exact match - '
                 f'shown as {v.canonical} ({v.similarity:.2f}) - CONFIRM'
