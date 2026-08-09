@@ -311,7 +311,64 @@ check("  and flagged for a human",
 
 print()
 print("=" * 70)
-print("14. GAZETTEER INTEGRITY")
+print("14. NOTHING SET ASIDE STAYS UNEXAMINED")
+print("=" * 70)
+# The model files what it doubts into raw_uncertain_terms, and nothing
+# looked at that list again. "অ্যামোরাল" sat there while the gate could
+# resolve it - Glimepiride, alongside the Metformin in the same sentence.
+_rx = validate(ExtractedRx(
+    medications=[Medication(drug="গ্লাইকোমেট")],
+    raw_uncertain_terms=[
+        "অ্যামোরাল (possible medication name, ASR unclear, needs human verification)",
+        "এইচ বি এ ওয়ান (proposed as a lab test, not recognised)",
+        "আর রাতে দু তিনবার কেন চারবার বাথরুম ছুটতে হয় (untranslated Bengali)",
+    ]))
+_names = [m.prescribed_name for m in _rx.medications]
+check("drug recovered from uncertain", "Glimepiride" in _names, True)
+check("  never asserted, only proposed",
+      [m.tier for m in _rx.medications if m.prescribed_name == "Glimepiride"],
+      ["probable"])
+check("  original text retained",
+      [m.heard_as for m in _rx.medications if m.prescribed_name == "Glimepiride"],
+      ["অ্যামোরাল"])
+check("lab recovered from uncertain", _rx.labs_ordered, ["HbA1c"])
+check("a sentence is not recovered", len(_rx.raw_uncertain_terms), 1)
+
+# The classic diabetic triad. Only "weakness" was reported from a
+# consultation that stated all three; polyuria and polydipsia are what
+# make the picture diabetic.
+check("diabetic triad",
+      scan_symptoms("যাই খাই না কেন ওজন কমে যাচ্ছে গলাটাও কেমন শুকিয়ে কাঠ "
+                    "হয়ে থাকে আর রাতে দু তিনবার কেন চারবার বাথরুম ছুটতে হয়"),
+      ["weight loss", "excessive thirst", "frequent urination"])
+# Ordered in one breath with the fasting sugar, which WAS caught.
+check("post-meal sugar",
+      scan_labs("খালি পেটে সুগার আর খাওয়ার পরে সুগার আর এইচ বি এ ওয়ান সি"),
+      ["Fasting sugar", "PP sugar", "HbA1c"])
+
+print()
+print("=" * 70)
+print("15. DOSING BELONGS TO ONE DRUG, NOT THE SEGMENT")
+print("=" * 70)
+# "রোজ সকালে খাওয়ার পর ... ইকোস্পিডিন আর রসু ভাস্টা টিন ... আর বুকে ব্যাথা
+# উঠলে ... জিভের তলায় একটা সর্বিট্রেট" - one sentence, two schedules. The
+# segment frequency was copied onto every drug, so the sublingual nitrate
+# read "after breakfast" instead of when the pain starts.
+_seg = ("আমি আপনাকে রোজ সকালে খাওয়ার পর একটা করে এখনই ইকোস্পিডিন আর রসু "
+        "ভাস্টা টিন খেতে দিচ্ছি আর বুকে ব্যাথা উঠলে সাথে সাথে জিভের তলায় "
+        "না একটা সর্বিট্রেট দিয়ে দেবেন")
+check("segment names two drugs",
+      len(scan_drugs_spoken(_seg)) > 1, True)
+check("  so no timing is broadcast", scan_dosing(_seg)[0], "after breakfast")
+# The schema must be able to HOLD the instruction the model understood.
+_m = Medication(drug="Sorbitrate", route="sublingual",
+                instructions="when chest pain starts")
+check("route has a home", _m.route, "sublingual")
+check("as-needed has a home", _m.instructions, "when chest pain starts")
+
+print()
+print("=" * 70)
+print("16. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

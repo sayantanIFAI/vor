@@ -48,6 +48,31 @@ HARD RULES - violating any of these is a failure:
 
    Do NOT push clearly-understood everyday clinical words into "raw_uncertain_terms"; that field is for text you genuinely cannot interpret, not for text you understand but feel cautious about.
 
+3c. HOW AND WHEN A MEDICINE IS TAKEN IS PART OF THE PRESCRIPTION, not an unknown term.
+
+   Doctors give ordinary spoken instructions, and they are ordinary Bengali. Record them:
+     - "route"        how it is taken: জিভের তলায় (under the tongue) = sublingual,
+                      খাবেন (oral), লাগাবেন (topical), ড্রপ (drops), ইনহেলার (inhaled)
+     - "instructions" WHEN or under what condition, and any advice attached to it:
+                      "ব্যাথা উঠলে" = when the pain starts, "পকেটে রাখবেন" = keep it in your pocket
+
+   Example, and this is a real one that was got wrong:
+     "বুকে ব্যাথা উঠলে সাথে সাথে জিভের তলায় একটা সর্বিট্রেট দিয়ে দেবেন"
+     WRONG:  raw_uncertain_terms: ["জিভের তলায় না একটা সর্বিট্রেট"]
+             <- this sentence is not unclear. দিয়ে দেবেন is an ordinary instruction.
+     WRONG:  {"drug": "Sorbitrate", "frequency": "after breakfast"}
+             <- that schedule belongs to a DIFFERENT medicine in the same sentence
+     RIGHT:  {"drug": "সর্বিট্রেট", "dosage": "1", "route": "sublingual",
+              "instructions": "when chest pain starts; keep in pocket"}
+
+   Rule 2 is about not INVENTING A DRUG NAME from garbled syllables. It is not a reason
+   to discard an instruction you understood. If you understood the sentence, write it down.
+
+   ATTRIBUTE EACH INSTRUCTION TO THE RIGHT MEDICINE. One sentence often prescribes two
+   things on different schedules - a daily tablet and an as-needed one. Do not copy one
+   medicine's timing onto another. If you cannot tell which medicine a timing belongs to,
+   leave that medicine's timing EMPTY rather than guessing.
+
 4. Only fill "diagnosis" if the doctor explicitly states one. Otherwise it must be null - do not infer a diagnosis from symptoms.
 
 5. TRANSLATE Bengali medical terms to English ONLY when you are confident and the transcript is unambiguous. Otherwise use raw_uncertain_terms per rule 2.
@@ -66,7 +91,7 @@ HARD RULES - violating any of these is a failure:
   "symptoms": ["string", "string"],
   "diagnosis": null,
   "labs_ordered": ["string"],
-  "medications": [{"drug": "string", "dosage": "string", "frequency": "string", "duration": "string"}],
+  "medications": [{"drug": "string", "dosage": "string", "frequency": "string", "duration": "string", "route": "string", "instructions": "string"}],
   "follow_up": null,
   "summary": null,
   "raw_uncertain_terms": ["string"],

@@ -138,6 +138,7 @@ def _merge_segments(result) -> dict:
                     # What the UI prints. `drug` stays the spoken text and
                     # `canonical` the molecule; this is the one to show.
                     "prescribed_name": m.prescribed_name or m.drug,
+                    "route": m.route, "instructions": m.instructions,
                     "heard_as": m.heard_as,
                     "department": m.department, "indication": m.indication,
                     "match_similarity": m.match_similarity,

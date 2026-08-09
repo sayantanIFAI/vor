@@ -148,6 +148,7 @@ def _merge(result) -> dict:
                     "canonical": m.canonical,
                     "dosage": m.dosage, "frequency": m.frequency,
                     "duration": m.duration,
+                    "route": m.route, "instructions": m.instructions,
                     "verified": m.verified, "tier": m.tier,
                     "review_reason": m.review_reason,
                 })
@@ -186,6 +187,13 @@ def _worksheet_row(fname: str, rx: dict) -> dict:
         dosing = " ".join(x for x in (m["dosage"], m["frequency"], m["duration"]) if x)
         if dosing:
             line += f"  [{dosing}]"
+        # Route and as-needed instructions are part of the prescription -
+        # sublingual nitrate is taken WHEN the pain starts, which no
+        # schedule field can express.
+        if m.get("route"):
+            line += f"  ({m['route']})"
+        if m.get("instructions"):
+            line += f"  — {m['instructions']}"
         if m["heard_as"]:
             line += f"   (heard: {m['heard_as']})"
         if not m["verified"]:

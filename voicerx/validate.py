@@ -9,10 +9,12 @@ re-derives review flags from hard rules.
 """
 from __future__ import annotations
 
+import re
+
 from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
 from .glossary import (display_name, is_lab_test, lookup_drug,
                         scan_conditions, scan_symptoms)
-from .schema import ExtractedRx
+from .schema import ExtractedRx, Medication
 
 # Below this CTC/RNNT agreement a segment is treated as too garbled to
 # support a symptom claim. Chosen against real data: the segment that
@@ -319,6 +321,72 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
                 rx.raw_uncertain_terms.append(note)
             reasons.append(f'lab "{lab}" not in the clinical gazetteer - confirm')
     rx.labs_ordered = gated_labs
+
+    # --- recover what the model set aside ------------------------------------
+    # The model files anything it is unsure of into raw_uncertain_terms, and
+    # nothing ever looked at that list again - so a term the gazetteer can
+    # resolve perfectly well sat there unexamined.
+    #
+    # Measured on a diabetes consultation: "অ্যামোরাল (possible medication
+    # name, ASR unclear)". The gate resolves it to Glimepiride at 0.75, and
+    # Glimepiride alongside the Metformin in the same sentence is the
+    # standard pairing. The drug was recoverable the whole time; it was
+    # never offered to the gate, because the model had already decided it
+    # was uncertain and uncertainty was treated as final.
+    #
+    # THE MODEL'S DOUBT IS NOT A VERDICT. It is the same principle as the
+    # rest of this file - the model proposes, the gazetteer decides. Doubt
+    # is a reason to check, not a reason to discard.
+    #
+    # Nothing here is asserted: a recovery lands as PROBABLE at best, keeps
+    # its original text, and is flagged for confirmation. The failure this
+    # closes is the opposite of the "Naloxone" one - not a garbled fragment
+    # becoming a confident drug, but a real drug staying invisible.
+    recovered: list[str] = []
+    for term in rx.raw_uncertain_terms:
+        # Strip the parenthetical note the model or this file appended.
+        candidate = re.sub(r"\s*\([^)]*\)\s*$", "", term).strip()
+        n_tokens = len(candidate.split())
+        if not candidate or n_tokens > 5:
+            continue                      # a sentence is not a name
+
+        # Labs tolerate more tokens than drugs: an acronym spelled out
+        # letter by letter is legitimately five ("এইচ বি এ ওয়ান সি"),
+        # where a drug name is one to three.
+        lab = is_lab_test(candidate)
+        if lab:
+            if lab not in rx.labs_ordered:
+                rx.labs_ordered.append(lab)
+                reasons.append(
+                    f'lab "{candidate}" recovered from uncertain terms - CONFIRM')
+            recovered.append(term)
+            continue
+
+        if n_tokens > 3:
+            continue
+        v = judge_medication(candidate)
+        if v.tier not in (VERIFIED, PROBABLE):
+            continue
+        key = (v.canonical or candidate).strip().lower()
+        if any((m.canonical or m.drug).strip().lower() == key
+               for m in rx.medications):
+            recovered.append(term)        # already present under another form
+            continue
+
+        med = Medication(drug=candidate, canonical=v.canonical, tier=v.tier,
+                         department=v.department, indication=v.indication,
+                         match_similarity=v.similarity, verified=False,
+                         review_reason="recovered from uncertain terms - CONFIRM")
+        _set_prescribed_name(med)
+        rx.medications.append(med)
+        recovered.append(term)
+        reasons.append(
+            f'medication "{candidate}" recovered from uncertain terms - '
+            f'resembles {v.canonical} ({v.similarity:.2f}) - CONFIRM'
+        )
+
+    rx.raw_uncertain_terms = [t for t in rx.raw_uncertain_terms
+                              if t not in recovered]
 
     if rx.raw_uncertain_terms:
         reasons.append(f"{len(rx.raw_uncertain_terms)} uncertain term(s) flagged by extraction")

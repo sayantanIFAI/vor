@@ -822,11 +822,22 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     #   "ওসিটি ফাস্টিং ব্লাড সুগার পিপি ইসিজি ব্লাড প্রেসার চেক"
     # Note "ফাস্টিং ব্লাড সুগার" - the interposed "ব্লাড" broke the n-gram
     # against the key "ফাস্টিং সুগার", and bare "পিপি" was never an alias.
+    # "খাওয়ার পরের" was held but a doctor says "খাওয়ার পরে" / "খাওয়ার পর".
+    # Missed on a diabetes consultation where the fasting sugar ordered in
+    # the SAME breath was caught - the pair is ordered together, so half a
+    # pair is the conspicuous kind of miss.
     "PP sugar": ("পিপি সুগার", "পি পি সুগার", "পোস্ট প্রান্ডিয়াল",
-                  "post prandial sugar", "খাওয়ার পরের সুগার", "পিপি"), #
+                  "post prandial sugar", "খাওয়ার পরের সুগার", "পিপি",
+                  "খাওয়ার পরে সুগার", "খাওয়ার পর সুগার",
+                  "খাবার পরে সুগার", "খাওয়ার পরে ব্লাড সুগার"), #
     "Fasting sugar": ("ফাস্টিং সুগার", "FBS", "খালি পেটে সুগার",
                        "এফ বি এস", "ফাস্টিং", "ফাস্টিং ব্লাড সুগার"), #
-    "HbA1c": ("এইচবিএ১সি", "এইচ বি এ ওয়ান সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন", "hba1c"), #
+    # "এইচ বি এ ওয়ান" without the trailing সি is how it comes back when the
+    # ASR clips the last syllable. Four tokens is specific enough to be
+    # safe - unlike the bare "এইচবি" alias that was REMOVED for matching
+    # inside HbA1c itself.
+    "HbA1c": ("এইচবিএ১সি", "এইচ বি এ ওয়ান সি", "গ্লাইকোসাইলেটেড হিমোগ্লোবিন",
+               "hba1c", "এইচ বি এ ওয়ান", "এইচবিএওয়ানসি"), #
     "TSH": ("টিএসএইচ", "টি এস এইচ", "থাইরয়েড টেস্ট", "thyroid profile", "থাইরয়েড প্রোফাইল", "t3 t4 tsh"), #
     # NOTE: "রক্ত পরীক্ষা" / "ব্লাড টেস্ট" are deliberately NOT CBC aliases.
     # "Blood test" is not necessarily a complete blood count, and turning a
@@ -1018,7 +1029,12 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # PROBABLE medication. Naming them positively is more robust than
     # raising the floor, which would start losing real garbled drug names.
     "hair loss": ("চুল পড়া", "চুল পড়ে যাওয়া"), #
-    "weight loss": ("ওজন কমা", "ওজন কমে যাওয়া"), #
+    # Verb INFLECTION, not a new word: the entry held the noun form
+    # ("ওজন কমে যাওয়া") but a patient says it in the continuous
+    # ("ওজন কমে যাচ্ছে" - it IS going down), and the fold does not bridge
+    # যাওয়া/যাচ্ছে. Real miss on a diabetes consultation.
+    "weight loss": ("ওজন কমা", "ওজন কমে যাওয়া", "ওজন কমে যাচ্ছে",
+                    "ওজন কমছে", "ওজন কমে গেছে"), #
     "weight gain": ("ওজন বাড়া", "ওজন বেড়ে যাওয়া"), #
     "bone loss": ("হাড় ক্ষয়", "বোন লস"), #
     "memory loss": ("স্মৃতিশক্তি কমে যাওয়া", "ভুলে যাওয়া"), #
@@ -1069,6 +1085,24 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # nephrology
     "reduced urine": ("প্রস্রাব কম", "কম প্রস্রাব", "ইউরিন আউটপুট কমে যাওয়া"), #
     "burning urination": ("প্রস্রাবে জ্বালা", "জ্বালাপোড়া"), #
+    # The other two thirds of the classic diabetic triad. Only "weakness"
+    # was being reported from a consultation that stated all three, and
+    # polyuria and polydipsia are what make the picture diabetic.
+    # Anchored on the short verb phrase, not the whole sentence. The line
+    # spoken was "রাতে দু তিনবার কেন চারবার বাথরুম ছুটতে হয়" - four tokens
+    # between রাতে and বাথরুম, where gapped matching allows only one.
+    "frequent urination": ("বারবার প্রস্রাব", "ঘন ঘন প্রস্রাব",
+                            "বারবার বাথরুম", "রাতে বারবার বাথরুম",
+                            "বাথরুম ছুটতে", "বাথরুম যেতে হয়",
+                            "বারবার প্রস্রাব পায়", "ঘন ঘন বাথরুম"), #
+    # "শুকিয়ে কাঠ" (dried to wood) is the idiom that carries the meaning
+    # and survives the words around it - the spoken line was
+    # "গলাটাও কেমন শুকিয়ে কাঠ হয়ে থাকে", where an interposed কেমন and the
+    # ও suffix defeat a গলা-anchored key.
+    "excessive thirst": ("খুব তেষ্টা", "বেশি তেষ্টা", "তেষ্টা পায়",
+                          "গলা শুকিয়ে যাওয়া", "গলা শুকিয়ে কাঠ",
+                          "গলাটা শুকিয়ে কাঠ", "জল তেষ্টা", "মুখ শুকিয়ে যাওয়া",
+                          "শুকিয়ে কাঠ", "গলা শুকিয়ে"), #
     "facial puffiness": ("মুখ ফোলা", "চোখ মুখ ফোলা", "পেরিঅরবিটাল এডিমা"), #
     "kidney failure": ("কিডনি ফেইলিওর", "কিডনি খারাপ"), #
     "dialysis": ("ডায়ালিসিস",), #

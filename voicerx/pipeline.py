@@ -147,8 +147,30 @@ class VoiceToRxPipeline:
                 # ("দুপুরে খাওয়ার পর"), which the model returns as blank
                 # because it expects clinical shorthand. Filled only where
                 # the model left them empty - never overwriting it.
-                freq, dur = scan_dosing(cr.text)
-                for med in rx.medications:
+                # ONLY when the segment prescribes ONE medicine. A segment
+                # timing is a segment fact; attributing it to a particular
+                # drug is a guess, and copying it to every drug in the
+                # segment made that guess silently, several times over.
+                #
+                # It produced a clinically wrong instruction on a real
+                # cardiology consultation:
+                #
+                #   "রোজ সকালে খাওয়ার পর ... ইকোস্পিডিন আর রসু ভাস্টা টিন ...
+                #    আর বুকে ব্যাথা উঠলে ... জিভের তলায় একটা সর্বিট্রেট"
+                #
+                # One sentence, two schedules: a daily tablet and an
+                # as-needed sublingual. "after breakfast" was copied onto
+                # the Sorbitrate, which is taken WHEN THE PAIN STARTS.
+                # Nitrate timing is not cosmetic - a patient following that
+                # takes it at breakfast and has none during angina.
+                #
+                # With several drugs in one segment the model's own
+                # attribution is the only one with the sentence structure
+                # to go on, so nothing is filled in behind it. A blank
+                # prompts a question; a wrong schedule does not.
+                if len(rx.medications) == 1:
+                    freq, dur = scan_dosing(cr.text)
+                    med = rx.medications[0]
                     if freq and not med.frequency:
                         med.frequency = freq
                     if dur and not med.duration:

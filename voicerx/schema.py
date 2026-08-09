@@ -31,6 +31,24 @@ class Medication(BaseModel):
     frequency: str = ""
     duration: str = ""
 
+    # HOW and WHEN to take it, beyond a schedule.
+    #
+    # Added because a real cardiology consultation had nowhere to put this:
+    #     "জিভের তলায় না একটা সর্বিট্রেট দিয়ে দেবেন"
+    #     (put one Sorbitrate under the tongue [when the pain comes])
+    #
+    # The model understood the sentence perfectly well - দিয়ে দেবেন is an
+    # ordinary instruction - but with only dosage/frequency/duration to
+    # write into, the whole clause had no home and was pushed into
+    # raw_uncertain_terms as though it were unintelligible. It was not a
+    # comprehension failure; it was a missing field.
+    #
+    # This matters clinically, not just tidily. Sublingual nitrate is taken
+    # WHEN the chest pain starts. The schedule fields cannot express that,
+    # and what got printed instead was "after breakfast".
+    route: str = ""           # sublingual, oral, topical, inhaled, ...
+    instructions: str = ""    # "when chest pain starts", "keep in pocket"
+
     # set by the validator (Node 3), never by the LLM itself
     verified: bool = False
     review_reason: str = ""
@@ -64,7 +82,8 @@ class Medication(BaseModel):
     # substitution is always visible to the reviewer and never silent.
     heard_as: str = ""
 
-    @field_validator("drug", "dosage", "frequency", "duration", mode="before")
+    @field_validator("drug", "dosage", "frequency", "duration",
+                     "route", "instructions", mode="before")
     @classmethod
     def _coerce_text(cls, v):
         return _flatten_to_text(v) if v is not None else ""
