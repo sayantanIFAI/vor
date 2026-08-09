@@ -28,6 +28,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 import unicodedata
+from difflib import SequenceMatcher
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1523,6 +1524,31 @@ def _too_short_for_text(gram: str, table: dict) -> bool:
     return table is _DRUG_LOOKUP and len(gram) < _MIN_DRUG_NGRAM #
 
 
+# Below this, a drug key is a brand ABBREVIATION - টোবা (Tobra), টেলমা
+# (Telma), ডোলো (Dolo), নাইস (Nise) - short enough to collide with ordinary
+# Bengali vocabulary. Such a key may only match a WHOLE TOKEN; it may never
+# be assembled by joining separate words.
+#
+# The bounded suffix tail alone did not close this. Two of the three false
+# medications came back by other routes:
+#
+#     তো মেনোপস বা   dropping the interior token joins "তো"+"বা" -> টোবা,
+#                    which is then an EXACT hit, so no tail rule applies
+#     তেল মাখলাম     folds to টেলমাকলাম, trailing টেলমা by exactly 4 -
+#                    inside any suffix bound loose enough to allow গুলো
+#
+# Both are two ordinary words being welded into a drug name. Requiring a
+# single token refuses that while leaving the real uses intact: "ডোলোটা"
+# is one token and still matches, and long keys - Rosuvastatin,
+# Metformin - keep the gapped matching that recovers "রসু ভাস্টা টিন".
+_SAFE_DRUG_KEY = 6 #
+
+
+def _needs_whole_token(key: str, table: dict) -> bool:
+    """Whether this key is too short to be built from joined words."""
+    return table is _DRUG_LOOKUP and len(key) < _SAFE_DRUG_KEY #
+
+
 def _ngram_match(text: str, table: dict):
     """Find a gazetteer entry inside free text, matching only on WHOLE
     word groups.
@@ -1544,7 +1570,7 @@ def _ngram_match(text: str, table: dict):
     best_len = 0 #
     for i in range(len(tokens)): #
         for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1): #
-            hit, key = _lookup_span(_span_variants(tokens, i, n), table) #
+            hit, key = _lookup_span(_span_variants(tokens, i, n), table, n) #
             # prefer the longest match, so "PP sugar" beats "blood sugar"
             if hit is not None and len(key) > best_len: #
                 best, best_len = hit, len(key) #
@@ -1606,28 +1632,62 @@ def _span_variants(tokens: list[str], i: int, n: int) -> list[str]:
     return out #
 
 
-def _lookup_span(grams: list[str], table: dict):
+# How much may trail a key and still count as an inflectional suffix.
+#
+# The prefix allowance exists for Bengali agglutination: the key is
+# "সিবিসি" but a doctor says "সি বি সি টা", and "প্রেশার" arrives as
+# "প্রেশারটা". Those suffixes - টা, টি, কে, তে, র, গুলো, টাকে - are one to
+# four characters. The allowance was UNBOUNDED, which is a different and
+# much weaker claim: that any word merely BEGINNING with a key is that key.
+#
+# On real consultations that produced three false medications, and they
+# are the dangerous kind - ordinary Bengali words turning into drugs:
+#
+#     তো বাচ্চাকে   "to the child"      -> Tobramycin eye drops   (key টোবা)
+#     তো মেনোপস বা  "...menopause..."   -> Tobramycin eye drops   (key টোবা)
+#     তেল মাখলাম    "I applied oil"     -> Telmisartan            (key টেলমা)
+#
+# Each trailed its key by 4-5 characters of unrelated word. The short keys
+# themselves are legitimate and stay - টোবা is Tobra, টেলমা is Telma, and
+# so are ডোলো (Dolo), ওমেজ (Omez), নাইস (Nise), কালপল (Calpol). Deleting
+# real brand names to fix a matching rule would trade a precision bug for
+# a recall bug.
+#
+# 4 is the longest genuine suffix (গুলো, টাকে). Verified against the
+# regression corpus: every legitimate agglutinated match needs <= 2.
+_MAX_SUFFIX_TAIL = 4 #
+
+
+def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1):
     """First table hit among a span's folded variants.
 
     grams[0] is the full contiguous span; the rest have one interior token
     dropped. The agglutinative-suffix allowance (prefix matching) is applied
     ONLY to grams[0].
 
+    n_tokens is how many words grams[0] spans. Short drug keys require it to
+    be 1 - see _SAFE_DRUG_KEY.
+
     Stacking both relaxations was too loose and produced a real false
     positive: "এইচ ওয়ান বি এ সি" (HbA1c) matched CT scan, because dropping
     an interior token yielded a fragment that merely STARTED with the "সিটি"
     key. A gapped match is already a relaxation; a gapped match that also
     only has to match a prefix is barely a match at all.
+
+    The prefix allowance is also BOUNDED - see _MAX_SUFFIX_TAIL.
     """
     for idx, gram in enumerate(grams): #
         if not gram: #
             continue #
         hit = table.get(gram) #
-        if hit is not None and not _too_short_for_text(gram, table): #
+        if (hit is not None and not _too_short_for_text(gram, table) #
+                and not (_needs_whole_token(gram, table) and n_tokens > 1)): #
             return hit, gram #
         if idx == 0 and len(gram) >= 4: #
             for key, val in table.items(): #
-                if len(key) >= 4 and gram.startswith(key): #
+                if (len(key) >= 4 and gram.startswith(key) #
+                        and len(gram) - len(key) <= _MAX_SUFFIX_TAIL #
+                        and not (_needs_whole_token(key, table) and n_tokens > 1)): #
                     return val, key #
     return None, "" #
 
@@ -1662,7 +1722,7 @@ def _ngram_scan_spans(text: str, table: dict) -> list[tuple]: #
     seen: list = [] #
     for i in range(len(tokens)): #
         for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1): #
-            hit, _key = _lookup_span(_span_variants(tokens, i, n), table) #
+            hit, _key = _lookup_span(_span_variants(tokens, i, n), table, n) #
             if hit is not None and hit not in seen: #
                 if _span_is_negated(tokens, i, i + n): #
                     continue #
@@ -1681,6 +1741,94 @@ def scan_drugs(text: str) -> list[Drug]:
     return _ngram_scan_all(text, _DRUG_LOOKUP) #
 
 
+# Consonant skeletons, for pairing a spoken BENGALI brand with its Latin
+# spelling. fold() cannot do this: it normalises within a script, so
+# "সরবিট্রেট" and "Sorbitrate" never meet. Dropping vowels and collapsing
+# each consonant to one canonical letter puts both scripts in one alphabet:
+#
+#     সরবিট্রেট  -> srbtrt        Sorbitrate -> srbtrt      identical
+#     ইকোস্পিরিন -> ksprn         Ecosprin   -> ksprn       identical
+#
+# Vowels are dropped rather than mapped because they carry the least
+# reliable information across a transliteration - Bengali marks length and
+# inherent vowels that English spelling simply does not have.
+#
+# USED ONLY TO CHOOSE A DISPLAY NAME among one drug entry's OWN brands.
+# It never decides whether something is a drug, and it cannot introduce a
+# different molecule. Measured over the gazetteer: 454/536 Bengali forms
+# pair to a name at >= 0.75.
+_BN_SKEL = { #
+    'ক': 'k', 'খ': 'k', 'গ': 'g', 'ঘ': 'g', 'ঙ': 'n', #
+    'চ': 'c', 'ছ': 'c', 'জ': 'j', 'ঝ': 'j', 'ঞ': 'n', #
+    'ট': 't', 'ঠ': 't', 'ড': 'd', 'ঢ': 'd', 'ণ': 'n', #
+    'ত': 't', 'থ': 't', 'দ': 'd', 'ধ': 'd', 'ন': 'n', #
+    'প': 'p', 'ফ': 'f', 'ব': 'b', 'ভ': 'b', 'ম': 'm', #
+    'য': 'j', 'র': 'r', 'ল': 'l', 'ৎ': 't', 'ং': 'n', #
+    'শ': 's', 'ষ': 's', 'স': 's', 'হ': 'h', #
+    'ড়': 'r', 'ঢ়': 'r', 'য়': '', #
+} #
+
+_LAT_DIGRAPH = (('ph', 'f'), ('th', 't'), ('ch', 'c'), ('sh', 's'), #
+                ('gh', 'g'), ('kh', 'k'), ('bh', 'b'), ('dh', 'd'), #
+                ('ck', 'k')) #
+
+
+def _skeleton(text: str) -> str: #
+    """Consonant skeleton, in one alphabet for both scripts.""" #
+    if any('ঀ' <= c <= '৿' for c in text): #
+        return "".join(_BN_SKEL.get(c, '') for c in text) #
+    t = text.lower() #
+    for a, b in _LAT_DIGRAPH: #
+        t = t.replace(a, b) #
+    out = [] #
+    for ch in t: #
+        if ch in "aeiouywh '-.": #
+            continue #
+        if ch == 'x': #
+            out.append('k') #
+            ch = 's' #
+        else: #
+            ch = {'c': 'k', 'z': 's', 'v': 'b', 'q': 'k'}.get(ch, ch) #
+        if ch.isalpha(): #
+            out.append(ch) #
+    return "".join(out) #
+
+
+# Below this the skeletons are too far apart to claim they are the same
+# name, and the generic is used instead.
+_SKEL_FLOOR = 0.75 #
+# Within this of the best score, the GENERIC wins. A brand is a stronger
+# claim than a molecule - it names a specific product - so it has to be
+# clearly better, not merely tied. Without this "মন্টিকুলাস" (plainly
+# Montelukast) printed as "Montek", a brand nobody said.
+_SKEL_MARGIN = 0.08 #
+
+
+def display_name(drug: Drug, spoken: str) -> str: #
+    """The name to print for a drug the transcript named as `spoken`.""" #
+    key = fold(spoken) #
+    for brand in drug.brands: #
+        if fold(brand) == key: #
+            return brand            # said the brand outright, in Latin #
+    if fold(drug.generic) == key: #
+        return drug.generic #
+
+    # Cross-script: pick whichever of this drug's own names the spoken
+    # form most resembles, generic winning ties.
+    said = _skeleton(spoken) #
+    if not said: #
+        return drug.generic #
+    scored = [(SequenceMatcher(a=said, b=_skeleton(n)).ratio(), n) #
+              for n in (drug.generic,) + tuple(drug.brands)] #
+    best, best_name = max(scored, key=lambda s: s[0]) #
+    if best < _SKEL_FLOOR: #
+        return drug.generic #
+    generic_score = scored[0][0] #
+    if best - generic_score <= _SKEL_MARGIN: #
+        return drug.generic #
+    return best_name #
+
+
 class DrugMention(typing.NamedTuple): #
     """One drug found in a transcript, with both names it needs.""" #
     drug: Drug      # the gazetteer entry #
@@ -1691,30 +1839,21 @@ class DrugMention(typing.NamedTuple): #
 def scan_drugs_spoken(text: str) -> list[DrugMention]: #
     """As scan_drugs, but keeps the name to PRINT and the text that was SAID.
 
-    The printed name is the brand when the text named a brand, and the
-    generic otherwise:
+    The printed name is the name the doctor actually used, in either
+    script, and the generic when that cannot be established:
 
-        "Sorbitrate"   -> printed "Sorbitrate"     brand kept as said
-        "সরবিট্রেট"      -> printed "Nitroglycerin"  see below
+        "Sorbitrate"   -> printed "Sorbitrate"     brand, said in Latin
+        "সরবিট্রেট"      -> printed "Sorbitrate"     brand, said in Bengali
         "রসু ভাস্টাটিন"   -> printed "Rosuvastatin"
 
-    A BENGALI brand falls back to the generic rather than being paired with
-    its Latin brand. The two are not linked in the data - Drug.brands and
-    Drug.bengali are independent tuples in no shared order, and inferring
-    the pairing would mean transliterating across scripts and guessing.
-    The generic is always clinically correct, so the fallback is safe, and
-    `spoken` carries the Bengali so the reviewer still sees what was said.
+    The Bengali case goes through _display_name's consonant skeleton.
+    Drug.brands and Drug.bengali are independent tuples with no shared
+    order, so the pairing is not in the data and has to be derived from
+    the names themselves. Where it cannot be, the generic is used - always
+    clinically correct - and `spoken` keeps the original either way.
     """
-    out: list[DrugMention] = [] #
-    for drug, span in _ngram_scan_spans(text, _DRUG_LOOKUP): #
-        printed = drug.generic #
-        key = fold(span) #
-        for brand in drug.brands: #
-            if fold(brand) == key: #
-                printed = brand #
-                break #
-        out.append(DrugMention(drug, printed, span)) #
-    return out #
+    return [DrugMention(drug, display_name(drug, span), span) #
+            for drug, span in _ngram_scan_spans(text, _DRUG_LOOKUP)] #
 
 
 def scan_terms(text: str) -> list[str]:

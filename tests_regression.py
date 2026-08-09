@@ -221,18 +221,43 @@ _m = {x.printed: x for x in scan_drugs_spoken("Sorbitrate ar Ecosprin cholbe")}
 check("scan keeps the brand spoken", sorted(_m), ["Ecosprin", "Sorbitrate"])
 check("  generic still resolved",
       _m["Sorbitrate"].drug.generic, "Nitroglycerin")
-# Bengali brands are not linked to their Latin spelling in the data, so
-# these fall back to the generic - safe, and the spoken form is retained.
-_b = scan_drugs_spoken("সরবিট্রেট টা চলবে")[0]
-check("bengali brand -> generic", _b.printed, "Nitroglycerin")
-check("  spoken form retained", _b.spoken, "সরবিট্রেট")
+# A brand said in BENGALI must print as that brand, not as the molecule.
+# Reported from recording 32: the doctor said সর্বিট্রেট and the script
+# read "Nitroglycerin". Drug.brands and Drug.bengali are unpaired in the
+# data, so this is derived by consonant skeleton - srbtrt == srbtrt.
+_b = scan_drugs_spoken("সর্বিট্রেট টা চলবে")[0]
+check("bengali brand -> that brand", _b.printed, "Sorbitrate")
+check("  spoken form retained", _b.spoken, "সর্বিট্রেট")
+check("bengali generic -> generic",
+      scan_drugs_spoken("নাইট্রোগ্লিসারিন")[0].printed, "Nitroglycerin")
+# A near-tie must fall to the generic: this is plainly Montelukast, and
+# without the margin it printed "Montek", a brand nobody said.
+check("near-tie prefers the generic",
+      scan_drugs_spoken("মন্টিকুলাস")[0].printed, "Montelukast")
 
-# Bengali script is verified but cannot go on an English prescription.
-_rx = validate(ExtractedRx(medications=[Medication(drug="ইকোস্পিরিন")]))
-check("bengali verified -> english name",
-      _rx.medications[0].prescribed_name, "Aspirin")
+# Ordinary Bengali words must not become drugs. All three reached a real
+# prescription: short keys (টোবা=Tobra, টেলমা=Telma) were being welded
+# together out of separate function words.
+for _txt in ["তো বাচ্চাকে", "তো মেনোপস বা", "তেল মাখলাম"]:
+    check(f"not a drug: {_txt}", [m.printed for m in scan_drugs_spoken(_txt)], [])
+# ...while the short brands themselves still match as whole tokens.
+check("short brand as whole token",
+      [m.printed for m in scan_drugs_spoken("ডোলো খাবেন")], ["Dolo"])
+check("  with a bound suffix",
+      [m.printed for m in scan_drugs_spoken("ডোলোটা খাবেন")], ["Dolo"])
+
+# Bengali script cannot go on an English prescription, but the molecule is
+# not the answer either - the brand the doctor said, romanised, is.
+_rx = validate(ExtractedRx(medications=[
+    Medication(drug="ইকোস্পিরিন"), Medication(drug="সর্বিট্রেট")]))
+check("bengali brand via the gate",
+      _rx.medications[0].prescribed_name, "Ecosprin")
 check("  original preserved",
       _rx.medications[0].heard_as, "ইকোস্পিরিন")
+check("  and the molecule alongside",
+      _rx.medications[0].canonical, "Aspirin")
+check("gate agrees with the scanner",
+      _rx.medications[1].prescribed_name, "Sorbitrate")
 
 print()
 print("=" * 70)

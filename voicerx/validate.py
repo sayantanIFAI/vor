@@ -10,7 +10,8 @@ re-derives review flags from hard rules.
 from __future__ import annotations
 
 from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
-from .glossary import is_lab_test, scan_conditions, scan_symptoms
+from .glossary import (display_name, is_lab_test, lookup_drug,
+                        scan_conditions, scan_symptoms)
 from .schema import ExtractedRx
 
 # Below this CTC/RNNT agreement a segment is treated as too garbled to
@@ -65,9 +66,19 @@ def _set_prescribed_name(med) -> None:
         med.heard_as = ""
         return
 
-    # Bengali-script or garbled. Either way the spoken text cannot go on an
-    # English prescription; fall back to the resolved name, keeping the
-    # original visible.
+    # Said in BENGALI. The text cannot go on an English prescription, but
+    # the molecule is not the right answer either - a doctor who said
+    # সর্বিট্রেট should read "Sorbitrate", not "Nitroglycerin". Resolve it
+    # to whichever of that drug's own names was spoken.
+    if med.tier == VERIFIED:
+        entry = lookup_drug(spoken)
+        if entry is not None:
+            med.prescribed_name = display_name(entry, spoken)
+            med.heard_as = spoken
+            return
+
+    # Garbled, or a name the gazetteer holds no entry for. Fall back to the
+    # resolved name and keep the original visible.
     med.prescribed_name = med.canonical or spoken
     med.heard_as = spoken if med.prescribed_name != spoken else ""
 
