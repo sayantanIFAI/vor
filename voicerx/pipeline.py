@@ -15,7 +15,7 @@ from .correct import correct_transcript
 from .fuzzy_drugs import find_drug_candidates
 from .extract import extract_rx, ExtractionError
 from .english import englishise
-from .glossary import (scan_conditions, scan_dosing, scan_drugs,
+from .glossary import (scan_conditions, scan_dosing, scan_drugs_spoken,
                         scan_labs, scan_symptoms)
 from .schema import ExtractedRx, Medication
 from .translate import Translator
@@ -106,13 +106,19 @@ class VoiceToRxPipeline:
                 # "মেট ফর্মিন", "রসু ভাস্টাটিন" and "মেটো প্রোল" all absent
                 # from medications[] while sitting in the transcript. The
                 # fold joins the pieces and resolves them exactly.
+                # scan_drugs_spoken, not scan_drugs: the brand the doctor
+                # actually named has to survive. Scanning for the generic
+                # is what put "Nitroglycerin" on a prescription where the
+                # word spoken was সরবিট্রেট (Sorbitrate).
                 known = {(m.canonical or m.drug).lower() for m in rx.medications}
-                for drug in scan_drugs(cr.text):
+                for drug, printed, spoken in scan_drugs_spoken(cr.text):
                     if drug.generic.lower() in known:
                         continue
                     known.add(drug.generic.lower())
                     rx.medications.append(Medication(
-                        drug=drug.generic, canonical=drug.generic,
+                        drug=spoken, canonical=drug.generic,
+                        prescribed_name=printed,
+                        heard_as=spoken if printed != spoken else "",
                         tier="verified", verified=True,
                         department=drug.department, indication=drug.indication,
                         match_similarity=1.0,

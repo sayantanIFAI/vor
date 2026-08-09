@@ -23,7 +23,8 @@ sys.path.insert(0, ".")
 from voicerx.english import englishise
 from voicerx.gate import judge_medication
 from voicerx.glossary import (collisions, is_clinical_term, scan_conditions,
-                               scan_dosing, scan_drugs, scan_labs,
+                               scan_dosing, scan_drugs, scan_drugs_spoken,
+                               scan_labs,
                                scan_symptoms, stats)
 from voicerx.schema import ExtractedRx, Medication
 from voicerx.validate import validate
@@ -182,7 +183,60 @@ check("garbage filtered, names canonical", rx.labs_ordered, ["ECG", "CBC"])
 
 print()
 print("=" * 70)
-print("11. GAZETTEER INTEGRITY")
+print("11. THE PRINTED NAME - said vs garbled")
+print("=" * 70)
+# Reported from a real cardiology consultation: the medication list showed
+# "Rasu Basta Tin", which is not a drug, not a brand, and not a word - just
+# what the ASR made of রসু ভাস্টা টিন. It must print as Rosuvastatin.
+#
+# The same report also objected to the opposite error: "Ecosprin" being
+# displayed as "Aspirin". Both are the SAME field getting it wrong in
+# opposite directions, so both directions are pinned here.
+_rx = validate(ExtractedRx(medications=[
+    Medication(drug="Ecosprin"),        # real brand, verified
+    Medication(drug="Rasu Basta Tin"),  # ASR garble, probable
+    Medication(drug="Sorbitrate"),      # real brand whose generic differs
+]))
+_by = {m.drug: m for m in _rx.medications}
+check("said a real brand -> print it",
+      _by["Ecosprin"].prescribed_name, "Ecosprin")
+check("  and its generic stays alongside",
+      _by["Ecosprin"].canonical, "Aspirin")
+check("  nothing to disclose as heard-as",
+      _by["Ecosprin"].heard_as, "")
+check("garbled -> print the real drug",
+      _by["Rasu Basta Tin"].prescribed_name, "Rosuvastatin")
+check("  substitution stays visible",
+      _by["Rasu Basta Tin"].heard_as, "Rasu Basta Tin")
+check("  and still flagged for a human",
+      _by["Rasu Basta Tin"].verified, False)
+check("brand kept, not swapped for generic",
+      _by["Sorbitrate"].prescribed_name, "Sorbitrate")
+
+# The same failure via the OTHER path into medications[]. The gazetteer
+# scan of the transcript reported entry.generic, so a doctor who said
+# "Sorbitrate" got "Nitroglycerin" printed - the substitution complaint,
+# arriving from a route the gate never sees.
+_m = {x.printed: x for x in scan_drugs_spoken("Sorbitrate ar Ecosprin cholbe")}
+check("scan keeps the brand spoken", sorted(_m), ["Ecosprin", "Sorbitrate"])
+check("  generic still resolved",
+      _m["Sorbitrate"].drug.generic, "Nitroglycerin")
+# Bengali brands are not linked to their Latin spelling in the data, so
+# these fall back to the generic - safe, and the spoken form is retained.
+_b = scan_drugs_spoken("সরবিট্রেট টা চলবে")[0]
+check("bengali brand -> generic", _b.printed, "Nitroglycerin")
+check("  spoken form retained", _b.spoken, "সরবিট্রেট")
+
+# Bengali script is verified but cannot go on an English prescription.
+_rx = validate(ExtractedRx(medications=[Medication(drug="ইকোস্পিরিন")]))
+check("bengali verified -> english name",
+      _rx.medications[0].prescribed_name, "Aspirin")
+check("  original preserved",
+      _rx.medications[0].heard_as, "ইকোস্পিরিন")
+
+print()
+print("=" * 70)
+print("12. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

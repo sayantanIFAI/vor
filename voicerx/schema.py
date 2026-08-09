@@ -48,6 +48,22 @@ class Medication(BaseModel):
     indication: str = ""
     match_similarity: float = 0.0
 
+    # The name that goes ON THE PRESCRIPTION. Neither `drug` nor `canonical`
+    # is right for this on its own, which is why it is a third field:
+    #
+    #   spoken "Ecosprin"        -> print "Ecosprin"     (a real brand the
+    #                               doctor said; printing its canonical
+    #                               "Aspirin" reads as a drug substitution)
+    #   spoken "Rasu Basta Tin"  -> print "Rosuvastatin" (not a name at all,
+    #                               just ASR garble; printing it verbatim
+    #                               puts a non-existent drug on the script)
+    #
+    # `drug` still holds the original text in both cases - see heard_as.
+    prescribed_name: str = ""
+    # Set ONLY when prescribed_name differs from what was said, so the
+    # substitution is always visible to the reviewer and never silent.
+    heard_as: str = ""
+
     @field_validator("drug", "dosage", "frequency", "duration", mode="before")
     @classmethod
     def _coerce_text(cls, v):

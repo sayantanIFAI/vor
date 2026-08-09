@@ -112,6 +112,11 @@ def _merge_segments(result) -> dict:
                 # the gazetteer supplied, and keep any dosing already found.
                 if m.tier == "verified" and not existing.get("verified"):
                     existing.update({"verified": True, "tier": m.tier})
+                    # The verified row knows a real spoken name; the probable
+                    # one only had a similarity guess. Take its printed name.
+                    if m.prescribed_name:
+                        existing["prescribed_name"] = m.prescribed_name
+                        existing["heard_as"] = m.heard_as
                 for fld in ("dosage", "frequency", "duration"):
                     if not existing.get(fld) and getattr(m, fld, ""):
                         existing[fld] = getattr(m, fld)
@@ -130,6 +135,10 @@ def _merge_segments(result) -> dict:
                     # with tier=None, which is exactly the information the
                     # reviewer needs most.
                     "tier": m.tier, "canonical": m.canonical,
+                    # What the UI prints. `drug` stays the spoken text and
+                    # `canonical` the molecule; this is the one to show.
+                    "prescribed_name": m.prescribed_name or m.drug,
+                    "heard_as": m.heard_as,
                     "department": m.department, "indication": m.indication,
                     "match_similarity": m.match_similarity,
                 })

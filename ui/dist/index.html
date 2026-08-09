@@ -108,7 +108,12 @@ function Rx({data}){
               tier:"probable", verified:false, match_similarity:null,
               review_reason:"heard in audio, not confirmed"};
     });
-    const base=(data.medications||[]).map(m=>({...m, drug:cleanDrug(m.drug)}));
+    // Show prescribed_name, not the raw spoken text. "Ecosprin" is a real
+    // brand and stays as said; "Rasu Basta Tin" is ASR garble of
+    // Rosuvastatin and must not be what a doctor sees on a script. The
+    // backend already made that call - see schema.Medication.
+    const base=(data.medications||[]).map(m=>({
+      ...m, drug:cleanDrug(m.prescribed_name||m.drug)}));
     const seen=new Set(base.map(m=>(m.canonical||m.drug).toLowerCase()));
     setMeds([...base, ...fromCandidates.filter(c=>{
       const k=(c.canonical||c.drug).toLowerCase();
@@ -223,6 +228,14 @@ function Rx({data}){
                         <a href="#" onClick={e=>{e.preventDefault();edit(i,"drug",m.canonical);}}
                            style={{color:"var(--accent)"}}>{m.canonical}</a>
                         {m.indication ? ` — ${m.indication}` : ""}
+                      </div>)}
+                    {/* Provenance. When the printed name is NOT what the
+                        audio said, the original has to stay on screen - the
+                        substitution is the thing most worth checking, and
+                        hiding it is how a wrong drug gets signed off. */}
+                    {m.heard_as && (
+                      <div className="muted" style={{fontSize:"0.85em",marginTop:3}}>
+                        heard as “{m.heard_as}”
                       </div>)}
                   </td>
                   <td><input value={m.dosage||""} placeholder="500mg"

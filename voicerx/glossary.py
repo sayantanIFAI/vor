@@ -26,6 +26,7 @@ the safe direction to fail.
 from __future__ import annotations
 
 import dataclasses
+import typing
 import unicodedata
 
 
@@ -1644,15 +1645,29 @@ def _ngram_scan_all(text: str, table: dict) -> list:
     what the SLM proposed - they never propose on their own. Do not use
     them as a standalone extractor without adding negation scope.
     """
+    return [hit for hit, _span in _ngram_scan_spans(text, table)] #
+
+
+def _ngram_scan_spans(text: str, table: dict) -> list[tuple]: #
+    """As _ngram_scan_all, but keeps the TEXT THAT MATCHED alongside each hit.
+
+    The surface form is not decoration. A drug entry is one generic with
+    several brands, so collapsing a hit to entry.generic loses which name
+    was actually spoken: "সরবিট্রেট" and "Nitrocontin" both resolve to
+    Nitroglycerin, and a prescription that prints the generic for a brand
+    the doctor never said reads as a substitution. It was reported as one.
+    """
     tokens = text.split() #
-    found: list = [] #
+    found: list[tuple] = [] #
+    seen: list = [] #
     for i in range(len(tokens)): #
         for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1): #
             hit, _key = _lookup_span(_span_variants(tokens, i, n), table) #
-            if hit is not None and hit not in found: #
+            if hit is not None and hit not in seen: #
                 if _span_is_negated(tokens, i, i + n): #
                     continue #
-                found.append(hit) #
+                seen.append(hit) #
+                found.append((hit, " ".join(tokens[i:i + n]))) #
     return found #
 
 
@@ -1664,6 +1679,42 @@ def scan_labs(text: str) -> list[str]:
 def scan_drugs(text: str) -> list[Drug]:
     """All gazetteer drugs named in this segment."""
     return _ngram_scan_all(text, _DRUG_LOOKUP) #
+
+
+class DrugMention(typing.NamedTuple): #
+    """One drug found in a transcript, with both names it needs.""" #
+    drug: Drug      # the gazetteer entry #
+    printed: str    # the name to put on the prescription #
+    spoken: str     # the text that actually matched, verbatim #
+
+
+def scan_drugs_spoken(text: str) -> list[DrugMention]: #
+    """As scan_drugs, but keeps the name to PRINT and the text that was SAID.
+
+    The printed name is the brand when the text named a brand, and the
+    generic otherwise:
+
+        "Sorbitrate"   -> printed "Sorbitrate"     brand kept as said
+        "সরবিট্রেট"      -> printed "Nitroglycerin"  see below
+        "রসু ভাস্টাটিন"   -> printed "Rosuvastatin"
+
+    A BENGALI brand falls back to the generic rather than being paired with
+    its Latin brand. The two are not linked in the data - Drug.brands and
+    Drug.bengali are independent tuples in no shared order, and inferring
+    the pairing would mean transliterating across scripts and guessing.
+    The generic is always clinically correct, so the fallback is safe, and
+    `spoken` carries the Bengali so the reviewer still sees what was said.
+    """
+    out: list[DrugMention] = [] #
+    for drug, span in _ngram_scan_spans(text, _DRUG_LOOKUP): #
+        printed = drug.generic #
+        key = fold(span) #
+        for brand in drug.brands: #
+            if fold(brand) == key: #
+                printed = brand #
+                break #
+        out.append(DrugMention(drug, printed, span)) #
+    return out #
 
 
 def scan_terms(text: str) -> list[str]:

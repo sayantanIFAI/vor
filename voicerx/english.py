@@ -148,6 +148,9 @@ def englishise(rx) -> None:
         if has_cjk(med.drug):
             _note(med.drug, "drug name dropped: model emitted Chinese")
             med.drug = med.canonical or ""
+            # prescribed_name may have been derived from the dropped text.
+            med.prescribed_name = med.canonical or ""
+            med.heard_as = ""
 
     # A patient NAME is not translated - it is a proper noun, and
     # "translating" it would be inventing a different person. Only CJK is

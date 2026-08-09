@@ -19,6 +19,59 @@ from .schema import ExtractedRx
 LOW_AGREEMENT = 0.5
 
 
+def _is_latin(text: str) -> bool:
+    """Whether the text is written in the Latin alphabet."""
+    letters = [c for c in text if c.isalpha()]
+    return bool(letters) and all(c.isascii() for c in letters)
+
+
+def _set_prescribed_name(med) -> None:
+    """Decide the name that goes on the prescription. See schema.Medication.
+
+    The tier already carries the distinction this needs, so no new
+    heuristic is invented here:
+
+      VERIFIED  the spoken string is itself a name the gazetteer knows -
+                a brand or a generic. The doctor said a real drug name;
+                print it. Rewriting "Ecosprin" to "Aspirin" is correct
+                pharmacology but reads as a substitution, and it was
+                reported as one.
+
+      PROBABLE  the spoken string matched nothing and was resolved by
+                similarity - which is what ASR garble looks like.
+                "Rasu Basta Tin" is not a drug, a brand, or a word;
+                printing it verbatim puts a non-existent medicine on the
+                script. Print the resolved name.
+
+    NO SEPARATE, HIGHER FLOOR FOR SUBSTITUTING THE NAME. It was considered:
+    printing a specific name is a stronger claim than merely keeping the
+    row, so a stricter threshold would be defensible. The scored data in
+    gate.py does not support one - real drugs land at 0.700 and 0.818,
+    false positives at 0.588 and below, so any second floor would sit in
+    the same single gap as SIMILARITY_FLOOR and separate nothing. Adding a
+    constant that no measurement distinguishes would be false precision.
+    Revisit only if a scored set ever shows two distinct bands.
+
+    This does NOT contradict "PROBABLE is never auto-applied". That rule
+    exists so a resolution can never happen SILENTLY - the failure behind
+    it was a garbled fragment becoming "Naloxone" with nothing to show a
+    reviewer. Here verified stays False, review_reason stays set, and
+    heard_as preserves the original, so the substitution is visible in
+    exactly the place a human is already being asked to confirm.
+    """
+    spoken = med.drug.strip()
+    if med.tier == VERIFIED and _is_latin(spoken):
+        med.prescribed_name = spoken
+        med.heard_as = ""
+        return
+
+    # Bengali-script or garbled. Either way the spoken text cannot go on an
+    # English prescription; fall back to the resolved name, keeping the
+    # original visible.
+    med.prescribed_name = med.canonical or spoken
+    med.heard_as = spoken if med.prescribed_name != spoken else ""
+
+
 def validate(rx: ExtractedRx) -> ExtractedRx:
     reasons: list[str] = []
 
@@ -41,15 +94,17 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
 
         if v.tier == VERIFIED:
             med.verified = True
+            _set_prescribed_name(med)
             kept.append(med)
         elif v.tier == PROBABLE:
             # Real drug, garbled name. Kept, but the canonical name stays a
             # proposal - see gate.py on why this is never auto-applied.
             med.verified = False
             med.review_reason = v.reason
+            _set_prescribed_name(med)
             reasons.append(
-                f'medication "{med.drug}" is not an exact match - '
-                f'possibly {v.canonical} ({v.similarity:.2f}) - CONFIRM'
+                f'medication heard as "{med.drug}" is not an exact match - '
+                f'shown as {v.canonical} ({v.similarity:.2f}) - CONFIRM'
             )
             kept.append(med)
         else:
