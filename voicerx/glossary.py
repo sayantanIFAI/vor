@@ -255,8 +255,11 @@ GENERAL = [
     Drug("Calcium carbonate", ("Shelcal", "Calcimax"),
          ("শেলক্যাল", "ক্যালসিয়াম"),
          "supplement", "general"),
+    # The bare "ফলিক অ্যাসিড" belongs to Folic acid alone. Sharing it here
+    # meant one spoken phrase resolved to two different products, which the
+    # strengthened collisions() check caught.
     Drug("Iron/Folic acid", ("Autrin", "Fefol", "Orofer"),
-         ("আয়রন", "ফলিক অ্যাসিড"),
+         ("আয়রন", "আয়রন ফলিক অ্যাসিড", "আয়রন ট্যাবলেট"),
          "supplement / anaemia", "general"),
     Drug("Multivitamin", ("Zincovit", "A to Z"),
          ("জিঙ্কোভিট", "মাল্টিভিটামিন"),
@@ -298,19 +301,12 @@ BONE = [
          ("টেরিপ্যারাটাইড",), "anabolic / severe osteoporosis", "bone"),
     Drug("Denosumab", ("Prolia", "Xgeva"),
          ("ডেনোসুম্যাব",), "RANKL inhibitor / osteoporosis", "bone"),
-    Drug("Calcitriol", ("Rocaltrol", "Calcirol"),
-         ("ক্যালসিট্রায়ল", "ক্যালসিরল"),
-         "active vitamin D", "bone"),
-    Drug("Cholecalciferol", ("Calcirol", "D-Rise", "Uprise-D3"),
-         ("কোলেক্যালসিফেরল", "ভিটামিন ডি থ্রি", "ডি রাইজ"),
-         "vitamin D3 supplement", "bone"),
-    Drug("Calcium carbonate", ("Shelcal", "Calcimax", "Ostocalcium"),
-         ("ক্যালসিয়াম", "শেলক্যাল", "ক্যালশিয়াম", "অস্টোক্যালসিয়াম"),
-         "calcium supplement", "bone"),
+    # Calcirol is CHOLECALCIFEROL, not calcitriol - three entries claimed
+    # that brand and the strengthened collision check caught it.
+    Drug("Calcitriol", ("Rocaltrol", "Calcijunc"),
+         ("ক্যালসিট্রায়ল",), "active vitamin D", "bone"),
     Drug("Etoricoxib", ("Etoshine", "Nucoxia"),
          ("ইটোরিকক্সিব", "ইটোশাইন"), "NSAID / joint pain", "bone"),
-    Drug("Aceclofenac", ("Zerodol", "Hifenac"),
-         ("এসিক্লোফেনাক", "জিরোডল"), "NSAID / joint pain", "bone"),
     Drug("Methylcobalamin", ("Nurokind", "Meconerv"),
          ("মিথাইলকোবালামিন", "নিউরোকাইন্ড"),
          "neuropathy / B12", "bone"),
@@ -413,6 +409,8 @@ DENTAL = [
 GYNAECOLOGY = [
     Drug("Folic acid", ("Folvite", "Fol-5"),
          ("ফলিক অ্যাসিড", "ফলভাইট"), "pregnancy supplement", "gynaecology"),
+    # NOTE: the iron+folic combination is a DIFFERENT product and must not
+    # share the bare "ফলিক অ্যাসিড" alias - collisions() flagged the clash.
     Drug("Tranexamic acid", ("Trapic", "Pause", "Texid"),
          ("ট্রানেক্সামিক অ্যাসিড", "ট্রাপিক"),
          "heavy menstrual bleeding", "gynaecology"),
@@ -497,14 +495,10 @@ SURGERY = [
          ("ট্রামাডল", "আলট্রাসেট"), "moderate-severe pain", "surgery"),
     Drug("Ceftriaxone", ("Monocef", "Intacef", "Oframax"),
          ("সেফট্রায়াক্সোন", "মনোসেফ"), "injectable antibiotic", "surgery"),
-    Drug("Diclofenac", ("Voveran", "Dynapar", "Diclomol"),
-         ("ডাইক্লোফেনাক", "ভোভেরান"), "NSAID", "surgery"),
     Drug("Enoxaparin", ("Clexane", "Lomoh"),
          ("এনোক্সাপারিন", "ক্লেক্সেন"), "DVT prophylaxis", "surgery"),
     Drug("Povidone iodine", ("Betadine", "Cipladine"),
          ("পোভিডোন আয়োডিন", "বিটাডিন"), "antiseptic", "surgery"),
-    Drug("Lactulose", ("Duphalac", "Looz", "Cremaffin"),
-         ("ল্যাকটুলোজ", "ডুফালাক"), "constipation", "surgery"),
 ]
 
 ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
@@ -524,9 +518,13 @@ ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
 LAB_TESTS: dict[str, tuple[str, ...]] = {
     # cardiac
     "ECG": ("ইসিজি", "ই সি জি", "ইকেজি", "electrocardiogram", "e c g"),
-    "Echo": ("ইকো", "echocardiogram", "2d echo", "টু ডি ইকো",
-              "ইকোকার্ডিওগ্রাফি", "ইকোকার্ডিওগ্রাম", "echocardiography",
-              "ইকো কার্ডিওগ্রাফি"),
+    # ONE entry. There used to be a separate "2D Echo" as well, and since
+    # "2d echo" was an alias of both, a single spoken test resolved to TWO
+    # entries - 297 of 311 apparent lab false positives in a 500-transcript
+    # eval were this one duplication.
+    "2D Echo": ("ইকো", "echo", "echocardiogram", "2d echo", "টু ডি ইকো",
+                 "two d echo", "ইকোকার্ডিওগ্রাফি", "ইকোকার্ডিওগ্রাম",
+                 "echocardiography", "ইকো কার্ডিওগ্রাফি"),
     "TMT": ("টিএমটি", "টি এম টি", "treadmill test", "stress test", "t m t"),
     "Angiography": ("অ্যাঞ্জিওগ্রাফি", "angiogram", "অ্যাঞ্জিওগ্রাম",
                      "এনজিওগ্রাম", "এঞ্জিওগ্রাফি"),
@@ -545,7 +543,6 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "BNP": ("bnp", "nt-probnp", "bnp or nt-probnp", "pro bnp"),
     "Serum electrolytes": ("serum electrolytes", "electrolytes",
                             "ইলেক্ট্রোলাইট", "na k cl"),
-    "2D Echo": ("2d echo", "two d echo", "টু ডি ইকো"),
     # neuro
     "EEG": ("ইইজি", "ই ই জি", "electroencephalogram", "e e g"),
     "MRI": ("এমআরআই", "এম আর আই", "m r i"),
@@ -714,9 +711,9 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "itching": ("চুলকানি", "চুলকায়", "খুজলি"),
     "rash": ("র‍্যাশ", "ফুসকুড়ি", "চাকা চাকা দাগ"),
     "acne": ("ব্রণ", "একনি"),
-    "hives": ("আমবাত", "চাকা"),
+    "hives": ("আমবাত",),
     "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন"),
-    "hair fall": ("চুল পড়া", "চুল উঠছে"),
+    "hair fall": ("চুল উঠছে",),
     "dry skin": ("শুষ্ক ত্বক", "চামড়া শুকিয়ে"),
     "boil": ("ফোঁড়া", "বিচি"),
     # ophthalmology
@@ -1036,6 +1033,37 @@ for _canon, _alts in IMPORTED_TERMS.items():
         _IMPORTED_COUNT += 1
 
 
+def _build_collisions() -> list[tuple[str, str, str]]:
+    """Aliases that two DIFFERENT canonical entries both claim.
+
+    collisions() below inspects the finished lookup tables, which cannot
+    show this: during construction `table[fold(alias)] = canon` silently
+    overwrites, so only the last writer survives and the clash disappears.
+
+    That blind spot let "Echo" and "2D Echo" coexist as separate lab tests
+    both claiming the alias "2d echo". One spoken test then resolved to two
+    entries, producing 297 phantom false positives in a 500-transcript
+    evaluation and sending me looking for a detection bug that did not
+    exist.
+    """
+    found: list[tuple[str, str, str]] = []
+    for label, table in (("lab", LAB_TESTS), ("term", CLINICAL_TERMS)):
+        seen: dict[str, str] = {}
+        for canon, aliases in table.items():
+            for alias in (canon, *aliases):
+                key = fold(alias)
+                if key in seen and seen[key] != canon:
+                    found.append((alias, f"{label}:{seen[key]}", f"{label}:{canon}"))
+                else:
+                    seen[key] = canon
+    for i, d1 in enumerate(ALL_DRUGS):
+        for d2 in ALL_DRUGS[i + 1:]:
+            shared = {fold(a) for a in (d1.generic, *d1.brands, *d1.bengali)} &                      {fold(a) for a in (d2.generic, *d2.brands, *d2.bengali)}
+            for key in shared:
+                found.append((key, f"drug:{d1.generic}", f"drug:{d2.generic}"))
+    return found
+
+
 def collisions() -> list[tuple[str, str, str]]:
     """Entries that fold onto the same key but mean different things.
 
@@ -1044,7 +1072,7 @@ def collisions() -> list[tuple[str, str, str]]:
     bug - the fold has over-merged and must be made less aggressive.
     Exercised by the test suite; returns [] when the gazetteer is clean.
     """
-    found: list[tuple[str, str, str]] = []
+    found: list[tuple[str, str, str]] = _build_collisions()
     seen: dict[str, tuple[str, str]] = {}
     for kind, table in (("drug", {k: v.generic for k, v in _DRUG_LOOKUP.items()}),
                         ("lab", _LAB_LOOKUP),
