@@ -976,8 +976,17 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "angina": ("অ্যাঞ্জাইনা", "অঞ্জিনা", "এনজাইনা", "অ্যানজাইনা পেক্টোরিস"), #
     "chest pain": ("বুকে ব্যথা", "বুক ব্যথা", "চেস্ট পেইন", "বুক চেপে ধরা"), #
     "blockage": ("ব্লকেজ", "ব্লক"), #
-    "palpitations": ("ধড়ফড়", "হার্ট বিট", "বুক ধড়ফড়"), #
-    "breathlessness": ("শ্বাসকষ্ট", "দম বন্ধ"), #
+    # Spellings from a real consultation: "ধরফড়" (r, not ড়) appeared and
+    # did not match. Chest pain with sweating, palpitations and
+    # breathlessness is the textbook angina presentation - missing three of
+    # the four cardinal signs is not a cosmetic gap.
+    "palpitations": ("ধড়ফড়", "ধরফড়", "হার্ট বিট", "বুক ধড়ফড়", "বুক ধুকপুক"),
+    "sweating": ("ঘাম", "ঘাম হয়", "দরদর করে ঘাম", "ঘেমে যাওয়া", "প্রচুর ঘাম"),
+    "chest tightness": ("বুকে চাপ", "বুকটা চেপে", "বুকে ভার", "বুক ভার"),
+    "pain radiating to arm": ("হাত দিয়ে নামে", "বাঁ হাতে ব্যথা", "বাঁদিক দিয়ে নামে"),
+    "neck pain": ("ঘাড়ে ব্যথা", "ঘাড়ের দিকে ব্যথা", "ঘাড় ব্যথা"), #
+    "breathlessness": ("শ্বাসকষ্ট", "দম বন্ধ", "হাঁপ ধরা", "হাফ ধরে",
+                        "হাঁপ ধরে", "দম ফুরিয়ে", "শ্বাস নিতে কষ্ট"), #
     "cholesterol": ("কোলেস্টেরল", "কলেস্টেরল"), #
     "HDL": ("এইচডিএল",), #
     "LDL": ("এলডিএল",), #
@@ -1782,7 +1791,38 @@ def scan_conditions(text: str) -> list[str]:
     return [t for t in _ngram_scan_all(text, _TERM_LOOKUP) if t in CONDITIONS] #
 
 
+# Terms too generic to be a symptom on their own. They arrive from the
+# imported MedER vocabulary, where "লক্ষণ" (symptoms) and organ names like
+# "হার্ট" are legitimate entries - but a prescription listing "heart" and
+# "symptoms" as findings is noise, and it crowds out the real ones.
+_TOO_GENERIC = frozenset({
+    "symptoms", "heart", "pain", "infection", "medicine", "problem",
+    "eye", "ear", "nose", "throat", "skin", "bone", "blood", "body",
+    "stomach", "chest", "head", "leg", "hand", "back",
+})
+
+
+def _drop_subsumed(found: list[str]) -> list[str]:
+    """Remove a term when a MORE SPECIFIC one is also present.
+
+    A real consultation produced ["chest pain", "pain", "palpitations",
+    "symptoms", "heart"]. Only the specific ones are clinically useful;
+    "pain" beside "chest pain" is not a second finding, and "heart" is an
+    organ rather than a symptom.
+    """
+    out = []
+    for term in found:
+        if term in _TOO_GENERIC and any(
+                other != term and term in other for other in found):
+            continue                       # "pain" when "chest pain" exists
+        if term in _TOO_GENERIC and len(term.split()) == 1:
+            continue                       # bare organ / catch-all noun
+        out.append(term)
+    return out
+
+
 def scan_symptoms(text: str) -> list[str]:
     """Symptoms named in the text - excludes conditions, advice and classes."""
-    return [t for t in _ngram_scan_all(text, _TERM_LOOKUP)
-            if t not in CONDITIONS and t not in NON_CLINICAL_TERMS] #
+    found = [t for t in _ngram_scan_all(text, _TERM_LOOKUP)
+             if t not in CONDITIONS and t not in NON_CLINICAL_TERMS]
+    return _drop_subsumed(found) #

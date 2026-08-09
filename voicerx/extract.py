@@ -36,7 +36,17 @@ HARD RULES - violating any of these is a failure:
 
 3. IGNORE greetings, chit-chat, and anything not clinically relevant.
 
-3b. BE CONFIDENT ABOUT PLAIN CLINICAL LANGUAGE. Rules 1 and 2 exist to stop you inventing DRUG NAMES from garbled syllables. They are NOT a reason to hide ordinary, clearly-spoken clinical content. If a common Bengali symptom or complaint is stated plainly - e.g. পাতলা পায়খানা (loose stools), জ্বর (fever), মাথা ব্যথা (headache), বমি (vomiting), কাশি (cough), শ্বাসকষ্ট (breathlessness), পেট ব্যথা (abdominal pain) - put it in "symptoms". Do NOT push clearly-understood everyday clinical words into "raw_uncertain_terms"; that field is for text you genuinely cannot interpret, not for text you understand but feel cautious about.
+3b. REPORT EVERY SYMPTOM THE PATIENT ACTUALLY STATES, and only those.
+
+   Rules 1 and 2 exist to stop you inventing DRUG NAMES from garbled syllables. They are NOT a reason to omit ordinary, clearly-spoken clinical content. If the patient plainly describes a complaint - in any words, including colloquial ones - put it in "symptoms".
+
+   Two failures matter equally, and the second is easy to miss:
+     - Reporting a symptom that was NOT said. This is a fabricated clinical record.
+     - Omitting a symptom that WAS said. On a cardiac consultation, sweating, palpitations and breathlessness were all spoken aloud and all left out, which loses the three findings that make the diagnosis.
+
+   Do not restrict yourself to textbook symptom words. Patients describe things loosely - "my chest feels gripped", "I sweat heavily", "my heart races", "I run out of breath". Each of those is a symptom and belongs in the list, phrased in plain English.
+
+   Do NOT push clearly-understood everyday clinical words into "raw_uncertain_terms"; that field is for text you genuinely cannot interpret, not for text you understand but feel cautious about.
 
 4. Only fill "diagnosis" if the doctor explicitly states one. Otherwise it must be null - do not infer a diagnosis from symptoms.
 

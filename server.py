@@ -98,7 +98,25 @@ def _merge_segments(result) -> dict:
 
     for rx in result.extractions:
         for m in rx.medications:
-            if m.drug and not any(x["drug"] == m.drug for x in meds):
+            # De-duplicate on the CANONICAL molecule, not the spoken string.
+            # A live consultation produced both "Rasu Basta Tin" and
+            # "Rosuvastatin" as separate rows - the same drug, once as the
+            # SLM heard it and once as the gazetteer found it - and earlier
+            # "Salbutamol" appeared twice for the same reason. Two lines for
+            # one molecule is a double-dose risk on a printed prescription.
+            key = (m.canonical or m.drug).strip().lower()
+            existing = next((x for x in meds
+                             if (x.get("canonical") or x["drug"]).strip().lower() == key), None)
+            if existing is not None:
+                # Prefer the form the clinician actually SAID over a generic
+                # the gazetteer supplied, and keep any dosing already found.
+                if m.tier == "verified" and not existing.get("verified"):
+                    existing.update({"verified": True, "tier": m.tier})
+                for fld in ("dosage", "frequency", "duration"):
+                    if not existing.get(fld) and getattr(m, fld, ""):
+                        existing[fld] = getattr(m, fld)
+                continue
+            if m.drug:
                 meds.append({
                     "drug": m.drug, "dosage": m.dosage, "frequency": m.frequency,
                     "duration": m.duration, "verified": m.verified,
