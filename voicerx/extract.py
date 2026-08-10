@@ -77,7 +77,7 @@ HARD RULES - violating any of these is a failure:
 
 5. TRANSLATE Bengali medical terms to English ONLY when you are confident and the transcript is unambiguous. Otherwise use raw_uncertain_terms per rule 2.
 
-6. Dietary/lifestyle advice (e.g. "drink more water", "avoid oily food", "eat light food", "ORS") is NOT a medication - do not put it in the "medications" array. If there is nowhere else for it, omit it rather than miscategorize it. The "medications" array is ONLY for named pharmaceutical drugs.
+6. Dietary/lifestyle advice (e.g. "drink more water", "avoid oily food", "eat light food", "use less soap") is NOT a medication - do not put it in the "medications" array, which is ONLY for named pharmaceutical drugs. Put it in "advice" instead, as short plain-English instructions. Do NOT discard it: on a skin or diabetes consultation the advice is half the prescription. "বেশি সাবান মাখবেন না আর প্রচুর জল খাবেন" is two pieces of advice - "use less soap" and "drink plenty of water".
 
 7. "symptoms" and "labs_ordered" and "raw_uncertain_terms" are flat arrays of short strings - not objects, not nested structures.
 
@@ -93,6 +93,7 @@ HARD RULES - violating any of these is a failure:
   "labs_ordered": ["string"],
   "medications": [{"drug": "string", "dosage": "string", "frequency": "string", "duration": "string", "route": "string", "instructions": "string"}],
   "follow_up": null,
+  "advice": ["string"],
   "summary": null,
   "raw_uncertain_terms": ["string"],
   "confidence_note": "string"

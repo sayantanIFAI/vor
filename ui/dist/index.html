@@ -201,6 +201,15 @@ function Rx({data}){
             <ul className="clean">{data.labs_ordered.map((s,i)=><li key={i}>{s}</li>)}</ul>
           ) : <span className="muted">None</span>}
 
+          {/* Advice is part of the prescription, not a footnote - a skin
+              or diabetes consultation is half advice. It used to be
+              discarded outright: the prompt told the model to omit it
+              because there was no field to put it in. */}
+          <h3 style={{marginTop:16}}>Advice</h3>
+          {data.advice?.length ? (
+            <ul className="clean">{data.advice.map((s,i)=><li key={i}>{s}</li>)}</ul>
+          ) : <span className="muted">None</span>}
+
           <h3 style={{marginTop:16}}>Follow-up</h3>
           <div className="muted">{data.follow_up || "—"}</div>
         </div>

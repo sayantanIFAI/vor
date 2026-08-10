@@ -1123,7 +1123,14 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # dermatology
     "itching": ("চুলকানি", "চুলকায়", "খুজলি", "ইচিং"), #
     "rash": ("র‍্যাশ", "ফুসকুড়ি", "চাকা চাকা দাগ"), #
-    "acne": ("ব্রণ", "একনি"), #
+    # The bare ব্রণ folds onto বরন, which ভ্রণ ("embryo") also lands on -
+    # that key stays blocked, see _AMBIGUOUS_WITH_COMMON_WORD. But the
+    # INFLECTED forms fold to distinct keys (বরনো, বরোনো, বরনের) and carry
+    # no such ambiguity, so they are added and the acne diagnosis becomes
+    # reachable again. Counted over the 16 consultations: three acne
+    # tokens to one embryo.
+    "acne": ("ব্রণ", "একনি", "ব্রণো", "ব্রোনো", "ব্রণের", "ব্রণো কমানো",
+              "একমি", "একমির", "ব্রনো", "ব্রণগুলো"), #
     "hives": ("আমবাত", "আর্টিকেরিয়া"), #
     "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন"), #
     "hair fall": ("চুল উঠছে",), #
@@ -1248,9 +1255,17 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "exercise": ("ব্যায়াম", "এক্সারসাইজ", "হাঁটা", "walking"), #
     "lean diet": ("লিন ডায়েট", "হালকা খাবার", "light food"), #
     "avoid oily food": ("তেল মশলা এড়িয়ে", "তেলমশলা"), #
-    "drink water": ("বেশি পানি", "জল খাবেন"), #
+    "drink water": ("প্রচুর জল খাবেন", "বেশি করে জল খাবেন", "অনেক জল খাবেন", "বেশি পানি", "জল খাবেন"), #
     "ORS": ("ওআরএস", "ওরস"),   # rehydration, NOT a pharmaceutical
     "rest": ("বিশ্রাম",), #
+    # Advice the consultations actually give, in the words they use. It
+    # was recognised as non-clinical and then dropped, because nothing
+    # carried it anywhere - see scan_advice.
+    "use less soap": ("সাবান মাখবেন না", "বেশি সাবান মাখবেন না",
+                       "কম সাবান", "সাবান কম"), #
+    "do not scratch": ("চুলকাবেন না", "খুঁটবেন না", "নখ দিয়ে খুঁটবেন না",
+                        "খোঁটাখুঁটি করবেন না"), #
+    "avoid dust": ("ধুলো এড়িয়ে চলুন", "ধুলো থেকে দূরে", "ধুলোবালি এড়ান"), #
     "follow up": ("ফলো আপ", "আবার দেখাবেন"), #
     "bandage": ("ব্যাণ্ডেজ", "ব্যান্ডেজ"), #
     "dressing": ("ড্রেসিং",), #
@@ -1852,7 +1867,7 @@ def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1):
     return None, "" #
 
 
-def _ngram_scan_all(text: str, table: dict) -> list:
+def _ngram_scan_all(text: str, table: dict, honour_negation: bool = True) -> list:
     """Every distinct gazetteer entry appearing in the text, in order.
 
     is_lab_test() returns a single best hit, which silently loses data:
@@ -1865,10 +1880,12 @@ def _ngram_scan_all(text: str, table: dict) -> list:
     what the SLM proposed - they never propose on their own. Do not use
     them as a standalone extractor without adding negation scope.
     """
-    return [hit for hit, _span in _ngram_scan_spans(text, table)] #
+    return [hit for hit, _span in #
+            _ngram_scan_spans(text, table, honour_negation)] #
 
 
-def _ngram_scan_spans(text: str, table: dict) -> list[tuple]: #
+def _ngram_scan_spans(text: str, table: dict, #
+                       honour_negation: bool = True) -> list[tuple]: #
     """As _ngram_scan_all, but keeps the TEXT THAT MATCHED alongside each hit.
 
     The surface form is not decoration. A drug entry is one generic with
@@ -1884,7 +1901,7 @@ def _ngram_scan_spans(text: str, table: dict) -> list[tuple]: #
         for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1): #
             hit, _key = _lookup_span(_span_variants(tokens, i, n), table, n) #
             if hit is not None and hit not in seen: #
-                if _span_is_negated(tokens, i, i + n): #
+                if honour_negation and _span_is_negated(tokens, i, i + n): #
                     continue #
                 seen.append(hit) #
                 found.append((hit, " ".join(tokens[i:i + n]))) #
@@ -2194,6 +2211,8 @@ CONDITIONS: frozenset[str] = frozenset({
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
 NON_CLINICAL_TERMS: frozenset[str] = frozenset({
     "exercise", "lean diet", "avoid oily food", "drink water", "ORS",
+    "use less soap", "avoid dust",
+    "do not scratch", "avoid sweets", "walk daily",
     "rest", "follow up", "bandage", "dressing", "nebulization",
     "prescription", "dialysis", "antibiotic", "painkiller", "antacid",
     "steroid", "vitamin supplement", "antihistamine", "eye drops",
@@ -2270,6 +2289,33 @@ def _drop_subsumed(found: list[str]) -> list[str]:
             continue                       # bare organ / catch-all noun
         out.append(term)
     return out
+
+
+def scan_advice(text: str) -> list[str]: #
+    """Dietary and lifestyle instructions named in this segment.
+
+    These terms were already classified as NON_CLINICAL - correctly, they
+    are not symptoms - but that only kept them OUT of the symptom list.
+    Nothing carried them anywhere, so "বেশি সাবান মাখবেন না আর প্রচুর জল
+    খাবেন" was simply lost. On a skin or diabetes consultation the advice
+    is half the prescription.
+    """ #
+    # honour_negation=False: negation suppression exists so a REFUSED
+    # order is not recorded as an order ("টেস্ট দিচ্ছি না"). Advice is the
+    # opposite case - "সাবান মাখবেন না", "খুঁটবেন না" are prohibitions, and
+    # the না IS the instruction. Suppressing them deleted the advice.
+    return [t for t in #
+            _ngram_scan_all(text, _CURATED_TERM_LOOKUP, honour_negation=False) #
+            if t in NON_CLINICAL_TERMS and t not in _NOT_ADVICE] #
+
+
+# Dosage forms and drug classes also live in NON_CLINICAL_TERMS. They are
+# not advice - "tablet" is not something a doctor tells you to do.
+_NOT_ADVICE = frozenset({ #
+    "tablet", "syrup", "injection", "ointment", "eye drops", "ear drops", #
+    "nasal spray", "medicine", "antibiotic", "painkiller", "antacid", #
+    "steroid", "vitamin supplement", "antihistamine", "prescription", #
+}) #
 
 
 def scan_symptoms(text: str) -> list[str]:

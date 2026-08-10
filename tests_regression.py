@@ -24,7 +24,7 @@ from voicerx.english import englishise
 from voicerx.gate import judge_medication
 from voicerx.glossary import (collisions, is_clinical_term, scan_conditions,
                                scan_dosing, scan_drugs, scan_drugs_spoken,
-                               scan_labs,
+                               scan_advice, scan_labs,
                                scan_symptoms, stats)
 from voicerx.schema import ExtractedRx, Medication
 from voicerx.validate import validate, _department_clash
@@ -437,7 +437,41 @@ check("  গরম alone is not a symptom", scan_symptoms("গরম জল খ�
 
 print()
 print("=" * 70)
-print("18. GAZETTEER INTEGRITY")
+print("18. ADVICE IS PART OF THE PRESCRIPTION")
+print("=" * 70)
+# "বেশি সাবান মাখবেন না আর প্রচুর জল খাবেন" was lost entirely. The terms
+# were classified NON_CLINICAL - correctly, they are not symptoms - but
+# that only kept them OUT of the symptom list; nothing carried them
+# anywhere, and the prompt said to omit advice if there was nowhere to
+# put it. There was nowhere.
+check("advice recovered",
+      scan_advice("বেশি সাবান মাখবেন না আর প্রচুর জল খাবেন"),
+      ["use less soap", "drink water"])
+check("  and is not a symptom",
+      scan_symptoms("বেশি সাবান মাখবেন না আর প্রচুর জল খাবেন"), [])
+# Negation suppression exists so a REFUSED order is not recorded as an
+# order. Advice is the opposite case: the না IS the instruction.
+check("a prohibition is advice", scan_advice("নখ দিয়ে খুঁটবেন না"),
+      ["do not scratch"])
+check("  negation still guards orders",
+      scan_labs("নতুন কোনো টেস্ট দিচ্ছি না"), [])
+
+# The acne diagnosis was unreachable: ব্রণ folds onto বরন, which ভ্রণ
+# ("embryo") also lands on, so that key is blocked. The INFLECTED forms
+# fold to distinct keys and carry no such ambiguity.
+check("acne from inflected forms",
+      scan_conditions("ব্রোনো কমানোর জন্য অ্যাডাপ্যালিন দিচ্ছি"), ["acne"])
+check("  and from একমির", scan_conditions("এটি একমির মতো নাকি"), ["acne"])
+check("  ambiguous bare key still blocked", scan_conditions("ভ্রণ"), [])
+# Isotretinoin is the standard acne drug and was rejected outright,
+# because the model sent the dosage form along with the name.
+check("isotretinoin through the form",
+      judge_medication("আইশো ট্রোটন নয়েন ক্যাপসুল", "dermatology").canonical,
+      "Isotretinoin")
+
+print()
+print("=" * 70)
+print("19. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

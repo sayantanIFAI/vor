@@ -115,6 +115,7 @@ def _merge(result) -> dict:
     symptoms: list[str] = []
     labs: list[str] = []
     uncertain: list[str] = []
+    advice: list[str] = []
     rejected: list[str] = []
     diagnosis = None
     transcript_parts: list[str] = []
@@ -158,6 +159,9 @@ def _merge(result) -> dict:
         for lb in rx.labs_ordered:
             if lb not in labs:
                 labs.append(lb)
+        for a in rx.advice:
+            if a not in advice:
+                advice.append(a)
         for u in rx.raw_uncertain_terms:
             if u not in uncertain:
                 uncertain.append(u)
@@ -171,6 +175,7 @@ def _merge(result) -> dict:
         "diagnosis": diagnosis,
         "medications": meds,
         "labs_ordered": labs,
+        "advice": advice,
         "symptoms": symptoms,
         "raw_uncertain_terms": uncertain,
         "rejected_terms": rejected,
@@ -209,6 +214,8 @@ def _worksheet_row(fname: str, rx: dict) -> dict:
         "medications_FOUND": med_lines,
         "medications_MISSING_or_WRONG": "",
         "labs_FOUND": rx["labs_ordered"],
+        "advice_FOUND": rx.get("advice", []),
+        "advice_MISSING_or_WRONG": "",
         "labs_MISSING_or_WRONG": "",
         "symptoms_FOUND": rx["symptoms"],
         "symptoms_MISSING_or_WRONG": "",

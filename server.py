@@ -86,6 +86,7 @@ def _merge_segments(result) -> dict:
     symptoms: list[str] = []
     labs: list[str] = []
     uncertain: list[str] = []
+    advice: list[str] = []
     candidates: list[str] = []
     rejected: list[str] = []
     unconfirmed: list[str] = []
@@ -162,6 +163,9 @@ def _merge_segments(result) -> dict:
         for l in rx.labs_ordered:
             if l not in labs:
                 labs.append(l)
+        for a in rx.advice:
+            if a not in advice:
+                advice.append(a)
         for u in rx.raw_uncertain_terms:
             if u not in uncertain:
                 uncertain.append(u)
@@ -185,6 +189,7 @@ def _merge_segments(result) -> dict:
         "symptoms": symptoms,
         "diagnosis": diagnosis,
         "labs_ordered": labs,
+        "advice": advice,
         "medications": meds,
         "follow_up": follow_up,
         "summary": " ".join(summaries) if summaries else None,

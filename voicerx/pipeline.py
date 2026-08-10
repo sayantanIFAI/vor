@@ -15,8 +15,8 @@ from .correct import correct_transcript
 from .fuzzy_drugs import find_drug_candidates
 from .extract import extract_rx, ExtractionError
 from .english import englishise
-from .glossary import (scan_conditions, scan_dosing, scan_drugs_spoken,
-                        scan_labs, scan_symptoms)
+from .glossary import (scan_advice, scan_conditions, scan_dosing,
+                        scan_drugs_spoken, scan_labs, scan_symptoms)
 from .schema import ExtractedRx, Medication
 from .translate import Translator
 from .validate import validate
@@ -135,6 +135,12 @@ class VoiceToRxPipeline:
                 for sym in scan_symptoms(cr.text):
                     if sym not in rx.symptoms:
                         rx.symptoms.append(sym)
+
+                # Advice, same principle. It was recognised as non-clinical
+                # and then dropped because nothing carried it anywhere.
+                for adv in scan_advice(cr.text):
+                    if adv not in rx.advice:
+                        rx.advice.append(adv)
 
                 # A named condition is a DIAGNOSIS, not a symptom. Only
                 # filled when the model left it blank - the doctor's own

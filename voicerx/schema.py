@@ -100,6 +100,17 @@ class ExtractedRx(BaseModel):
     labs_ordered: list[str] = Field(default_factory=list)
     medications: list[Medication] = Field(default_factory=list)
     follow_up: Optional[str] = None
+
+    # Dietary and lifestyle instructions - "বেশি সাবান মাখবেন না",
+    # "প্রচুর জল খাবেন". Part of the prescription; a dermatology
+    # consultation is half advice.
+    #
+    # Added because the prompt used to say, of advice, "if there is
+    # nowhere else for it, OMIT it rather than miscategorize it" - and
+    # there was nowhere else, so it was discarded by instruction. The rule
+    # was right that advice is not a medication and wrong that the only
+    # alternative was to lose it.
+    advice: list[str] = Field(default_factory=list)
     summary: Optional[str] = None
     raw_uncertain_terms: list[str] = Field(default_factory=list)
     confidence_note: str = ""
