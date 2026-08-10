@@ -586,6 +586,21 @@ check("shivering is not a wound",
       scan_symptoms("কাল থেকে খুব জ্বর গায়ে কাটা দিয়ে জ্বর আসছে"),
       ["fever", "chills"])
 
+# "ভিটামিন ব টেলভে" resolved to Vitamin B COMPLEX - a different product.
+# B12 is what is given for nerve damage, so dropping the "12" changes the
+# drug. Same qualifier rule as MRI -> MRI brain: the longer match wins,
+# now applied WITHIN a table as well as across them.
+check("B12 is not B complex",
+      [m.printed for m in scan_drugs_spoken("ভিটামিন ব টেলভে আর প্রেগাবালিন দিচ্ছি")],
+      ["Vitamin B12", "Pregabalin"])
+check("  plain B complex still resolves",
+      [m.printed for m in scan_drugs_spoken("ভিটামিন বি দিচ্ছি")],
+      ["Vitamin B complex"])
+# The splint is the treatment on a carpal tunnel consultation, not an aside.
+check("a device can be the treatment",
+      scan_advice("একটা রিস্ট প্লিন্ট মানে ওই কবজির একটা বেল্ট দিচ্ছি"),
+      ["wear a wrist splint"])
+
 print()
 print("=" * 70)
 print("21. GAZETTEER INTEGRITY")

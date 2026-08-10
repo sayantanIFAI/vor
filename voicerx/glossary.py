@@ -414,6 +414,14 @@ BONE = [
          ("ক্যালসিট্রায়ল", "ক্যালসিড ট্রায়াল", "ক্যালসি ট্রায়াল",
           "ক্যালসিট্রায়েল"),
          "active vitamin D", "bone"), #
+    # "ভিটামিন ব টেলভে" was resolving to Vitamin B COMPLEX - a different
+    # product. B12 is what is given for nerve damage, and dropping the
+    # "12" changes the drug. Longest match wins, so the qualifier has to
+    # exist as its own entry.
+    Drug("Vitamin B12", ("Methycobal", "Bcozym"),
+         ("ভিটামিন ব টেলভে", "ভিটামিন বি টুয়েলভ", "ভিটামিন বি ১২",
+          "ভিটামিন বি১২", "ভিটামিন বি টেলভ", "কোবালামিন"),
+         "B12 / nerve repair", "neurology"), #
     Drug("Methylcobalamin", ("Nurokind", "Meconerv"),
          ("মিথাইলকোবালামিন", "নিউরোকাইন্ড"),
          "neuropathy / B12", "bone"), #
@@ -1331,6 +1339,9 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
                                  "চাপবেন না", "চাপাচাপি করবেন না"), #
     "use a breast pump": ("ব্রেস্ট পাম্প", "বেস্ট প্রাম্প", "ব্রেস্ট পাম্প ব্যবহার",
                            "breast pump"), #
+    "wear a wrist splint": ("রিস্ট স্প্লিন্ট", "রিস্ট প্লিন্ট",
+                             "কবজির বেল্ট", "কব্জির বেল্ট",
+                             "wrist splint"), #
     "warm compress": ("গরম সেক", "গরম সেঁক", "গরম জলে সেঁক", "গরম শেক"), #
     "avoid dust": ("ধুলো এড়িয়ে চলুন", "ধুলো থেকে দূরে", "ধুলোবালি এড়ান"), #
     "follow up": ("ফলো আপ", "আবার দেখাবেন"), #
@@ -2261,7 +2272,8 @@ def scan_drugs_spoken(text: str) -> list[DrugMention]: #
     the names themselves. Where it cannot be, the generic is used - always
     clinically correct - and `spoken` keeps the original either way.
     """
-    spans = _drop_overlapped(_ngram_scan_spans(text, _DRUG_LOOKUP), #
+    own = _ngram_scan_spans(text, _DRUG_LOOKUP) #
+    spans = _drop_overlapped(_drop_overlapped(own, own), #
                               _ngram_scan_spans(text, _LAB_LOOKUP)) #
     return [DrugMention(drug, display_name(drug, span), span, #
                          matched_exactly(span)) #
@@ -2386,6 +2398,7 @@ NON_CLINICAL_TERMS: frozenset[str] = frozenset({
     "exercise", "lean diet", "avoid oily food", "drink water", "ORS",
     "use less soap", "avoid dust", "avoid allergic foods",
     "do not press the breast", "use a breast pump", "warm compress",
+    "wear a wrist splint",
     "do not scratch", "avoid sweets", "walk daily",
     "rest", "follow up", "bandage", "dressing", "nebulization",
     "prescription", "dialysis", "antibiotic", "painkiller", "antacid",
