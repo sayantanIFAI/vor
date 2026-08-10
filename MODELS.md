@@ -1,20 +1,32 @@
 # Model artifacts
 
-Three models run in sequence. Losing any one of them degrades the output in a
-different way, and only one of the three fails loudly.
+Two models run in the live path. A third, IndicTrans2, is implemented and
+staged but **switched off by default**.
 
 ```
 Bengali audio
    │
    ├─ 1. IndicConformer  (ASR)          Bengali speech -> Bengali text
-   ├─ 2. IndicTrans2     (translation)  Bengali text   -> English text
-   └─ 3. Qwen2.5-7B      (extraction)   English text   -> structured Rx
+   │
+   ├─ ( IndicTrans2      (translation)  OPTIONAL, OFF - see below )
+   │
+   └─ 2. Qwen2.5-7B      (extraction)   Bengali text -> structured Rx
                                             │
                                             └─ gate + gazetteer (code, not a model)
 ```
 
-Qwen2.5 reads English clinical text far better than Bengali, which is why step 2
-exists. See `voicerx/translate.py:16`.
+`server.py:56` builds `VoiceToRxPipeline()` with no translator, and
+`pipeline.py:36` explains why: `translator=None` "keeps the Bengali-only path
+that was actually verified... so the two can be compared on the same audio
+instead of the change being assumed to help."
+
+So Qwen extracts from Bengali today. `translate.py:16` describes the bn->en
+bridge as the intended improvement — Qwen2.5 reads English clinical text better
+than Bengali — but it is an experiment awaiting an A/B, not the shipping path.
+Enable it by passing a `Translator` to the constructor.
+
+Do not assume raw Bengali appearing in `medications` means translation broke.
+On the default path there is no translation to break.
 
 ---
 
@@ -57,21 +69,26 @@ grep -q issubdtype "$SEG" || { echo "patch failed"; exit 1; }
 
 ---
 
-## 2. IndicTrans2 — translation
+## 2. IndicTrans2 — translation (OPTIONAL, off by default)
+
+Not loaded unless a `Translator` is passed to `VoiceToRxPipeline`. Staged on the
+pod so the bn->en bridge can be A/B'd against the Bengali-only path.
 
 | | |
 |---|---|
 | Hugging Face id | `ai4bharat/indictrans2-indic-en-dist-200M` |
-| Gated | **Yes** — requires `HF_TOKEN` |
-| On-disk size | ~800 MB when complete |
+| Gated | **Yes** — `HF_TOKEN` *and* accepted licence. `gated=auto`, so accepting is instant; a valid token alone gives 403, and an unaccepted repo downloads only LICENSE + README (~2 MB) |
+| On-disk size | 1750 MB |
 | Cache path | `$HF_HOME/hub/models--ai4bharat--indictrans2-indic-en-dist-200M/` |
 | Extra package | `IndicTransToolkit` (provides `IndicProcessor`) |
 | Larger variant | `ai4bharat/indictrans2-indic-en-1B` (`LARGE_MODEL` in `translate.py`) |
 
-**Failure mode: SILENT, and this is the dangerous one.** `translate.py:97` catches
+**Failure mode: SILENT — but only once you enable it.** `translate.py:97` catches
 any load error and passes Bengali through untranslated. No exception, no warning
-in the response — Qwen simply receives Bengali it reads poorly, and extraction
-quality drops. You will see raw Bengali tokens appear in `medications`.
+in the response; Qwen simply receives Bengali and extraction quality drops back
+to the default path's. If you switch the translator on, confirm it actually
+loaded rather than trusting that output looks plausible — the log line
+"IndicTrans2 loaded" is the only positive signal.
 
 Verify it is really present — a directory containing only `LICENSE` and
 `README.md` is the signature of an interrupted or unauthorised download:
