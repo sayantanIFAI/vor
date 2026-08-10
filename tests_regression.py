@@ -502,7 +502,48 @@ check("surgery drug off a gastro script",
 
 print()
 print("=" * 70)
-print("20. GAZETTEER INTEGRITY")
+print("20. A DRUG NOBODY SAID IS NOT A PRESCRIPTION")
+print("=" * 70)
+# "Erythromycin" was printed on a urology consultation that never mentions
+# it. The model invented the name and the gate VERIFIED it out of the
+# 179k imported brand register, so a fabrication arrived wearing the same
+# badge as a drug the doctor actually said. The gate answers "is this a
+# real drug"; it was never asked "was this one said".
+_t40 = ("আমি আপনাকে হ্যাঁ এরা ইউরিম্যাক্স দিচ্ছি রোজরাতে খাবেন পেচ্ছাপের "
+        "নালিটা খুলে যাবে পোতসাবের আর সাথে ইনফেকশন যদি হয়ে থাকে তার জন্য "
+        "নাইট্রো ফুরান্টোইন আর একটা পিএসএ করিয়ে রাখবেন আর এরা কিডনিতে "
+        "আল্ট্রাসাউন্ড টেস্ট করিয়ে নেবেন")
+_rx = validate(ExtractedRx(diagnosis="urine infection", source_transcript=_t40,
+    medications=[Medication(drug="Erythromycin"),
+                 Medication(drug="Nitrofurantoin"),
+                 Medication(drug="ইউরিম্যাক্স")]))
+check("invented drug dropped",
+      [m.prescribed_name for m in _rx.medications], ["Nitrofurantoin", "Urimax"])
+check("  and recorded, never deleted",
+      any("Erythromycin" in t for t in _rx.rejected_terms), True)
+
+# The site is the diagnosis, and it is named several words from the word
+# "infection" - so the region is attached afterwards, as with imaging.
+check("urine infection + prostate",
+      scan_conditions(_t40 + " আপনার পোস্টার টা বড় হয়ে থাকতে পারে"),
+      ["urine infection", "enlarged prostate"])
+check("kidney ultrasound", scan_labs(_t40), ["PSA", "USG KUB"])
+check("every night", scan_dosing("ইউরিম্যাক্স দিচ্ছি রোজরাতে খাবেন")[0],
+      "OD (night)")
+
+# An ENT consultation where the doctor states the diagnosis AND its cause,
+# and the prescription came back with no diagnosis at all. Vertigo was
+# only ever a symptom entry; in an ENT clinic it is the finding.
+_t41 = ("আপনার ভার্টিকও হয়েছে কানের ব্যালেন্স নষ্ট হওয়ার কারণে আর কানের এই "
+        "যে ব্যালেন্স নষ্ট হয়ে গেছে")
+check("vertigo is the diagnosis",
+      scan_conditions(_t41), ["vertigo", "inner ear balance disorder"])
+check("  and stops double-reporting as a symptom",
+      "vertigo" in scan_symptoms(_t41), False)
+
+print()
+print("=" * 70)
+print("21. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

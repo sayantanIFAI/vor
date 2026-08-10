@@ -957,7 +957,9 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "eGFR": ("egfr", "gfr", "creatinine clearance", "জিএফআর"), #
     "Urine ACR": ("urine acr", "albumin creatinine ratio", "microalbumin",
                    "মাইক্রোঅ্যালবুমিন"), #
-    "USG KUB": ("usg kub", "kub", "kidney ultrasound", "কিডনি আল্ট্রাসাউন্ড", "ইউএসজি কেইউবি"), #
+    "USG KUB": ("কিডনিতে আল্ট্রাসাউন্ড", "কিডনির আল্ট্রাসাউন্ড",
+                 "কিডনি আল্ট্রাসাউন্ড", "কিডনির ইউএসজি", "kidney ultrasound",
+                 "কিডনিতে ইউএসজি", "usg kub", "kub", "kidney ultrasound", "কিডনি আল্ট্রাসাউন্ড", "ইউএসজি কেইউবি"), #
     # neurology
     "CT brain": ("ct brain", "ct head", "সিটি ব্রেন", "brain ct"), #
     # "এম আর আই করতে হবে ব্রেনের" - the region IS the order, and a bare
@@ -1129,6 +1131,20 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "infection": ("ইনফেকশন", "সংক্রমণ"), #
     # "আপনার পেটে হয়তো ইনফেকশন হয়েছে" - the site is the diagnosis. A bare
     # "infection" tells a reader nothing about what was found.
+    # "পোতসাবের আর সাথে ইনফেকশন" plus burning and frequency - the doctor
+    # names the site, and "infection" alone loses it.
+    "inner ear balance disorder": ("কানের ব্যালেন্স নষ্ট",
+                                    "কানের ভারসাম্য নষ্ট",
+                                    "ব্যালেন্স নষ্ট হয়ে গেছে",
+                                    "ব্যালেন্স নষ্ট"), #
+    "urine infection": ("প্রস্রাবে ইনফেকশন", "প্রস্রাবের ইনফেকশন",
+                         "মূত্রনালীর সংক্রমণ", "ইউরিন ইনফেকশন",
+                         "পেচ্ছাপে ইনফেকশন", "urine infection", "uti"), #
+    # "আপনার পোস্টার টা বড় হয়ে থাকতে পারে" - the prostate is enlarged.
+    # It is why the PSA was ordered.
+    "enlarged prostate": ("প্রস্টেট বড়", "প্রোস্টেট বড়", "প্রস্টেট বড় হয়েছে",
+                           "পোস্টার টা বড়", "প্রস্টেট বেড়ে গেছে",
+                           "enlarged prostate", "bph"), #
     "stomach infection": ("পেটে ইনফেকশন", "পেটের ইনফেকশন",
                            "পেটে সংক্রমণ", "গ্যাস্ট্রোএন্টেরাইটিস",
                            "পেটে ইনফেকশন হয়েছে"), #
@@ -1161,7 +1177,10 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "ear pain": ("কানে ব্যথা", "কান ব্যথা"), #
     "hearing loss": ("কানে শুনতে অসুবিধা", "কম শুনছি", "শ্রবণশক্তি কমে", "হিয়ারিং লস"), #
     "tinnitus": ("কানে শব্দ", "কানে ভোঁ ভোঁ"), #
-    "vertigo": ("মাথা ঘোরা ভার্টিগো", "ভার্টিগো", "সবকিছু ঘুরছে"), #
+    # Vertigo is the DIAGNOSIS in an ENT clinic, not merely a complaint -
+    # "আপনার ভার্টিকও হয়েছে" states it. ভার্টিকও is the ASR's rendering.
+    "vertigo": ("মাথা ঘোরা ভার্টিগো", "ভার্টিগো", "সবকিছু ঘুরছে",
+                 "ভার্টিকও", "ভারটিগো"), #
     "nasal block": ("নাক বন্ধ", "নাক দিয়ে শ্বাস"), #
     "runny nose": ("নাক দিয়ে জল", "সর্দি", "হলদে সর্দি"), #
     "tonsillitis": ("টনসিল", "টনসিলাইটিস"), #
@@ -1440,7 +1459,8 @@ DOSING_TERMS: dict[str, tuple[str, ...]] = {
     "before food": ("খাওয়ার আগে", "খাবার আগে", "খালি পেটে", "খাওয়ার পূর্বে"), #
     "after food": ("খাওয়ার পরে", "খাবার পরে", "ভরা পেটে", "খাওয়ার পর"), #
     "in the morning": ("সকালে", "সকাল বেলা", "রোজ সকালে"), #
-    "at night": ("রাতে", "রাত্রে", "শোয়ার আগে", "ঘুমানোর আগে"), #
+    "at night": ("রাতে", "রাত্রে", "শোয়ার আগে", "ঘুমানোর আগে",
+                  "রোজ রাতে", "রোজরাতে", "প্রতি রাতে", "প্রতিদিন রাতে"), #
     "twice daily": ("দিনে দুবার", "দুবেলা", "সকাল বিকেল", "সকালে আর রাতে"), #
     "three times daily": ("দিনে তিনবার", "তিনবেলা", "তিন বেলা"), #
     "once daily": ("দিনে একবার", "রোজ একটা", "একবেলা", "প্রতিদিন একবার"), #
@@ -1954,11 +1974,18 @@ _REGIONS: dict[str, tuple[str, ...]] = { #
     "chest": ("চেস্ট", "বুকের", "বুক", "ফুসফুস", "ফুসফুসের", "chest"), #
     "pelvis": ("পেলভিস", "তলপেট", "তলপেটের", "pelvis"), #
     "knee": ("হাঁটু", "হাঁটুর", "knee"), #
+    "kub": ("কিডনি", "কিডনিতে", "কিডনির", "kidney"), #
+    # For CONDITIONS rather than imaging: the site of an infection is
+    # named several words away from the word "infection".
+    "urine": ("প্রস্রাব", "প্রস্রাবে", "প্রস্রাবের", "পেচ্ছাপ", "পেচ্ছাপের",
+               "পোতসাব", "পোতসাবের", "প্রশ্রাব", "প্রশ্রাবে", "urine"), #
+    "stomach": ("পেট", "পেটে", "পেটের", "stomach"), #
 } #
 
 
-def _attach_region(found: list[str], text: str) -> list[str]: #
-    """Upgrade a bare modality to its region-specific entry when both were said.""" #
+def _attach_region(found: list[str], text: str, table=None) -> list[str]: #
+    """Upgrade a bare entry to its region-specific one when both were said.""" #
+    table = LAB_TESTS if table is None else table #
     if not found: #
         return found #
     tokens = {fold(t) for t in text.split()} #
@@ -1970,7 +1997,7 @@ def _attach_region(found: list[str], text: str) -> list[str]: #
     for lab in found: #
         upgraded = lab #
         for region in named: #
-            for canon in LAB_TESTS: #
+            for canon in table: #
                 if (canon != lab and lab.lower() in canon.lower() #
                         and region in canon.lower()): #
                     upgraded = canon #
@@ -2222,6 +2249,8 @@ CONDITIONS: frozenset[str] = frozenset({
     "infection", "acne", "menopause", "pregnancy", "dementia",
     "osteoporosis", "arthritis", "asthma",
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
+    "urine infection", "enlarged prostate",
+    "vertigo", "inner ear balance disorder",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2255,6 +2284,8 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "osteoporosis": "bone", "arthritis": "bone",
     "kidney failure": "nephrology",
     "stomach infection": "gastro", "gastritis": "gastro",
+    "urine infection": "urology", "enlarged prostate": "urology",
+    "vertigo": "ent", "inner ear balance disorder": "ent",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",
     "menopause": "gynaecology", "pregnancy": "gynaecology",
@@ -2279,9 +2310,9 @@ def scan_conditions(text: str) -> list[str]:
     diagnosis line reading "stomach infection, infection" names one
     finding twice while implying two. Same containment rule as scan_labs.
     """
-    return _drop_subsumed_labs( #
-        [t for t in _ngram_scan_all(text, _CURATED_TERM_LOOKUP) #
-         if t in CONDITIONS]) #
+    found = [t for t in _ngram_scan_all(text, _CURATED_TERM_LOOKUP) #
+             if t in CONDITIONS] #
+    return _drop_subsumed_labs(_attach_region(found, text, CONDITIONS)) #
 
 
 # Terms too generic to be a symptom on their own. They arrive from the

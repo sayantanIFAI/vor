@@ -10,10 +10,12 @@ re-derives review flags from hard rules.
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 
 from .gate import PROBABLE, REJECTED, VERIFIED, judge_medication
-from .glossary import (department_for, display_name, is_lab_test,
-                        lookup_drug, scan_conditions, scan_symptoms)
+from .glossary import (_skeleton, department_for, display_name, fold,
+                        is_lab_test, lookup_drug, scan_advice,
+                        scan_conditions, scan_symptoms)
 from .schema import ExtractedRx, Medication
 
 # Below this CTC/RNNT agreement a segment is treated as too garbled to
@@ -26,6 +28,66 @@ def _is_latin(text: str) -> bool:
     """Whether the text is written in the Latin alphabet."""
     letters = [c for c in text if c.isalpha()]
     return bool(letters) and all(c.isascii() for c in letters)
+
+
+# A drug name must be TRACEABLE TO THE AUDIO.
+#
+# "Erythromycin" was printed on a urology prescription that never mentions
+# it. The path: the model invented the name, and the gate VERIFIED it out
+# of the 179,002-entry imported brand register - a machine-imported list
+# nobody clinically reviewed - so a fabrication arrived wearing the same
+# badge as a drug the doctor actually said. The gazetteer answers "is this
+# a real drug"; it was never asked "was this one said".
+#
+# Checking the model's raw string against the transcript does NOT work and
+# was measured failing: garbled-but-real names score no better than
+# invented ones. What separates them is checking every KNOWN FORM of the
+# RESOLVED drug - generic, brands, Bengali - against the transcript.
+# Scored over all 16 consultations:
+#
+#     0.62  Lignocaine+Hydrocortisone   not said
+#     0.67  Erythromycin                not said
+#     0.75  Linagliptin                 not said
+#     ------------------------------------------ gap
+#     0.80  Ecosprin                    said as ইকোস্পিডিন
+#     0.80  Norethisterone              said as ট্রিমোলাট
+#     0.82  Choline Salicylate          said as কোলন স্যালেসাইল
+#     0.89+ everything else
+#
+# CAVEAT, and it is the same one SIMILARITY_FLOOR carries: 12 samples and
+# a 0.05 gap. Ecosprin at 0.80 is the nearest true positive, so this is
+# not a constant to nudge for a single case - re-derive it if a larger
+# reviewed set ever exists. Demoted to rejected_terms, never deleted.
+_GROUNDING_FLOOR = 0.78
+
+
+def _grounding_score(name: str, canonical: str, transcript: str) -> float:
+    """How well any known form of this drug matches something that was said."""
+    if not transcript.strip():
+        return 1.0                     # nothing to check against
+    entry = lookup_drug(name) or lookup_drug(canonical)
+    forms = [name]
+    if canonical:
+        forms.append(canonical)
+    if entry is not None:
+        forms += [entry.generic, *entry.brands, *entry.bengali]
+
+    folded = fold(transcript)
+    if any(fold(f) and fold(f) in folded for f in forms):
+        return 1.0                     # a known spelling is literally there
+
+    # Cross-script: the model romanises what the ASR wrote in Bengali, so
+    # the two never meet under fold(). Consonant skeletons do.
+    tokens = transcript.split()
+    spans = tokens + [" ".join(tokens[i:i + 2]) for i in range(len(tokens) - 1)]                    + [" ".join(tokens[i:i + 3]) for i in range(len(tokens) - 2)]
+    best = 0.0
+    for f in forms:
+        sf = _skeleton(f)
+        if len(sf) < 4:
+            continue
+        for span in spans:
+            best = max(best, SequenceMatcher(a=sf, b=_skeleton(span)).ratio())
+    return best
 
 
 def _department_clash(verdict, consult_dept: str) -> bool:
@@ -225,6 +287,21 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
         med.department = v.department
         med.indication = v.indication
         med.match_similarity = v.similarity
+
+        # A name the gazetteer knows, that nobody said. See
+        # _GROUNDING_FLOOR - this is the check that catches an INVENTED
+        # drug, which the gate cannot: the gate answers "is this a real
+        # drug", and a fabrication passes that question easily.
+        if v.keep and _grounding_score(
+                med.drug, v.canonical, rx.source_transcript) < _GROUNDING_FLOOR:
+            rx.rejected_terms.append(
+                f"{med.drug} — resolves to {v.canonical or 'a drug'}, but no "
+                f"form of that name appears in the transcript")
+            reasons.append(
+                f'"{med.drug}" is a real drug name that does NOT appear in '
+                f'this consultation - NOT included, confirm if intended'
+            )
+            continue
 
         if v.tier == VERIFIED:
             med.verified = True
