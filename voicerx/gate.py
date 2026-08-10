@@ -49,7 +49,7 @@ import re
 from difflib import SequenceMatcher
 
 from .glossary import (Drug, fold, is_clinical_term, is_lab_test,
-                       lookup_drug, _DRUG_LOOKUP)
+                       lookup_drug, matched_exactly, _DRUG_LOOKUP)
 
 # 179,002 Indian brand -> generic names, machine-imported. Optional so a
 # fresh checkout works before anyone runs the importer.
@@ -217,6 +217,14 @@ def judge_medication(name: str, department: str = "") -> Verdict:
     # generics legitimately contain a form word - "Tobramycin eye drops"
     # is the entry's own name, not a drug plus a form.
     hit = lookup_drug(raw)
+    if hit is not None and not matched_exactly(raw):
+        # Recovered only by consonant skeleton - vowels dropped. Real
+        # enough to keep, not certain enough to assert.
+        return Verdict(PROBABLE, canonical=hit.generic,
+                       department=hit.department, indication=hit.indication,
+                       similarity=0.9,
+                       reason="matched on consonants only (vowel-level ASR "
+                              "variation) - CONFIRM")
     if hit is not None:
         return Verdict(VERIFIED, canonical=hit.generic,
                        department=hit.department, indication=hit.indication,

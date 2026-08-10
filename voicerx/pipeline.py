@@ -111,7 +111,7 @@ class VoiceToRxPipeline:
                 # is what put "Nitroglycerin" on a prescription where the
                 # word spoken was সরবিট্রেট (Sorbitrate).
                 known = {(m.canonical or m.drug).lower() for m in rx.medications}
-                for drug, printed, spoken in scan_drugs_spoken(cr.text):
+                for drug, printed, spoken, exact in scan_drugs_spoken(cr.text):
                     if drug.generic.lower() in known:
                         continue
                     known.add(drug.generic.lower())
@@ -119,9 +119,10 @@ class VoiceToRxPipeline:
                         drug=spoken, canonical=drug.generic,
                         prescribed_name=printed,
                         heard_as=spoken if printed != spoken else "",
-                        tier="verified", verified=True,
+                        tier="verified" if exact else "probable",
+                        verified=exact,
                         department=drug.department, indication=drug.indication,
-                        match_similarity=1.0,
+                        match_similarity=1.0 if exact else 0.9,
                         review_reason="found in transcript by gazetteer, "
                                        "not proposed by the model",
                     ))

@@ -325,6 +325,9 @@ _rx = validate(ExtractedRx(
     ]))
 _names = [m.prescribed_name for m in _rx.medications]
 check("drug recovered from uncertain", "Glimepiride" in _names, True)
+# Resolved through the consonant-skeleton index (অজামোরাল differs from the
+# stored spelling only in vowels). That is weaker evidence than a full
+# match, so it stays PROBABLE and keeps its CONFIRM flag.
 check("  never asserted, only proposed",
       [m.tier for m in _rx.medications if m.prescribed_name == "Glimepiride"],
       ["probable"])
@@ -540,6 +543,48 @@ check("vertigo is the diagnosis",
       scan_conditions(_t41), ["vertigo", "inner ear balance disorder"])
 check("  and stops double-reporting as a symptom",
       "vertigo" in scan_symptoms(_t41), False)
+
+print()
+print("=" * 70)
+print("21. ONE SET OF WORDS, ONE CLAIM ON IT")
+print("=" * 70)
+# Each table scanned the same words independently and nothing arbitrated,
+# so the lab table took "ডেক্সা" out of the middle of Dexamethasone: an
+# allergy patient given a steroid injection was recorded as having a
+# bone-density scan ordered. Longest span wins, across tables.
+_t42 = "একটা অ্যাভল আর ডেক্সা মিথোসেন ইনজেকশন দিতে বলছি"
+check("a drug is not a scan", scan_labs(_t42), [])
+check("  the drug is found instead",
+      [m.printed for m in scan_drugs_spoken(_t42)], ["Avil", "Dexamethasone"])
+check("  and a real DEXA still works",
+      scan_labs("একটা ডেক্সা স্কান করবেন"), ["DEXA scan"])
+
+# Vowel-level ASR variation, which fold() does not absorb. Each of these
+# was a separate hand-added spelling before the skeleton index.
+for _spoken, _want in [("ডেক্সা মিথোসেন", "Dexamethasone"),
+                       ("রোসকাডো ট্রিল", "Racecadotril")]:
+    check(f"consonants carry it: {_spoken[:14]}",
+          [m.drug.generic for m in scan_drugs_spoken(_spoken)], [_want])
+# A skeleton match drops every vowel, so it is weaker evidence than a full
+# match and must not be asserted as certain.
+check("skeleton match stays flagged",
+      judge_medication("ডেক্সা মিথোসেন").tier, "probable")
+
+# Diagnoses and advice the doctors gave that were being discarded.
+check("severe allergy + hives",
+      scan_conditions("লাল লাল চাকা হয়ে ফুলে গেছে আমবাদ বলে এটাকে সিভিয়ার আলার্জি"),
+      ["hives", "severe allergy"])
+check("mastitis, not bare infection",
+      scan_conditions("বুকে ইনফেকশন হয়েছে একটা ইনফেকশন হয়েছে মাস্টিটাইটিস"),
+      ["mastitis"])
+check("the whole treatment plan is advice",
+      scan_advice("গরম সেক দিতে পারেন কিন্তু চাপাচাপি করবেন না বেস্ট প্রাম্প ব্যবহার করতে হবে"),
+      ["warm compress", "do not press the breast", "use a breast pump"])
+# "গায়ে কাটা দিয়ে জ্বর" is shivering; the wound alias was reading it as a
+# cut. Measured 0 true positives to 1 false across the 16.
+check("shivering is not a wound",
+      scan_symptoms("কাল থেকে খুব জ্বর গায়ে কাটা দিয়ে জ্বর আসছে"),
+      ["fever", "chills"])
 
 print()
 print("=" * 70)

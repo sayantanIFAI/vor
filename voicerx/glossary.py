@@ -736,7 +736,7 @@ REVIEWED = [
          ("ইসবগুল হাস্ক", "ইসবগুল"),
          "bulk laxative", "gastro"),
     Drug("Pheniramine", ("Avil",),
-         ("অ্যাভিল ইনজেকশন", "ফেনিরামিন"),
+         ("অ্যাভিল ইনজেকশন", "ফেনিরামিন", "অ্যাভিল", "অ্যাভল", "এভিল"),
          "antihistamine injection", "general"),
     Drug("Choline Salicylate gel", ("Zytee", "Orasore"),
          ("কোলিন স্যালিসাইলেট ওরাল জেল",),
@@ -906,6 +906,8 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     # order. "চেস টেক্সটে" is not a typo - it is what the ASR returned for
     # "চেস্ট এক্স-রে" on a real consultation, where the doctor was asking
     # after the lungs ("ফুসফুসের কি অবস্থা").
+    "Allergy test": ("অ্যালার্জি টেস্ট", "আলার্জি টেস্ট", "allergy test",
+                      "অ্যালার্জি প্রোফাইল"), #
     "Chest X-ray": ("চেস্ট এক্স রে", "চেস্ট এক্সরে", "চেস্ট এক্স-রে",
                      "বুকের এক্স রে", "বুকের এক্সরে", "chest x-ray",
                      "chest xray", "cxr", "সি এক্স আর",
@@ -1075,6 +1077,13 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # An orthopaedic consultation about back and waist pain returned NO
     # symptoms at all - neither phrase existed. "টনটন" (a dull throb) is
     # anchored to a region, not left bare, which would be too generic.
+    # "গায়ে কাটা দিয়ে জ্বর" - shivering, which the কাটা key was reading as
+    # a wound. The phrase is the symptom.
+    "chills": ("গায়ে কাটা দিয়ে", "শীত শীত", "কাঁপুনি দিয়ে জ্বর",
+                "গা কাঁপছে"), #
+    "breast swelling": ("বুক ফুলে", "বুকটা ফুলে", "স্তন ফুলে",
+                         "বুকটা ফুলে পাথর", "বুক শক্ত"), #
+    "throat swelling": ("গলা ফুলে", "গলা ফুলেছে", "গলা টোট ফুলে"), #
     "back pain": ("পিঠে ব্যথা", "পিঠের ব্যথা", "পিঠ ব্যথা", "পিঠে ব্যাথা",
                    "পিঠের দিকটা টনটন", "পিঠ টনটন", "পিঠে টনটন"), #
     "low back pain": ("কোমরে ব্যথা", "কোমরের ব্যথা", "কোমর ব্যথা",
@@ -1137,6 +1146,15 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
                                     "কানের ভারসাম্য নষ্ট",
                                     "ব্যালেন্স নষ্ট হয়ে গেছে",
                                     "ব্যালেন্স নষ্ট"), #
+    # An anaphylactic food reaction. The doctor names it outright -
+    # "আপনার এই সিভিয়ার আলার্জি ট্রিকার করেছে" - and আমবাত is the Bengali
+    # for the hives it presents with.
+    "severe allergy": ("সিভিয়ার আলার্জি", "সিভিয়ার অ্যালার্জি",
+                        "মারাত্মক অ্যালার্জি", "severe allergy"), #
+    # "বুকে ইনফেকশন হয়েছে একটা ইনফেকশন হয়েছে মাস্টিটাইটিস" - stated by name.
+    "mastitis": ("মাস্টিটাইটিস", "স্তনপ্রদাহ", "স্তনে ইনফেকশন",
+                  "বুকে ইনফেকশন", "mastitis"), #
+    "breast abscess": ("স্তনে অ্যাবসেস", "অ্যাপসেস জমে", "breast abscess"), #
     "urine infection": ("প্রস্রাবে ইনফেকশন", "প্রস্রাবের ইনফেকশন",
                          "মূত্রনালীর সংক্রমণ", "ইউরিন ইনফেকশন",
                          "পেচ্ছাপে ইনফেকশন", "urine infection", "uti"), #
@@ -1160,7 +1178,10 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # tokens to one embryo.
     "acne": ("ব্রণ", "একনি", "ব্রণো", "ব্রোনো", "ব্রণের", "ব্রণো কমানো",
               "একমি", "একমির", "ব্রনো", "ব্রণগুলো"), #
-    "hives": ("আমবাত", "আর্টিকেরিয়া"), #
+    # আমবাদ is the ASR's spelling; চাকা is how a patient describes the
+    # wheals ("সারা গায়ে লাল লাল চাকা হয়ে ফুলে গেছে").
+    "hives": ("আমবাত", "আর্টিকেরিয়া", "আমবাদ", "লাল লাল চাকা",
+               "চাকা হয়ে ফুলে", "চাকা চাকা"), #
     "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন"), #
     "hair fall": ("চুল উঠছে",), #
     "dry skin": ("শুষ্ক ত্বক", "চামড়া শুকিয়ে"), #
@@ -1300,6 +1321,17 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
                        "কম সাবান", "সাবান কম"), #
     "do not scratch": ("চুলকাবেন না", "খুঁটবেন না", "নখ দিয়ে খুঁটবেন না",
                         "খোঁটাখুঁটি করবেন না"), #
+    # Advice that is the whole treatment plan on these two consultations:
+    # a six-month food exclusion, and the handling instructions that stop
+    # a mastitis becoming an abscess.
+    "avoid allergic foods": ("চিংড়ি কাঁকড়া বেগুন বন্ধ",
+                              "যেগুলোতে অ্যালার্জি হয় বন্ধ",
+                              "অ্যালার্জির খাবার বন্ধ", "চিংড়ি বন্ধ"), #
+    "do not press the breast": ("চাপাচাপি করবেন না", "জোর করে চাপবেন না",
+                                 "চাপবেন না", "চাপাচাপি করবেন না"), #
+    "use a breast pump": ("ব্রেস্ট পাম্প", "বেস্ট প্রাম্প", "ব্রেস্ট পাম্প ব্যবহার",
+                           "breast pump"), #
+    "warm compress": ("গরম সেক", "গরম সেঁক", "গরম জলে সেঁক", "গরম শেক"), #
     "avoid dust": ("ধুলো এড়িয়ে চলুন", "ধুলো থেকে দূরে", "ধুলোবালি এড়ান"), #
     "follow up": ("ফলো আপ", "আবার দেখাবেন"), #
     "bandage": ("ব্যাণ্ডেজ", "ব্যান্ডেজ"), #
@@ -1551,7 +1583,9 @@ for _canon, _alts in CLINICAL_TERMS.items(): #
 # safe direction. If a patient really does say ঘা, the extraction model
 # reports it: the model understands ordinary words, and it is the fold, not
 # the model, that cannot tell these pairs apart.
-_AMBIGUOUS_WITH_COMMON_WORD = frozenset({"গা", "কসট", "বরন"}) #
+#   কাটা  ক্ষত "cut"          also "গায়ে কাটা দিয়ে" = shivering
+#                              0 true positives, 1 false, over the 16
+_AMBIGUOUS_WITH_COMMON_WORD = frozenset({"গা", "কসট", "বরন", "কাটা"}) #
 
 _CURATED_TERM_LOOKUP: dict[str, str] = { #
     _k: _v for _k, _v in _TERM_LOOKUP.items() #
@@ -1900,6 +1934,13 @@ def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1):
                         and len(gram) - len(key) <= _MAX_SUFFIX_TAIL #
                         and not (_needs_whole_token(key, table) and n_tokens > 1)): #
                     return val, key #
+
+    # Last resort, DRUGS ONLY: vowel-level ASR variation. See
+    # _DRUG_SKELETON - exact skeleton equality, ambiguous ones excluded.
+    if table is _DRUG_LOOKUP and grams and grams[0]: #
+        hit = _DRUG_SKELETON.get(_skeleton(grams[0])) #
+        if hit is not None: #
+            return hit, grams[0] #
     return None, "" #
 
 
@@ -1916,7 +1957,7 @@ def _ngram_scan_all(text: str, table: dict, honour_negation: bool = True) -> lis
     what the SLM proposed - they never propose on their own. Do not use
     them as a standalone extractor without adding negation scope.
     """
-    return [hit for hit, _span in #
+    return [hit for hit, _span, _i, _j in #
             _ngram_scan_spans(text, table, honour_negation)] #
 
 
@@ -1940,8 +1981,39 @@ def _ngram_scan_spans(text: str, table: dict, #
                 if honour_negation and _span_is_negated(tokens, i, i + n): #
                     continue #
                 seen.append(hit) #
-                found.append((hit, " ".join(tokens[i:i + n]))) #
+                found.append((hit, " ".join(tokens[i:i + n]), i, i + n)) #
     return found #
+
+
+# ---------------------------------------------------------------------------
+# CROSS-TABLE ARBITRATION
+#
+# Each table is scanned independently over the same words, and nothing
+# decided what happens when two of them claim the SAME words. That is a
+# false-positive generator, and it produced the worst kind - a drug read
+# as an investigation:
+#
+#     "ডেক্সা মিথোসেন ইনজেকশন"   Dexamethasone, a drug
+#      ^^^^^^                    the lab table took this as a DEXA scan
+#
+# so an allergy patient given a steroid injection was recorded as having
+# had a bone-density scan ordered. The same shape as "ইজি" (an EEG) being
+# rejected as an unknown MEDICATION, and "electrolytes" verifying as a
+# drug before the table order was fixed in gate.py.
+#
+# The rule is the one already used WITHIN a table for subsumption, applied
+# ACROSS tables: the longest span wins. A match covering more of what was
+# actually said is a better account of it than one covering less.
+# ---------------------------------------------------------------------------
+def _drop_overlapped(spans: list[tuple], rivals: list[tuple]) -> list[tuple]: #
+    """Drop any span a STRICTLY LONGER rival span overlaps.""" #
+    out = [] #
+    for hit, text_, i, j in spans: #
+        if any(ri < j and i < rj and (rj - ri) > (j - i) #
+               for _h, _t, ri, rj in rivals): #
+            continue #
+        out.append((hit, text_, i, j)) #
+    return out #
 
 
 def scan_labs(text: str) -> list[str]:
@@ -1956,8 +2028,10 @@ def scan_labs(text: str) -> list[str]:
     "PP sugar" - genuinely two orders, neither inside the other - both
     survive.
     """
-    return _drop_subsumed_labs(_attach_region(_ngram_scan_all(text, _LAB_LOOKUP),
-                                               text)) #
+    spans = _drop_overlapped(_ngram_scan_spans(text, _LAB_LOOKUP), #
+                              _ngram_scan_spans(text, _DRUG_LOOKUP)) #
+    return _drop_subsumed_labs( #
+        _attach_region([hit for hit, _t, _i, _j in spans], text)) #
 
 
 # An imaging order names a MODALITY and a REGION, and Bengali does not
@@ -2079,6 +2153,44 @@ def _skeleton(text: str) -> str: #
     return "".join(out) #
 
 
+# Drug keys indexed by CONSONANT SKELETON, for vowel-level ASR variation.
+#
+# fold() normalises consonants but leaves vowels alone, so every vowel the
+# ASR hears differently is a miss that has to be added by hand:
+#
+#     ডেক্সা মিথোসেন  vs  ডেক্সামিথাসোন   Dexamethasone
+#     অ্যাভল          vs  অ্যাভিল         Avil
+#     রোসকাডো ট্রিল   vs  রেসিকাডোট্রিল   Racecadotril
+#
+# Each of those was a real miss, and adding spellings one at a time does
+# not converge - the ASR invents a new vowel pattern on the next
+# recording. The skeletons are identical in every pair above.
+#
+# STRIPPING VOWELS INSIDE fold() WAS TRIED AND REJECTED - it broke
+# matching elsewhere, which is why this is a separate, LAST-RESORT index
+# rather than a change to the fold. It applies only after exact and
+# prefix matching have both failed.
+#
+# Safety, because dropping vowels is lossy:
+#   - exact skeleton equality only, never fuzzy
+#   - minimum 4 consonants
+#   - AMBIGUOUS skeletons are excluded outright. Measured: 11 of 962
+#     collide, and they are exactly the pairs that must never be confused
+#     (Linagliptin/Olanzapine, Ofloxacin/Zinc, Hydroxyzine/Levothyroxine).
+_MIN_SKELETON = 4 #
+_DRUG_SKELETON: dict[str, Drug] = {} #
+_skel_owners: dict[str, set] = {} #
+for _k, _d in _DRUG_LOOKUP.items(): #
+    _s = _skeleton(_k) #
+    if len(_s) >= _MIN_SKELETON: #
+        _skel_owners.setdefault(_s, set()).add(_d.generic) #
+        _DRUG_SKELETON[_s] = _d #
+for _s, _owners in _skel_owners.items(): #
+    if len(_owners) > 1: #
+        _DRUG_SKELETON.pop(_s, None) #
+del _skel_owners #
+
+
 # Below this the skeletons are too far apart to claim they are the same
 # name, and the generic is used instead.
 _SKEL_FLOOR = 0.75 #
@@ -2119,6 +2231,18 @@ class DrugMention(typing.NamedTuple): #
     drug: Drug      # the gazetteer entry #
     printed: str    # the name to put on the prescription #
     spoken: str     # the text that actually matched, verbatim #
+    exact: bool = True   # False when only the consonant skeleton matched #
+
+
+def matched_exactly(span: str) -> bool: #
+    """Whether this span hits a drug key outright, vowels and all.
+
+    A skeleton match is weaker evidence - it drops every vowel - so a
+    caller must be able to tell the two apart. "Rasu Basta Tin" IS
+    Rosuvastatin and should be recovered, but not silently promoted to the
+    same confidence as a name that matched outright.
+    """ #
+    return fold(span) in _DRUG_LOOKUP #
 
 
 def scan_drugs_spoken(text: str) -> list[DrugMention]: #
@@ -2137,8 +2261,11 @@ def scan_drugs_spoken(text: str) -> list[DrugMention]: #
     the names themselves. Where it cannot be, the generic is used - always
     clinically correct - and `spoken` keeps the original either way.
     """
-    return [DrugMention(drug, display_name(drug, span), span) #
-            for drug, span in _ngram_scan_spans(text, _DRUG_LOOKUP)] #
+    spans = _drop_overlapped(_ngram_scan_spans(text, _DRUG_LOOKUP), #
+                              _ngram_scan_spans(text, _LAB_LOOKUP)) #
+    return [DrugMention(drug, display_name(drug, span), span, #
+                         matched_exactly(span)) #
+            for drug, span, _i, _j in spans] #
 
 
 def scan_terms(text: str) -> list[str]:
@@ -2251,12 +2378,14 @@ CONDITIONS: frozenset[str] = frozenset({
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
     "urine infection", "enlarged prostate",
     "vertigo", "inner ear balance disorder",
+    "severe allergy", "hives", "mastitis", "breast abscess",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
 NON_CLINICAL_TERMS: frozenset[str] = frozenset({
     "exercise", "lean diet", "avoid oily food", "drink water", "ORS",
-    "use less soap", "avoid dust",
+    "use less soap", "avoid dust", "avoid allergic foods",
+    "do not press the breast", "use a breast pump", "warm compress",
     "do not scratch", "avoid sweets", "walk daily",
     "rest", "follow up", "bandage", "dressing", "nebulization",
     "prescription", "dialysis", "antibiotic", "painkiller", "antacid",
@@ -2286,6 +2415,8 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "stomach infection": "gastro", "gastritis": "gastro",
     "urine infection": "urology", "enlarged prostate": "urology",
     "vertigo": "ent", "inner ear balance disorder": "ent",
+    "severe allergy": "general", "hives": "dermatology",
+    "mastitis": "gynaecology", "breast abscess": "gynaecology",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",
     "menopause": "gynaecology", "pregnancy": "gynaecology",
@@ -2303,6 +2434,9 @@ def department_for(conditions: list[str]) -> str:
     return ""
 
 
+_GENERIC_CONDITIONS = frozenset({"infection"}) #
+
+
 def scan_conditions(text: str) -> list[str]:
     """Diagnosable conditions named in the text, least specific dropped.
 
@@ -2312,7 +2446,13 @@ def scan_conditions(text: str) -> list[str]:
     """
     found = [t for t in _ngram_scan_all(text, _CURATED_TERM_LOOKUP) #
              if t in CONDITIONS] #
-    return _drop_subsumed_labs(_attach_region(found, text, CONDITIONS)) #
+    found = _drop_subsumed_labs(_attach_region(found, text, CONDITIONS)) #
+    # "mastitis, infection" names one finding twice. Containment cannot
+    # see it - the words do not overlap - but a catch-all diagnosis beside
+    # a specific one carries nothing.
+    if len(found) > 1: #
+        found = [c for c in found if c not in _GENERIC_CONDITIONS] or found #
+    return found #
 
 
 # Terms too generic to be a symptom on their own. They arrive from the
