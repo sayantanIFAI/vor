@@ -626,6 +626,19 @@ check("nasal spray + montelukast",
           "একটা ফাল্টিকাসন নাসাল স্প্রাযে একটা মাল্টিকুলার স্ট্যাবলেট দিচ্ছে")],
       ["Fluticasone nasal spray", "Montelukast"])
 
+# A denture edge rubbing the gum. Distinct from an aphthous mouth ulcer -
+# the cause is the appliance, which is what the treatment addresses.
+check("traumatic ulcer",
+      scan_conditions("মাটিতে না ট্রমাটিক একটা আলসার হয়ে গেছে"),
+      ["traumatic ulcer"])
+check("  and the sore it caused",
+      scan_symptoms("বাঁদিকের মাড়ির কাছে কেটে ঘা হয়ে গেছে"), ["gum sore"])
+# "একদম পরাবন্ধ করবেন না" - do NOT stop wearing it. The instruction is the
+# prohibition, which is why advice is exempt from negation suppression.
+check("keep wearing it",
+      scan_advice("ঘা শুকিয়ে গেলে তবেই পরবেন কিন্তু একদম পরাবন্ধ করবেন না"),
+      ["keep wearing the denture"])
+
 print()
 print("=" * 70)
 print("21. GAZETTEER INTEGRITY")

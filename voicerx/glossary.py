@@ -1092,6 +1092,8 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # a wound. The phrase is the symptom.
     "chills": ("গায়ে কাটা দিয়ে", "শীত শীত", "কাঁপুনি দিয়ে জ্বর",
                 "গা কাঁপছে"), #
+    "gum sore": ("মাড়িতে ঘা", "মাড়ির কাছে ঘা", "মাড়ি কেটে",
+                  "মাড়িতে কেটে ঘা"), #
     "breast swelling": ("বুক ফুলে", "বুকটা ফুলে", "স্তন ফুলে",
                          "বুকটা ফুলে পাথর", "বুক শক্ত"), #
     "throat swelling": ("গলা ফুলে", "গলা ফুলেছে", "গলা টোট ফুলে"), #
@@ -1171,6 +1173,11 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
                                "ডিএনএস", "নেজাল সেপ্টাম বেঁকে",
                                "নাকের পর্দা বেঁকে", "ডেভিয়েটেড নেজাল সেপ্টেম",
                                "deviated nasal septum"), #
+    # "ট্রমাটিক একটা আলসার হয়ে গেছে" - a denture edge rubbing the gum.
+    # Distinct from an aphthous mouth ulcer: the cause is the appliance,
+    # which is what the treatment addresses.
+    "traumatic ulcer": ("ট্রমাটিক আলসার", "ট্রম্যাটিক আলসার",
+                         "ট্রমাটিক ঘা", "traumatic ulcer"), #
     "lipoma": ("লাইপোমা", "লিপোমা", "চর্বির টিউমার", "lipoma"), #
     "mastitis": ("মাস্টিটাইটিস", "স্তনপ্রদাহ", "স্তনে ইনফেকশন",
                   "বুকে ইনফেকশন", "mastitis"), #
@@ -1351,6 +1358,8 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
                                  "চাপবেন না", "চাপাচাপি করবেন না"), #
     "use a breast pump": ("ব্রেস্ট পাম্প", "বেস্ট প্রাম্প", "ব্রেস্ট পাম্প ব্যবহার",
                            "breast pump"), #
+    "keep wearing the denture": ("পরা বন্ধ করবেন না", "পরাবন্ধ করবেন না",
+                                  "পরা ছাড়বেন না", "বন্ধ করবেন না"), #
     "wear a wrist splint": ("রিস্ট স্প্লিন্ট", "রিস্ট প্লিন্ট",
                              "কবজির বেল্ট", "কব্জির বেল্ট",
                              "wrist splint"), #
@@ -2458,7 +2467,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
     "urine infection", "enlarged prostate",
     "vertigo", "inner ear balance disorder",
-    "severe allergy", "hives", "mastitis", "breast abscess", "lipoma",
+    "severe allergy", "hives", "mastitis", "breast abscess", "lipoma", "traumatic ulcer",
     "deviated nasal septum",
 })
 
@@ -2467,7 +2476,7 @@ NON_CLINICAL_TERMS: frozenset[str] = frozenset({
     "exercise", "lean diet", "avoid oily food", "drink water", "ORS",
     "use less soap", "avoid dust", "avoid allergic foods",
     "do not press the breast", "use a breast pump", "warm compress",
-    "wear a wrist splint",
+    "wear a wrist splint", "keep wearing the denture",
     "do not scratch", "avoid sweets", "walk daily",
     "rest", "follow up", "bandage", "dressing", "nebulization",
     "prescription", "dialysis", "antibiotic", "painkiller", "antacid",
@@ -2500,6 +2509,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "severe allergy": "general", "hives": "dermatology",
     "mastitis": "gynaecology", "breast abscess": "gynaecology",
     "lipoma": "surgery", "deviated nasal septum": "ent",
+    "traumatic ulcer": "dental",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",
     "menopause": "gynaecology", "pregnancy": "gynaecology",
