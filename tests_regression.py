@@ -471,7 +471,38 @@ check("isotretinoin through the form",
 
 print()
 print("=" * 70)
-print("19. GAZETTEER INTEGRITY")
+print("19. THE SITE IS PART OF THE DIAGNOSIS")
+print("=" * 70)
+# "আপনার পেটে হয়তো ইনফেকশন হয়েছে" came back as a bare "infection", which
+# tells a reader nothing about what was found.
+check("stomach infection",
+      scan_conditions("আপনার পেটে হয়তো ইনফেকশন হয়েছে ওই খাবার থেকে"),
+      ["stomach infection"])
+check("  generic survives on its own",
+      scan_conditions("ইনফেকশন হয়ে যাবে"), ["infection"])
+# Two drugs missed on the same consultation; Ofloxacin was absent from
+# the gazetteer entirely, and it is one of the commonest oral antibiotics.
+check("racecadotril, ASR-split",
+      [m.printed for m in scan_drugs_spoken("একটা রোসকাডো ট্রিল দিচ্ছি")],
+      ["Racecadotril"])
+check("ofloxacin by brand",
+      [m.printed for m in scan_drugs_spoken("অ্যান্টিবায়োটিক হিসাবে ওফ্লোম্যাক দিলাম")],
+      ["Oflomac"])
+# ORS is the single most important instruction on a diarrhoea
+# consultation, and the ASR renders it "ওয়ারেস্ট".
+check("ORS as the ASR hears it",
+      scan_advice("বারবার ওয়ারেস্ট খাবেন"), ["ORS"])
+# With the site known, the wrong drug is caught by specialty.
+_rx = validate(ExtractedRx(
+    diagnosis="stomach infection",
+    source_transcript="একটা রোসকাডো ট্রিল দিচ্ছি আর ওফ্লোম্যাক দিলাম",
+    medications=[Medication(drug="Roxatodil"), Medication(drug="রোসকাডো ট্রিল")]))
+check("surgery drug off a gastro script",
+      [m.prescribed_name for m in _rx.medications], ["Racecadotril"])
+
+print()
+print("=" * 70)
+print("20. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

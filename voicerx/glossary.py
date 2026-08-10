@@ -256,7 +256,15 @@ GI = [
          ("অফ্লক্সাসিন অর্নিডাজোল", "ওফ্লোম্যাক ওজেড", "ও টু", "অফ্লক্সাসিন এবং অর্নিডাজোল"),
          "diarrhoea / infection", "gastro"), #
     Drug("Racecadotril", ("Redotil", "Zedott"),
-         ("রেসিকাডোট্রিল", "রেডোটিল"), "acute diarrhoea", "gastro"), #
+         ("রেসিকাডোট্রিল", "রেডোটিল", "রোসকাডো ট্রিল", "রোসকাডোট্রিল",
+          "রেসিকাডো ট্রিল", "রোসাকাডোট্রিল"),
+         "acute diarrhoea", "gastro"), #
+    # Missing entirely, and one of the commonest oral antibiotics there is.
+    # Prescribed by brand on a gastroenteritis consultation ("ওফ্লোম্যাক")
+    # and reported only as an unrecognised term.
+    Drug("Ofloxacin", ("Oflomac", "Zanocin", "Zenflox"),
+         ("ওফ্লক্সাসিন", "ওফ্লোম্যাক", "জ্যানোসিন", "ওফ্লোমাক"),
+         "antibiotic", "gastro"), #
     Drug("Sucralfate", ("Sucral", "Sucrafil"),
          ("সুক্রালফেট", "সুক্রাফিল"), "gastric ulcer", "gastro"), #
     Drug("Dicyclomine", ("Cyclopam", "Meftal-Spas"),
@@ -1119,6 +1127,11 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "difficulty swallowing": ("গিলতে কষ্ট",), #
     "phlegm": ("কফ", "শ্লেষ্মা", "সাদা কফ"), #
     "infection": ("ইনফেকশন", "সংক্রমণ"), #
+    # "আপনার পেটে হয়তো ইনফেকশন হয়েছে" - the site is the diagnosis. A bare
+    # "infection" tells a reader nothing about what was found.
+    "stomach infection": ("পেটে ইনফেকশন", "পেটের ইনফেকশন",
+                           "পেটে সংক্রমণ", "গ্যাস্ট্রোএন্টেরাইটিস",
+                           "পেটে ইনফেকশন হয়েছে"), #
     # --- department-specific symptoms and findings --------------------
     # dermatology
     "itching": ("চুলকানি", "চুলকায়", "খুজলি", "ইচিং"), #
@@ -1256,7 +1269,10 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "lean diet": ("লিন ডায়েট", "হালকা খাবার", "light food"), #
     "avoid oily food": ("তেল মশলা এড়িয়ে", "তেলমশলা"), #
     "drink water": ("প্রচুর জল খাবেন", "বেশি করে জল খাবেন", "অনেক জল খাবেন", "বেশি পানি", "জল খাবেন"), #
-    "ORS": ("ওআরএস", "ওরস"),   # rehydration, NOT a pharmaceutical
+    # "ওয়ারেস্ট" is the ASR's rendering on a diarrhoea consultation, where
+    # ORS is the single most important instruction given.
+    "ORS": ("ওআরএস", "ওরস", "ওয়ারেস্ট", "ও আর এস", "ওয়ার এস",
+             "ওরস্যালাইন", "খাবার স্যালাইন"),   # rehydration, NOT a pharmaceutical
     "rest": ("বিশ্রাম",), #
     # Advice the consultations actually give, in the words they use. It
     # was recognised as non-clinical and then dropped, because nothing
@@ -2205,7 +2221,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "gallstone", "appendicitis", "tonsillitis", "fungal infection",
     "infection", "acne", "menopause", "pregnancy", "dementia",
     "osteoporosis", "arthritis", "asthma",
-    "dust allergy", "allergic rhinitis", "epilepsy",
+    "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2238,6 +2254,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "cataract": "ophthalmology", "glaucoma": "ophthalmology",
     "osteoporosis": "bone", "arthritis": "bone",
     "kidney failure": "nephrology",
+    "stomach infection": "gastro", "gastritis": "gastro",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",
     "menopause": "gynaecology", "pregnancy": "gynaecology",
@@ -2256,9 +2273,15 @@ def department_for(conditions: list[str]) -> str:
 
 
 def scan_conditions(text: str) -> list[str]:
-    """Diagnosable conditions named in the text."""
-    return [t for t in _ngram_scan_all(text, _CURATED_TERM_LOOKUP) #
-            if t in CONDITIONS] #
+    """Diagnosable conditions named in the text, least specific dropped.
+
+    "পেটে ইনফেকশন" matched both "stomach infection" and "infection", and a
+    diagnosis line reading "stomach infection, infection" names one
+    finding twice while implying two. Same containment rule as scan_labs.
+    """
+    return _drop_subsumed_labs( #
+        [t for t in _ngram_scan_all(text, _CURATED_TERM_LOOKUP) #
+         if t in CONDITIONS]) #
 
 
 # Terms too generic to be a symptom on their own. They arrive from the
