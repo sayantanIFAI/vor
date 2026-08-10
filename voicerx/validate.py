@@ -28,6 +28,21 @@ def _is_latin(text: str) -> bool:
     return bool(letters) and all(c.isascii() for c in letters)
 
 
+def _department_clash(verdict, consult_dept: str) -> bool:
+    """Whether a fuzzy match landed in a specialty the consultation is not.
+
+    Both sides must be SPECIFIC. "general" drugs - paracetamol, antacids -
+    are prescribed in every clinic, so a general drug is never a clash, and
+    a consultation with no diagnosis yields no department and no signal.
+    """
+    if not consult_dept or consult_dept == "general":
+        return False
+    drug_dept = (verdict.department or "").strip()
+    if not drug_dept or drug_dept == "general":
+        return False
+    return drug_dept != consult_dept
+
+
 def _set_prescribed_name(med) -> None:
     """Decide the name that goes on the prescription. See schema.Medication.
 
@@ -223,6 +238,36 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
                     f'and was NOT resolved to a number - CONFIRM'
                 )
             kept.append(med)
+        elif v.tier == PROBABLE and _department_clash(v, dept):
+            # A GUESS that also lands in the wrong specialty.
+            #
+            # An exact match is evidence in its own right - the name was
+            # said. A fuzzy match is a guess, and this one had two things
+            # against it: on a menopause consultation "Traject" resolved by
+            # edit distance alone to Linagliptin, a DIABETES drug, and was
+            # printed as a medication. The doctor had said "ট্রাফিক" once;
+            # the model romanised that same word twice, so one spoken word
+            # became two prescription lines.
+            #
+            # Grounding the name in the transcript was tried first and does
+            # not work: scored against the real consultations, the good and
+            # bad names overlap - "Colonsalicyl" is a true reading of
+            # "কোলন স্যালেসাইল" at 0.80 while the bogus "Traject" scores
+            # 0.89 against an unrelated word. No threshold separates them.
+            #
+            # The specialty does separate them, on every real case
+            # available: it clears Trimolat, ট্রাফিক, অ্যামোরাল, Adapaline,
+            # Colonsalicyl and Montuculast, and catches only Traject and
+            # Roxatodil. Demoted, never deleted - it goes where a human
+            # still sees it.
+            rx.rejected_terms.append(
+                f"{med.drug} — resembles {v.canonical} ({v.similarity:.2f}), "
+                f"but that is a {v.department} drug on a {dept} consultation")
+            reasons.append(
+                f'"{med.drug}" was resolved only by similarity to '
+                f'{v.canonical}, a {v.department} drug, on a {dept} '
+                f'consultation - NOT included, confirm if intended'
+            )
         elif v.tier == PROBABLE:
             # Real drug, garbled name. Kept, but the canonical name stays a
             # proposal - see gate.py on why this is never auto-applied.

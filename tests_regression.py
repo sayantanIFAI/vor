@@ -27,7 +27,7 @@ from voicerx.glossary import (collisions, is_clinical_term, scan_conditions,
                                scan_labs,
                                scan_symptoms, stats)
 from voicerx.schema import ExtractedRx, Medication
-from voicerx.validate import validate
+from voicerx.validate import validate, _department_clash
 
 PASS = FAIL = 0
 FAILURES: list[str] = []
@@ -403,7 +403,41 @@ check("  but distinct orders both survive",
 
 print()
 print("=" * 70)
-print("17. GAZETTEER INTEGRITY")
+print("17. A GUESS IN THE WRONG SPECIALTY IS NOT A PRESCRIPTION")
+print("=" * 70)
+# On a menopause consultation "Traject" resolved by edit distance alone to
+# Linagliptin - a DIABETES drug - and was printed as a medication. The
+# doctor said "ট্রাফিক" once; the model romanised that one word twice, so
+# one utterance became two prescription lines.
+_rx = validate(ExtractedRx(
+    diagnosis="menopause",
+    source_transcript="একটা ট্রাফিক ট্যাবলেট দিচ্ছি আর মাসিক নিয়মিত করতে ট্রিমোলাট দিলাম",
+    medications=[Medication(drug="Traject"), Medication(drug="ট্রাফিক"),
+                 Medication(drug="Trimolat")]))
+_kept = [m.prescribed_name for m in _rx.medications]
+check("wrong-specialty guess dropped", "Linagliptin" in _kept, False)
+check("  but recorded, never deleted",
+      any("Linagliptin" in t for t in _rx.rejected_terms), True)
+check("same-specialty guess kept", "Norethisterone" in _kept, True)
+check("exact match kept", "Trapic" in _kept, True)
+# Grounding the name in the transcript was tried and does NOT separate
+# these - the good and bad names overlap on every similarity measure.
+# Only the specialty separates them, so only specific departments count.
+check("general drugs never clash",
+      _department_clash(judge_medication("Paracetamol"), "gynaecology"), False)
+check("no diagnosis means no signal",
+      _department_clash(judge_medication("Traject"), ""), False)
+
+# The presenting complaint on that same consultation, and the symptom the
+# doctor reasoned from - neither was in the vocabulary.
+check("menopause symptoms",
+      scan_symptoms("তলপেটটা খুব ব্যাথা করছে খুব গরম লাগে হঠাৎ হঠাৎ"),
+      ["lower abdominal pain", "hot flushes"])
+check("  গরম alone is not a symptom", scan_symptoms("গরম জল খাবেন"), [])
+
+print()
+print("=" * 70)
+print("18. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
 st = stats()

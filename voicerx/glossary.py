@@ -1038,7 +1038,25 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "fever": ("জ্বর",), #
     "cough": ("কাশি",), #
     "headache": ("মাথা ব্যথা", "মাথাব্যথা", "চাপ ধরা মাথা ব্যথা"), #
-    "abdominal pain": ("পেট ব্যথা", "পেটে ব্যথা", "তলপেটে ব্যথা"), #
+    "abdominal pain": ("পেট ব্যথা", "পেটে ব্যথা"),
+    # তলপেট is specifically the LOWER abdomen, and on a gynaecological
+    # consultation that is the presenting complaint, not a location detail.
+    # MOVED off "abdominal pain" rather than duplicated - two entries
+    # claiming one key collide and neither matches.
+    #
+    # The spoken line was "তলপেটটা খুব ব্যাথা করছে": the টা suffix and an
+    # interposed খুব defeated the তলপেটে-anchored key, so the variants are
+    # listed rather than relying on the fold to bridge them.
+    "lower abdominal pain": ("তলপেটে ব্যথা", "তলপেটে ব্যাথা",
+                              "তলপেট ব্যথা", "তলপেটটা ব্যাথা",
+                              "তলপেটটা ব্যথা", "তলপেটের ব্যথা",
+                              "তলপেটে যন্ত্রণা"),
+    # The symptom the doctor REASONED FROM - "এটা তো মেনোপস ... এর লক্ষণ" -
+    # and it was not in the vocabulary at all. Anchored to multi-token
+    # phrases: গরম alone is ordinary Bengali for hot weather or hot water.
+    "hot flushes": ("গরম লাগে হঠাৎ", "হঠাৎ গরম লাগা", "হঠাৎ হঠাৎ গরম",
+                     "খুব গরম লাগে", "শরীর গরম হয়ে যাওয়া", "হট ফ্লাশ",
+                     "হট ফ্লাশেস"), #
     "loose stools": ("পাতলা পায়খানা", "ডায়রিয়া", "পায়খানা", "diarrhea"), #
     "constipation": ("কোষ্ঠকাঠিন্য", "পায়খানা শক্ত", "constipation"),
     "vomiting": ("বমি",), #
