@@ -181,7 +181,8 @@ RESPIRATORY = [
          ("টিওট্রোপিয়াম", "টিওভা"),
          "LAMA / COPD", "respiratory"),
     Drug("Montelukast", ("Montair", "Montek"),
-         ("মন্টিকুলাষ্ট", "মন্টিকুলাস", "মন্টেয়ার", "মন্টেক"),
+         ("মন্টিকুলাষ্ট", "মন্টিকুলাস", "মন্টেয়ার", "মন্টেক",
+          "মাল্টিকুলার", "মাল্টিকুলার স্ট্যাবলেট", "মন্টিকুলার"),
          "asthma / allergic rhinitis", "respiratory"), #
     # FDC ENHANCEMENT
     Drug("Montelukast+Levocetirizine", ("Montair LC", "Montek LC", "Monticope"),
@@ -516,7 +517,9 @@ ENT = [
     Drug("Oxymetazoline", ("Nasivion",),
          ("অক্সিমেটাজোলিন", "নাসিভিয়ন ড্রপ"), "nasal decongestant", "ent"),
     Drug("Fluticasone nasal spray", ("Flomist", "Nasoflo"),
-         ("ফ্লুটিকাসোন", "ফ্লোমিস্ট", "ফ্লুটিকাসোন নেজাল স্প্রে"), "allergic rhinitis", "ent"), #
+         ("ফ্লুটিকাসোন", "ফ্লোমিস্ট", "ফ্লুটিকাসোন নেজাল স্প্রে",
+          "ফাল্টিকাসন", "ফাল্টিকাসন নাসাল স্প্রা", "ফ্লুটিকেসোন"),
+         "allergic rhinitis", "ent"), #
     Drug("Mometasone nasal spray", ("Nasonex", "Metaspray"),
          ("মোমেটাসোন", "মেটাস্প্রে"), "allergic rhinitis", "ent"), #
     Drug("Betahistine", ("Vertin", "Betavert"),
@@ -1160,6 +1163,15 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "severe allergy": ("সিভিয়ার আলার্জি", "সিভিয়ার অ্যালার্জি",
                         "মারাত্মক অ্যালার্জি", "severe allergy"), #
     # "বুকে ইনফেকশন হয়েছে একটা ইনফেকশন হয়েছে মাস্টিটাইটিস" - stated by name.
+    # Named outright - "এটাকে আমরা লাইপোমা বলি" - and absent from the
+    # gazetteer, so the diagnosis rested on the model alone.
+    # "ডেভিয়েটেড নেজাল সেপ্টেম্বলি আমরা ডাক্তারি ভাষায় ডি এন এস" - the
+    # doctor gives it in full AND as the abbreviation, and neither existed.
+    "deviated nasal septum": ("ডেভিয়েটেড নেজাল সেপ্টাম", "ডি এন এস",
+                               "ডিএনএস", "নেজাল সেপ্টাম বেঁকে",
+                               "নাকের পর্দা বেঁকে", "ডেভিয়েটেড নেজাল সেপ্টেম",
+                               "deviated nasal septum"), #
+    "lipoma": ("লাইপোমা", "লিপোমা", "চর্বির টিউমার", "lipoma"), #
     "mastitis": ("মাস্টিটাইটিস", "স্তনপ্রদাহ", "স্তনে ইনফেকশন",
                   "বুকে ইনফেকশন", "mastitis"), #
     "breast abscess": ("স্তনে অ্যাবসেস", "অ্যাপসেস জমে", "breast abscess"), #
@@ -1914,7 +1926,8 @@ def _span_variants(tokens: list[str], i: int, n: int) -> list[str]:
 _MAX_SUFFIX_TAIL = 4 #
 
 
-def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1):
+def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1,
+                  allow_near: bool = False):
     """First table hit among a span's folded variants.
 
     grams[0] is the full contiguous span; the rest have one interior token
@@ -1946,12 +1959,21 @@ def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1):
                         and not (_needs_whole_token(key, table) and n_tokens > 1)): #
                     return val, key #
 
-    # Last resort, DRUGS ONLY: vowel-level ASR variation. See
-    # _DRUG_SKELETON - exact skeleton equality, ambiguous ones excluded.
-    if table is _DRUG_LOOKUP and grams and grams[0]: #
-        hit = _DRUG_SKELETON.get(_skeleton(grams[0])) #
-        if hit is not None: #
-            return hit, grams[0] #
+    # Last resort. DRUGS: vowel-level variation, exact skeleton equality.
+    # LABS: a dropped or inserted consonant, NEAR match - and only when
+    # SCANNING free text (allow_near). is_lab_test() is used by the gate
+    # to VETO a drug candidate, and a near match is not strong enough to
+    # do that: it rejected "আইশো ট্রোটন নয়েন ক্যাপসুল" - Isotretinoin - as
+    # though it were a lab test.
+    if grams and grams[0]: #
+        if table is _DRUG_LOOKUP: #
+            hit = _DRUG_SKELETON.get(_skeleton(grams[0])) #
+            if hit is not None: #
+                return hit, grams[0] #
+        elif table is _LAB_LOOKUP and allow_near: #
+            hit = _lab_by_near_skeleton(grams[0]) #
+            if hit is not None: #
+                return hit, grams[0] #
     return None, "" #
 
 
@@ -1987,7 +2009,8 @@ def _ngram_scan_spans(text: str, table: dict, #
     seen: list = [] #
     for i in range(len(tokens)): #
         for n in range(1, min(_MAX_NGRAM, len(tokens) - i) + 1): #
-            hit, _key = _lookup_span(_span_variants(tokens, i, n), table, n) #
+            hit, _key = _lookup_span(_span_variants(tokens, i, n), table, n, #
+                                      allow_near=True) #
             if hit is not None and hit not in seen: #
                 if honour_negation and _span_is_negated(tokens, i, i + n): #
                     continue #
@@ -2202,6 +2225,51 @@ for _s, _owners in _skel_owners.items(): #
 del _skel_owners #
 
 
+# Lab keys by skeleton, for a DROPPED or INSERTED consonant.
+#
+# Vowel drift is handled by exact skeleton equality (see _DRUG_SKELETON),
+# but the ASR also loses whole consonants: "আল্টা সাউন্ড" is
+# "আল্ট্রাসাউন্ড" with the র gone, so the skeletons differ too - ltsnd
+# against ltrsnd - and no exact index can bridge that.
+#
+# So this one is NEAR-match, and that is a weaker claim, fenced
+# accordingly:
+#   - minimum 5 consonants, so short acronyms cannot drift into each other
+#   - 0.90 similarity, which is roughly one dropped character in six
+#   - any key within 0.90 of a DIFFERENT lab is excluded outright.
+#     Measured: 4 such pairs among 298 keys.
+#
+# Labs only. The same relaxation on DRUGS would be reckless - a dropped
+# consonant is exactly how one drug name becomes another - and drugs
+# already have the exact-skeleton index plus a scored fuzzy tier in the
+# gate, both of which propose rather than assert.
+_LAB_NEAR_MIN = 5 #
+_LAB_NEAR_FLOOR = 0.90 #
+_LAB_SKELETONS: list[tuple] = [] #
+_lab_sk = [(k, _skeleton(k), v) for k, v in _LAB_LOOKUP.items() #
+           if len(_skeleton(k)) >= _LAB_NEAR_MIN #
+           and "unspecified" not in v.lower()] #
+for _k, _sk, _v in _lab_sk: #
+    if any(_v2 != _v and SequenceMatcher(a=_sk, b=_sk2).ratio() >= _LAB_NEAR_FLOOR #
+           for _k2, _sk2, _v2 in _lab_sk): #
+        continue                    # ambiguous with another lab - excluded #
+    _LAB_SKELETONS.append((_sk, _v)) #
+del _lab_sk #
+
+
+def _lab_by_near_skeleton(span: str): #
+    """Closest lab whose consonant skeleton nearly matches this span.""" #
+    sk = _skeleton(span) #
+    if len(sk) < _LAB_NEAR_MIN: #
+        return None #
+    best, best_score = None, 0.0 #
+    for cand_sk, canon in _LAB_SKELETONS: #
+        score = SequenceMatcher(a=sk, b=cand_sk).ratio() #
+        if score > best_score: #
+            best, best_score = canon, score #
+    return best if best_score >= _LAB_NEAR_FLOOR else None #
+
+
 # Below this the skeletons are too far apart to claim they are the same
 # name, and the generic is used instead.
 _SKEL_FLOOR = 0.75 #
@@ -2390,7 +2458,8 @@ CONDITIONS: frozenset[str] = frozenset({
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
     "urine infection", "enlarged prostate",
     "vertigo", "inner ear balance disorder",
-    "severe allergy", "hives", "mastitis", "breast abscess",
+    "severe allergy", "hives", "mastitis", "breast abscess", "lipoma",
+    "deviated nasal septum",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2430,6 +2499,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "vertigo": "ent", "inner ear balance disorder": "ent",
     "severe allergy": "general", "hives": "dermatology",
     "mastitis": "gynaecology", "breast abscess": "gynaecology",
+    "lipoma": "surgery", "deviated nasal septum": "ent",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",
     "menopause": "gynaecology", "pregnancy": "gynaecology",

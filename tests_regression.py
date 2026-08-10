@@ -601,6 +601,31 @@ check("a device can be the treatment",
       scan_advice("একটা রিস্ট প্লিন্ট মানে ওই কবজির একটা বেল্ট দিচ্ছি"),
       ["wear a wrist splint"])
 
+# The ASR also DROPS whole consonants, which exact skeletons cannot
+# bridge: "আল্টা সাউন্ড" is "আল্ট্রাসাউন্ড" without the র.
+check("a dropped consonant", scan_labs("একটা আল্টা সাউন্ড করে"), ["USG"])
+# That relaxation must not leak into ordinary speech. Catch-all entries
+# are excluded from it - their aliases are ordinary verbs, so "সি টা করবেন"
+# was drifting into "test (unspecified)".
+check("  and does not over-reach",
+      scan_labs("আপনি এই সি বি সি টা করবেন"), ["CBC"])
+# ...nor into the gate, where is_lab_test VETOES a drug. A near match is
+# not strong enough to do that.
+check("  nor vetoes a real drug",
+      judge_medication("আইশো ট্রোটন নয়েন ক্যাপসুল", "dermatology").canonical,
+      "Isotretinoin")
+
+# Diagnoses named outright with no gazetteer entry at all, so they rested
+# on the model alone.
+check("lipoma", scan_conditions("এটাকে আমরা লাইপোমা বলি"), ["lipoma"])
+check("deviated nasal septum",
+      scan_conditions("ডেভিয়েটেড নেজাল সেপ্টেম্বলি আমরা ডাক্তারি ভাষায় ডি এন এস"),
+      ["deviated nasal septum"])
+check("nasal spray + montelukast",
+      [m.printed for m in scan_drugs_spoken(
+          "একটা ফাল্টিকাসন নাসাল স্প্রাযে একটা মাল্টিকুলার স্ট্যাবলেট দিচ্ছে")],
+      ["Fluticasone nasal spray", "Montelukast"])
+
 print()
 print("=" * 70)
 print("21. GAZETTEER INTEGRITY")
