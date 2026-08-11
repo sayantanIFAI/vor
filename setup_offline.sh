@@ -34,6 +34,13 @@ export TORCH_HOME="$PREFIX/.cache/torch"
 export OLLAMA_MODELS="$PREFIX/ollama/models"
 export HF_HUB_ENABLE_HF_TRANSFER=0    # var is set in RunPod images, package is not
 export PATH="$PREFIX/bin:$PATH"
+
+# TASK 4: Hardening step for truly offline clinics
+# HuggingFace libraries attempt a revision check on model load, which hangs or
+# errors on isolated machines. These flags disable network checks entirely.
+# Safe to set always; with network, they're just ignored.
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
 mkdir -p "$PYLIBS" "$HF_HOME" "$TORCH_HOME" "$OLLAMA_MODELS" "$PREFIX/bin"
 
 command -v nvidia-smi >/dev/null || { echo "FATAL: no GPU visible"; exit 1; }

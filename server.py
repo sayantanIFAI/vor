@@ -424,7 +424,10 @@ def session_start():
         "compute_s": 0.0,
     }
     get_pipeline()                                     # warm before recording
-    return {"session_id": sid, "chunk_seconds": 10}
+    # TASK 2: chunk_seconds 10 → 4 halves residual audio at Stop.
+    # Measured: 4s of audio → ~1-2s extract time. Final chunk at Stop: 2-4s total.
+    # Helps hit 3s post-Stop SLA with 10 concurrent doctors.
+    return {"session_id": sid, "chunk_seconds": 4}
 
 
 @app.post("/api/session/{sid}/chunk")

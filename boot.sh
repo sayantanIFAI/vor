@@ -14,6 +14,11 @@ export OLLAMA_MODELS=/workspace/ollama/models     # else the 4.7GB qwen pull rep
 export HF_HUB_ENABLE_HF_TRANSFER=0                # set in RunPod images, package absent
 export PATH=/workspace/bin:$PATH
 
+# Offline hardening: disable HF revision checks on truly isolated machines
+# Safe with network (just ignored); essential without network (prevents hangs)
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
 # ollama looks for its runtime libs at ../lib/ollama relative to the binary;
 # we keep the extracted dist on the volume and link it into place.
 ln -sfn /workspace/ollama-dist/lib /workspace/lib
