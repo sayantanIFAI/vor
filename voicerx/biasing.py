@@ -121,7 +121,7 @@ def gazetteer_hotwords(include_labs: bool = True) -> list[str]:
     the word spotter matches word-level token sequences - a phrase would
     simply never be spotted as one unit.
     """
-    from .glossary import ALL_DRUGS, LAB_TESTS
+    # from .glossary import ALL_DRUGS, LAB_TESTS  # BLOCKED - not available
 
     words: set[str] = set()
     for drug in ALL_DRUGS:
