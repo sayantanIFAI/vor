@@ -50,7 +50,36 @@ from difflib import SequenceMatcher
 
 from .glossary import (Drug, fold, is_clinical_term, is_lab_test,
                        lookup_drug, matched_exactly, _DRUG_LOOKUP,
-                       _LAB_LOOKUP, _TERM_LOOKUP)
+                       _LAB_LOOKUP, _TERM_LOOKUP, DRUGS)
+
+
+def romanize(text: str) -> str:
+    """Simple Bengali-to-Latin phonetic romanization for phonetic matching.
+
+    Maps common Bengali characters to their closest Latin approximations.
+    Not meant to be a proper transliteration system—just close enough to
+    compare phonetically similar spellings across alphabets.
+    """
+    # Bengali to Latin character mapping (simplified)
+    mapping = {
+        'অ': 'a', 'আ': 'a', 'ই': 'i', 'ঈ': 'i', 'উ': 'u', 'ঊ': 'u',
+        'ঋ': 'ri', 'এ': 'e', 'ঐ': 'ai', 'ও': 'o', 'ঔ': 'ou',
+        'ক': 'k', 'খ': 'kh', 'গ': 'g', 'ঘ': 'gh', 'ঙ': 'ng',
+        'চ': 'ch', 'ছ': 'ch', 'জ': 'j', 'ঝ': 'jh', 'ঞ': 'ny',
+        'ট': 't', 'ঠ': 'th', 'ড': 'd', 'ঢ': 'dh', 'ণ': 'n',
+        'ত': 't', 'থ': 'th', 'দ': 'd', 'ধ': 'dh', 'ন': 'n',
+        'প': 'p', 'ফ': 'f', 'ব': 'b', 'ভ': 'bh', 'ম': 'm',
+        'য': 'y', 'র': 'r', 'ল': 'l', 'শ': 'sh', 'ষ': 'sh', 'স': 's',
+        'হ': 'h', 'ড়': 'r', 'ঢ়': 'rh', 'য়': 'y', 'ৎ': 't',
+        '়': '', 'া': 'a', 'ি': 'i', 'ী': 'i', 'ু': 'u', 'ূ': 'u',
+        'ৃ': 'ri', 'ে': 'e', 'ৈ': 'ai', 'ো': 'o', 'ৌ': 'ou',
+    }
+
+    result = ""
+    for char in text.lower().strip():
+        result += mapping.get(char, char if char.isalnum() else '')
+
+    return ''.join(filter(str.isalnum, result))
 
 # 179,002 Indian brand -> generic names, machine-imported. Optional so a
 # fresh checkout works before anyone runs the importer.
@@ -246,6 +275,33 @@ def _is_bengali_verb_form(raw: str) -> bool:
             and tok.endswith(_SHORT_VERB_SUFFIXES))
 
 
+def _phonetic_match(unknown_word: str, min_score: float = 0.72) -> tuple[Drug | None, float]:
+    """PHASE 4: Phonetic fallback for ASR garbles.
+
+    When fuzzy matching fails (< SIMILARITY_FLOOR), check if the unknown word
+    is phonetically close to a drug name. This catches cases where ASR produced
+    a mangled but recognizable variant.
+
+    Example: "টিনিটা জল" (Tinidazole, ASR garble) scored 0.60 fuzzy (below 0.65
+    floor), but phonetically matches at 0.78 against the Bengali form.
+
+    Only tries romanized drug names against romanized input to keep the search
+    space manageable. Returns (Drug, score) or (None, 0.0).
+    """
+    rom_unknown = romanize(unknown_word)
+
+    for drug in DRUGS:
+        # Try each form: generic + brands
+        for form in [drug.generic] + list(drug.brands):
+            rom_form = romanize(form)
+            score = SequenceMatcher(None, rom_unknown, rom_form).ratio()
+
+            if score >= min_score:
+                return (drug, score)
+
+    return (None, 0.0)
+
+
 def _fuzzy(text: str, department: str = "") -> tuple[Drug | None, float]:
     """Closest gazetteer drug in folded space. Proposes only.
 
@@ -428,6 +484,16 @@ def judge_medication(name: str, department: str = "") -> Verdict:
                        similarity=round(score, 2),
                        reason=(f"not an exact match; resembles {cand.generic} "
                                f"(similarity {score:.2f}) - CONFIRM, not applied"))
+
+    # PHASE 4: Phonetic fallback - if fuzzy missed it, try phonetic matching
+    # This catches ASR garbles that are phonetically close but not orthographically similar
+    phon_cand, phon_score = _phonetic_match(raw)
+    if phon_cand is not None and phon_score >= 0.72:
+        return Verdict(PROBABLE, canonical=phon_cand.generic,
+                       department=phon_cand.department, indication=phon_cand.indication,
+                       similarity=round(phon_score, 2),
+                       reason=(f"not an exact match; phonetically resembles {phon_cand.generic} "
+                               f"(phonetic score {phon_score:.2f}) - CONFIRM, not applied"))
 
     return Verdict(REJECTED, similarity=round(score, 2),
                    reason="not in the clinical gazetteer")
