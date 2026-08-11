@@ -1253,7 +1253,22 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # wheals ("সারা গায়ে লাল লাল চাকা হয়ে ফুলে গেছে").
     "hives": ("আমবাত", "আর্টিকেরিয়া", "আমবাদ", "লাল লাল চাকা",
                "চাকা হয়ে ফুলে", "চাকা চাকা"), #
-    "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন"), #
+    # "ইনফেকশান" is how the ASR writes the loanword about as often as
+    # "ইনফেকশন", and only the second spelling was registered - so the
+    # doctor's own words, "এক প্রকার ফাঙ্গাল ইনফেকশান", matched nothing.
+    "fungal infection": ("দাদ", "ছত্রাক", "ফাঙ্গাল ইনফেকশন",
+                          "ফাঙ্গাল ইনফেকশান", "ফাংগাল ইনফেকশন",
+                          "ছত্রাক সংক্রমণ", "fungal infection"), #
+    # ছুলি is what patients and doctors call it; পিটাইরিয়াসিস ভার্সিকালার
+    # is the name written on the prescription. The ASR renders the latter
+    # as "পিটাইরিয়াস শিশ ওয়াশ কালার ভ্যাসিকালার" - it loses the word
+    # boundaries entirely - so the spoken form is the one that has to
+    # carry it, and the garble is registered alongside.
+    "pityriasis versicolor": ("ছুলি", "সাদা ছোপ", "পিটাইরিয়াসিস ভার্সিকালার",
+                               "পিটাইরিয়াসিস ভার্সিকলার",
+                               "পিটাইরিয়াস ভ্যাসিকালার",
+                               "কালার ভ্যাসিকালার",
+                               "pityriasis versicolor"), #
     "hair fall": ("চুল উঠছে",), #
     "dry skin": ("শুষ্ক ত্বক", "চামড়া শুকিয়ে"), #
     "boil": ("ফোঁড়া", "বিচি"), #
@@ -1312,7 +1327,14 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "kidney failure": ("কিডনি ফেইলিওর", "কিডনি খারাপ"), #
     "dialysis": ("ডায়ালিসিস",), #
     # neurology
-    "seizure": ("খিঁচুনি", "ফিট", "মৃগী"), #
+    # "ফিট" folds to পিট, and so does "পিঠ" - the BACK. fold() maps ফ->প
+    # and ঠ->ট, so an ordinary body part became a neurological diagnosis:
+    # a dermatology consultation about spots on the back and chest came
+    # back diagnosed as seizure, from the word পিঠ alone. The bare key is
+    # blocked in _AMBIGUOUS_WITH_COMMON_WORD; the inflected forms below
+    # fold distinctly and carry the verb that makes them a finding.
+    "seizure": ("খিঁচুনি", "ফিট", "মৃগী", "ফিট হয়ে", "ফিট হয়েছে",
+                 "ফিট হয়ে গেছে", "ফিট খেয়েছে", "খিঁচুনি হয়েছে"), #
     "stroke": ("স্ট্রোক", "প্যারালাইসিস", "পক্ষাঘাত"), #
     "numbness": ("অবশ", "ঝিনঝিন", "অসাড়"), #
     "tremor": ("কাঁপুনি", "হাত কাঁপে", "রেস্টিং ট্রেমর"), #
@@ -1672,7 +1694,14 @@ for _canon, _alts in CLINICAL_TERMS.items(): #
 # the model, that cannot tell these pairs apart.
 #   কাটা  ক্ষত "cut"          also "গায়ে কাটা দিয়ে" = shivering
 #                              0 true positives, 1 false, over the 16
-_AMBIGUOUS_WITH_COMMON_WORD = frozenset({"গা", "কসট", "বরন", "কাটা"}) #
+#   পিট   ফিট "fit/seizure"   also পিঠ "back"       1 of 1 hits was wrong
+#
+# পিট is the worst of them, because the two words are not even related and
+# the false positive is a diagnosis rather than a symptom: a dermatology
+# consultation about spots on the back and chest was reported as SEIZURE,
+# and the summary repeated it. ফ->প and ঠ->ট are both correct fold rules;
+# it is their combination on a three-letter word that is unsafe.
+_AMBIGUOUS_WITH_COMMON_WORD = frozenset({"গা", "কসট", "বরন", "কাটা", "পিট"}) #
 
 _CURATED_TERM_LOOKUP: dict[str, str] = { #
     _k: _v for _k, _v in _TERM_LOOKUP.items() #
@@ -2552,6 +2581,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "infection", "acne", "menopause", "pregnancy", "dementia",
     "osteoporosis", "arthritis", "asthma", "muscle strain", "sprain",
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
+    "pityriasis versicolor",
     "food poisoning",
     "urine infection", "enlarged prostate",
     "vertigo", "inner ear balance disorder",
@@ -2604,6 +2634,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "appendicitis": "surgery", "gallstone": "surgery",
     "menopause": "gynaecology", "pregnancy": "gynaecology",
     "acne": "dermatology", "fungal infection": "dermatology",
+    "pityriasis versicolor": "dermatology",
     "tonsillitis": "ent",
 }
 

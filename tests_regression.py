@@ -737,6 +737,31 @@ check("a swallowed negator still suppresses",
 
 print()
 print("=" * 70)
+print("26. A BODY PART IS NOT A DIAGNOSIS")
+print("=" * 70)
+# fold() maps ফ->প and ঠ->ট, both correct on their own. Together, on a
+# three-letter word, "ফিট" (fit/seizure) and "পিঠ" (the BACK) land on the
+# same key. A dermatology consultation about spots on the back and chest
+# was diagnosed as SEIZURE, and the summary repeated it.
+check("the back is not a seizure",
+      scan_conditions("পিঠে আর বুকে অনেকগুলো সাদা ছোপ হয়েছে"),
+      ["pityriasis versicolor"])
+# ...and a real seizure still reports, through forms that fold distinctly.
+check("a real fit still reports",
+      scan_conditions("কাল রাতে ফিট হয়েছে"), ["seizure"])
+check("khichuni still reports",
+      scan_conditions("খিঁচুনি হয়েছে"), ["seizure"])
+# The diagnosis the doctor actually gave, in both the spoken and the
+# written form. The ASR loses the word boundaries of the latter entirely.
+check("chuli is pityriasis versicolor",
+      scan_conditions("আপনার না ছুলি হয়েছে"), ["pityriasis versicolor"])
+# "ইনফেকশান" is as common an ASR spelling as "ইনফেকশন", and only the
+# second was registered - so the doctor's own words matched nothing.
+check("the other spelling of infection",
+      scan_conditions("এক প্রকার ফাঙ্গাল ইনফেকশান"), ["fungal infection"])
+
+print()
+print("=" * 70)
 print("21. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])
