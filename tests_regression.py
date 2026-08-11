@@ -641,6 +641,47 @@ check("keep wearing it",
 
 print()
 print("=" * 70)
+print("22. AN ORDINARY WORD IS NOT A DRUG (sports-injury consultation)")
+print("=" * 70)
+# The patient said স্ট্রেন - "strain". Its consonant skeleton "strn" is also
+# the skeleton of Isotroin, an Isotretinoin brand, so a torn muscle was
+# prescribed an acne drug. The skeleton index ran BEFORE the clinical-term
+# check: a vowel-dropped guess was outranking positive identification.
+check("strain is not a drug",
+      judge_medication("স্ট্রেন").tier, "rejected")
+check("strain is the diagnosis",
+      scan_conditions("দৌড়তে গিয়ে পেশিতে স্ট্রেন হয়েছে"), ["muscle strain"])
+# ... but a sub-span match must NOT outrank the skeleton. The lab table
+# matches ডেক্সা inside ডেক্সা মিথোসেন and reported a bone-density scan for
+# a patient given a steroid injection. Longest span still wins.
+check("whole-name drug beats sub-span lab",
+      judge_medication("ডেক্সা মিথোসেন").canonical, "Dexamethasone")
+check("genuine skeleton recovery survives",
+      judge_medication("Rasu Basta Tin").canonical, "Rosuvastatin")
+
+print()
+print("=" * 70)
+print("23. ONE UTTERANCE IS NOT TWO DRUGS")
+print("=" * 70)
+# The ASR wrote আসিক্লোফেন্ক and the model romanised the SAME word as
+# "Asiklofenken". The first resolved to Aceclofenac on consonants (0.90),
+# the second to Diclofenac by edit distance (0.73) - one spoken word, two
+# prescription lines, one of them a drug nobody said.
+_dup = validate(ExtractedRx(
+    source_transcript="আসিক্লোফেন্ক দিলাম",
+    medications=[Medication(drug="আসিক্লোফেন্ক"), Medication(drug="Asiklofenken")]))
+check("the guess loses to the stronger match",
+      [m.canonical for m in _dup.medications], ["Aceclofenac"])
+check("and is recorded, not deleted", len(_dup.rejected_terms) >= 1, True)
+# Two drugs that merely sound alike must both survive: only a FUZZY
+# resolution is ever demoted, and both of these match exactly.
+_pair = validate(ExtractedRx(
+    source_transcript="Ecosprin আর Ecosprin AV",
+    medications=[Medication(drug="Ecosprin"), Medication(drug="Ecosprin AV")]))
+check("look-alike real drugs both survive", len(_pair.medications), 2)
+
+print()
+print("=" * 70)
 print("21. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])

@@ -365,6 +365,52 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
             )
     rx.medications = kept
 
+    # --- one utterance cannot be two different drugs -------------------------
+    # The model romanises what the ASR wrote in Bengali, and BOTH strings
+    # reach this list. When they resolve to the same drug, dedup by canonical
+    # name already handles it. When they resolve to DIFFERENT drugs, nothing
+    # did, and both were printed.
+    #
+    # Measured on a sports-injury consultation:
+    #     আসিক্লোফেন্ক   -> Aceclofenac   0.90  (consonant match, correct)
+    #     Asiklofenken  -> Diclofenac    0.73  (edit distance, wrong)
+    # one spoken word, two prescription lines, one of them a drug nobody said.
+    #
+    # Skeleton similarity alone does NOT separate this safely: the true
+    # duplicate scores 0.923 while genuinely distinct pairs reach 0.909
+    # (Ecosprin / Ecosprin AV) - a 0.014 gap is not a threshold.
+    #
+    # The second condition is what makes it safe: only a FUZZY resolution is
+    # ever demoted. An exact or skeleton hit is evidence the name was said,
+    # so two real drugs that merely sound alike both survive; only a guess
+    # loses, and only to a better-supported claim on the same sound.
+    _SAME_UTTERANCE = 0.88
+    survivors: list = []
+    for med in rx.medications:
+        sk = _skeleton(med.drug)
+        beaten = False
+        if len(sk) >= 4 and med.match_similarity < 0.9:
+            for other in rx.medications:
+                if other is med or other.match_similarity <= med.match_similarity:
+                    continue
+                osk = _skeleton(other.drug)
+                if len(osk) < 4:
+                    continue
+                if SequenceMatcher(a=sk, b=osk).ratio() >= _SAME_UTTERANCE:
+                    beaten = True
+                    rx.rejected_terms.append(
+                        f"{med.drug} — resolved to {med.canonical} by similarity "
+                        f"({med.match_similarity:.2f}), but the same spoken word "
+                        f"already resolved to {other.canonical} on stronger evidence")
+                    reasons.append(
+                        f'"{med.drug}" and "{other.drug}" are the same spoken '
+                        f'word; kept {other.canonical}, dropped {med.canonical}'
+                    )
+                    break
+        if not beaten:
+            survivors.append(med)
+    rx.medications = survivors
+
     # --- symptom grounding ------------------------------------------------
     # Symptoms extracted from a segment the two decoders disagree about are
     # demoted rather than asserted.

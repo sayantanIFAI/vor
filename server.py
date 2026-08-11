@@ -74,6 +74,51 @@ def health():
     }
 
 
+def _derive_summary(symptoms, diagnosis, labs, meds, advice, follow_up) -> str | None:
+    """Build the summary from validated fields only.
+
+    Deterministic on purpose. A summary is read as the clinical record, so
+    it must not be able to introduce a claim - and free narrative from the
+    extraction model demonstrably can. Everything below has already passed
+    the gate, corroboration, or a gazetteer scan; nothing new is asserted
+    here, and nothing is inferred.
+
+    An unverified medication is marked, rather than being described in the
+    same voice as a confirmed one. "Aceclofenac (to confirm)" tells a
+    reviewer where to look; a fluent sentence hides it.
+    """
+    parts: list[str] = []
+    if symptoms:
+        parts.append("Reported: " + ", ".join(symptoms) + ".")
+    if diagnosis:
+        parts.append(f"Assessment: {diagnosis}.")
+    if labs:
+        parts.append("Investigations: " + ", ".join(labs) + ".")
+    if meds:
+        named = []
+        for m in meds:
+            name = m.get("prescribed_name") or m.get("drug") or ""
+            if not name:
+                continue
+            bits = [name]
+            for k in ("dosage", "frequency", "duration"):
+                if m.get(k):
+                    bits.append(m[k])
+            if m.get("route"):
+                bits.append(m["route"])
+            line = " ".join(bits)
+            if not m.get("verified"):
+                line += " (to confirm)"
+            named.append(line)
+        if named:
+            parts.append("Prescribed: " + "; ".join(named) + ".")
+    if advice:
+        parts.append("Advice: " + "; ".join(advice) + ".")
+    if follow_up:
+        parts.append(f"Follow-up: {follow_up}.")
+    return " ".join(parts) if parts else None
+
+
 def _merge_segments(result) -> dict:
     """Roll per-segment extractions into one consultation-level record.
 
@@ -192,7 +237,33 @@ def _merge_segments(result) -> dict:
         "advice": advice,
         "medications": meds,
         "follow_up": follow_up,
-        "summary": " ".join(summaries) if summaries else None,
+        # DERIVED from the fields that already passed the gate, not written
+        # by the model.
+        #
+        # The model's own narrative was concatenated straight into this
+        # field, which made it the ONLY clinical output that skipped
+        # validation entirely - symptoms are corroborated against the
+        # transcript, medications go through the gate, labs are gated, and
+        # the summary went out raw.
+        #
+        # It read as the clinical record and it invented content. On a
+        # sports-injury consultation it reported "a sore throat and having a
+        # runny nose before playing" - never said, by anyone. A reviewer
+        # scanning the summary rather than the fields would have taken it as
+        # history.
+        #
+        # Built from validated content instead, it cannot say anything that
+        # did not survive the gate. The model's text is kept below under its
+        # own name, because a silent deletion is still a deletion - it is
+        # simply no longer presented as the record.
+        "summary": _derive_summary(symptoms, diagnosis, labs, meds, advice,
+                                    follow_up),
+        "model_narrative": " ".join(summaries) if summaries else None,
+        "model_narrative_note": (
+            "Written by the extraction model. NOT grounded against the "
+            "transcript - may contain content nobody said. Shown for context "
+            "only; the summary above is derived from validated fields."
+        ) if summaries else None,
         "raw_uncertain_terms": uncertain,
         "drug_candidates": candidates,
         "rejected_terms": rejected,

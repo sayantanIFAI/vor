@@ -1297,6 +1297,15 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "arthritis": ("বাতের ব্যথা", "গাঁটে ব্যথা", "অস্টিওআর্থারাইটিস"),
     "joint pain": ("জয়েন্টে ব্যথা", "হাঁটুতে ব্যথা"),
     "muscle cramp": ("শিরায় টান", "পেশিতে টান"),
+    # Doctors say the English word, in Bengali script, on sports injuries.
+    # Registering it is not only about naming the diagnosis: until it was
+    # here, স্ট্রেন was not recognised as ANYTHING, and its consonant
+    # skeleton "strn" is shared with Isotroin, an Isotretinoin brand - so
+    # a torn muscle was prescribed an acne drug. A term the tables can
+    # name positively can no longer be guessed at. See gate.py step 2b.
+    "muscle strain": ("স্ট্রেন", "মাসল স্ট্রেন", "পেশিতে টান লেগেছে",
+                       "মাংসপেশিতে টান", "muscle strain", "strain"),
+    "sprain": ("মচকে গেছে", "মচকানো", "sprain"),
     # --- DRUG CLASSES, not drugs -------------------------------------
     # A doctor says "I'll give you an antibiotic" without naming one. These
     # must never resolve to a specific product.
@@ -2463,7 +2472,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "kidney failure", "stroke", "migraine", "seizure", "hernia", "piles",
     "gallstone", "appendicitis", "tonsillitis", "fungal infection",
     "infection", "acne", "menopause", "pregnancy", "dementia",
-    "osteoporosis", "arthritis", "asthma",
+    "osteoporosis", "arthritis", "asthma", "muscle strain", "sprain",
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
     "urine infection", "enlarged prostate",
     "vertigo", "inner ear balance disorder",
@@ -2502,6 +2511,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "allergic rhinitis": "respiratory",
     "cataract": "ophthalmology", "glaucoma": "ophthalmology",
     "osteoporosis": "bone", "arthritis": "bone",
+    "muscle strain": "bone", "sprain": "bone",
     "kidney failure": "nephrology",
     "stomach infection": "gastro", "gastritis": "gastro",
     "urine infection": "urology", "enlarged prostate": "urology",

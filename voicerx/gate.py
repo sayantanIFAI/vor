@@ -49,7 +49,8 @@ import re
 from difflib import SequenceMatcher
 
 from .glossary import (Drug, fold, is_clinical_term, is_lab_test,
-                       lookup_drug, matched_exactly, _DRUG_LOOKUP)
+                       lookup_drug, matched_exactly, _DRUG_LOOKUP,
+                       _LAB_LOOKUP, _TERM_LOOKUP)
 
 # 179,002 Indian brand -> generic names, machine-imported. Optional so a
 # fresh checkout works before anyone runs the importer.
@@ -217,19 +218,15 @@ def judge_medication(name: str, department: str = "") -> Verdict:
     # generics legitimately contain a form word - "Tobramycin eye drops"
     # is the entry's own name, not a drug plus a form.
     hit = lookup_drug(raw)
-    if hit is not None and not matched_exactly(raw):
-        # Recovered only by consonant skeleton - vowels dropped. Real
-        # enough to keep, not certain enough to assert.
-        return Verdict(PROBABLE, canonical=hit.generic,
-                       department=hit.department, indication=hit.indication,
-                       similarity=0.9,
-                       reason="matched on consonants only (vowel-level ASR "
-                              "variation) - CONFIRM")
-    if hit is not None:
+    if hit is not None and matched_exactly(raw):
         return Verdict(VERIFIED, canonical=hit.generic,
                        department=hit.department, indication=hit.indication,
                        similarity=1.0,
                        reason="exact gazetteer match")
+    # A skeleton-only hit is NOT decided here. It is a guess - vowels were
+    # dropped - and it must not outrank positive identification as
+    # something that is not a drug. See step 2b below for where it lands
+    # and why the order was moved.
 
     # 2. Positively identified as something that is NOT a drug.
     #
@@ -258,14 +255,53 @@ def judge_medication(name: str, department: str = "") -> Verdict:
             return dataclasses.replace(
                 inner, reason=f"{inner.reason} (dosage form dropped)")
 
+    # When a consonant candidate exists, a term or lab hit only outranks it
+    # if that hit covers the WHOLE name. Both tables match inside a string,
+    # and a sub-span match is not an identification of the thing itself.
+    #
+    # "ডেক্সা মিথোসেন" is Dexamethasone. The lab table matches its first
+    # word alone - ডেক্সা - and reports a DEXA bone-density scan, so an
+    # allergy patient given a steroid injection was recorded as having had
+    # a bone scan. The drug skeleton covers the entire name; the lab hit
+    # covers five characters of it. Longest span wins, which is the same
+    # rule _drop_overlapped already applies when scanning free text.
+    #
+    # "স্ট্রেন" is different and must still be rejected: the term table
+    # matches the whole word, so it is an identification, not a fragment.
+    whole = fold(raw)
     term = is_clinical_term(raw)
-    if term:
+    if term and (hit is None or whole in _TERM_LOOKUP):
         return Verdict(REJECTED, canonical=term,
                        reason=f"clinical term, not a drug: {term}")
     lab = is_lab_test(raw)
-    if lab:
+    if lab and (hit is None or whole in _LAB_LOOKUP):
         return Verdict(REJECTED, canonical=lab,
                        reason=f"lab test, not a drug: {lab}")
+
+    # 2b. Skeleton-only hit - vowels dropped.
+    #
+    # THIS USED TO RUN FIRST, and that was the same ordering mistake the
+    # imported brand register made above: a GUESS was outranking positive
+    # identification.
+    #
+    # Dropping vowels makes this index far more collision-prone than the
+    # folded one, so it needs MORE protection, not less. It had less. On a
+    # sports-injury consultation the patient said স্ট্রেন - "strain" - and
+    # its skeleton "strn" is also the skeleton of Isotroin, a real
+    # Isotretinoin brand. An acne drug was therefore proposed on a torn
+    # muscle, from an ordinary English word the doctor never used as a
+    # drug name.
+    #
+    # An exact fold match is evidence the name was said, so it still wins
+    # outright above. A consonant match is a hypothesis, and any term the
+    # curated tables already recognise as a symptom, condition or lab test
+    # has a better claim than a hypothesis does.
+    if hit is not None:
+        return Verdict(PROBABLE, canonical=hit.generic,
+                       department=hit.department, indication=hit.indication,
+                       similarity=0.9,
+                       reason="matched on consonants only (vowel-level ASR "
+                              "variation) - CONFIRM")
 
     # 3. Indian brand / generic register (174k entries).
     #
