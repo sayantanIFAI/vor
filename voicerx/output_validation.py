@@ -28,11 +28,12 @@ from dataclasses import dataclass
 
 # Try to import glossary for validation
 try:
-    from .glossary import DRUGS, fold
+    from .glossary import fold
     HAVE_GLOSSARY = True
 except ImportError:
     HAVE_GLOSSARY = False
-    DRUGS = {}
+    def fold(x):
+        return x.lower()
 
 
 @dataclass
