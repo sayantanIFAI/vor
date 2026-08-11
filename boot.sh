@@ -43,6 +43,9 @@ if ! pgrep -f "ollama serve" >/dev/null; then
 fi
 curl -s -m 5 localhost:11434/api/tags | head -c 120; echo
 
+echo "== dependencies =="
+pip install -q pydantic soundfile 2>/dev/null || echo "pip install skipped"
+
 echo "== server =="
 cd /workspace/voice-to-rx-repo || { echo "MISSING REPO"; exit 1; }
 if ! pgrep -f "uvicorn server:app" >/dev/null; then
