@@ -486,6 +486,15 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
     # are not deleted - they move to raw_uncertain_terms, because an
     # unrecognised lab name may still be a real order the gazetteer is
     # missing, and that has to stay visible.
+    # A catch-all is not an order. "টেস্ট করবেন" ("you'll do tests") resolves
+    # to the placeholder entry "test (unspecified)", which names no
+    # investigation - and it was printed on the prescription beside the real
+    # ones, where it reads as though something specific was requested.
+    #
+    # Same judgement as _NO_INFORMATION in the dosing fields: a blank prompts
+    # the question, filler pretends it was answered. Dropped only when a REAL
+    # lab was also found, because on a transcript where the catch-all is all
+    # there is, it is the only evidence that tests were ordered at all.
     gated_labs: list[str] = []
     for lab in rx.labs_ordered:
         canon = is_lab_test(lab)
@@ -497,6 +506,9 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
             if note not in rx.raw_uncertain_terms:
                 rx.raw_uncertain_terms.append(note)
             reasons.append(f'lab "{lab}" not in the clinical gazetteer - confirm')
+    _named = [l for l in gated_labs if "unspecified" not in l.lower()]
+    if _named:
+        gated_labs = _named
     rx.labs_ordered = gated_labs
 
     # --- recover what the model set aside ------------------------------------

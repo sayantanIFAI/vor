@@ -833,7 +833,11 @@ ALL_DRUGS: list[Drug] = (CARDIAC + ENDOCRINE + RESPIRATORY + GI
 # tests across 255 real segments. Always include the spaced form.
 LAB_TESTS: dict[str, tuple[str, ...]] = {
     # cardiac
-    "ECG": ("ইসিজি", "ই সি জি", "ইকেজি", "electrocardiogram", "e c g"), #
+    # "ইকুড ইকো" is the ASR on "ECG, Echo" - the two tests are ordered
+    # together and it runs them together. Only the Echo half resolved, so
+    # the ECG silently vanished from a cardiac work-up.
+    "ECG": ("ইসিজি", "ই সি জি", "ইকেজি", "ইকুড", "ইকজি", "ইসিজিটা",
+             "electrocardiogram", "e c g"), #
     # ONE entry. There used to be a separate "2D Echo" as well, and since
     # "2d echo" was an alias of both, a single spoken test resolved to TWO
     # entries - 297 of 311 apparent lab false positives in a 500-transcript
@@ -1054,8 +1058,16 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "diabetes": ("ডায়াবেটিস", "ডায়াবেটিজ", "ডায়াবিটিস", "মধুমেহ"), #
     "stent": ("স্টেন্ট", "স্ট্যান্ট", "রিং পরানো"), #
     "angioplasty": ("অ্যাঞ্জিওপ্লাস্টি", "এনজিওপ্লাস্টি"), #
-    "angina": ("অ্যাঞ্জাইনা", "অঞ্জিনা", "এনজাইনা", "অ্যানজাইনা পেক্টোরিস"), #
+    "angina": ("অ্যাঞ্জাইনা", "অঞ্জিনা", "অন্জিনা", "এনজাইনা",
+                "অ্যানজাইনা পেক্টোরিস"), #
     "chest pain": ("বুকে ব্যথা", "বুক ব্যথা", "চেস্ট পেইন", "বুক চেপে ধরা"), #
+    # A bare "blockage" names no organ. The doctor said "হার্টের সমস্যার
+    # দিকে নির্দেশ করছে ... ব্লকেজ থাকতে পারে" - the site is right there in
+    # the sentence, and the same rule that turned "infection" into "stomach
+    # infection" applies: the specific entry wins the longer span.
+    "heart blockage": ("হার্টের ব্লকেজ", "হার্টে ব্লকেজ", "হৃদযন্ত্রে ব্লকেজ",
+                        "হার্টের সমস্যা", "হার্টের সমস্যার",
+                        "করোনারি ব্লকেজ", "heart blockage"), #
     "blockage": ("ব্লকেজ", "ব্লক"), #
     # Spellings from a real consultation: "ধরফড়" (r, not ড়) appeared and
     # did not match. Chest pain with sweating, palpitations and
@@ -2332,11 +2344,30 @@ def _skeleton(text: str) -> str: #
 #
 # Safety, because dropping vowels is lossy:
 #   - exact skeleton equality only, never fuzzy
-#   - minimum 4 consonants
+#   - minimum 5 consonants (see below)
 #   - AMBIGUOUS skeletons are excluded outright. Measured: 11 of 962
 #     collide, and they are exactly the pairs that must never be confused
 #     (Linagliptin/Olanzapine, Ofloxacin/Zinc, Hydroxyzine/Levothyroxine).
-_MIN_SKELETON = 4 #
+#
+# The minimum was 4 and is now 5, on measurement. At four consonants a
+# skeleton is the same size as an ordinary Bengali word, and collisions()
+# cannot warn about it - it compares gazetteer entries against each other,
+# never against everyday vocabulary. Both known false positives were
+# exactly four:
+#
+#   bjlm   বুঝলাম  "I understand"   == ভ্যালুম   (Valium)     -> Diazepam
+#   strn   স্ট্রেন  "strain"         == Isotroin (Isotretinoin)
+#
+# and every true recovery was five or more:
+#
+#   tntjl  টিনিটা জল    -> Tinidazole      5
+#   sklfnk আসিক্লোফেন্ক -> Aceclofenac     6
+#   rsbsttn Rasu Basta Tin -> Rosuvastatin 7
+#
+# Same caveat as every threshold here: five observations, not fifty. It is
+# the gap the data shows, and raising it costs nothing measurable - the
+# regression suite is unchanged at 177.
+_MIN_SKELETON = 5 #
 _DRUG_SKELETON: dict[str, Drug] = {} #
 _skel_owners: dict[str, set] = {} #
 for _k, _d in _DRUG_LOOKUP.items(): #
@@ -2581,6 +2612,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "infection", "acne", "menopause", "pregnancy", "dementia",
     "osteoporosis", "arthritis", "asthma", "muscle strain", "sprain",
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
+    "heart blockage",
     "pityriasis versicolor",
     "food poisoning",
     "urine infection", "enlarged prostate",
@@ -2611,7 +2643,7 @@ NON_CLINICAL_TERMS: frozenset[str] = frozenset({
 DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "angina": "cardiac", "heart attack": "cardiac",
     "heart failure": "cardiac", "ischemia": "cardiac",
-    "blockage": "cardiac", "hypertension": "cardiac",
+    "blockage": "cardiac", "heart blockage": "cardiac", "hypertension": "cardiac",
     "diabetes": "endocrine", "thyroid": "endocrine",
     "seizure": "neurology", "epilepsy": "neurology",
     "stroke": "neurology", "migraine": "neurology",

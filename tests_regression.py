@@ -762,6 +762,61 @@ check("the other spelling of infection",
 
 print()
 print("=" * 70)
+print("27. A VERB IS NOT A MEDICINE")
+print("=" * 70)
+# SIMILARITY_FLOOR was measured on GARBLED DRUG NAMES. Ordinary vocabulary
+# was never in that sample, and it clears the floor easily: "বুঝলাম" ("I
+# understand") scored 0.714 against Diazepam and was printed as a
+# medication on a cardiac consultation.
+for _verb in ("বুঝলাম", "খেয়েছি", "করছেন", "হয়েছে", "দিচ্ছি", "খাবেন"):
+    check(f"'{_verb}' is a verb, not a drug",
+          judge_medication(_verb).tier, "rejected")
+# The suffix list was measured against all 1,339 drug surface forms. These
+# four end with suffixes that were REJECTED from the list for colliding.
+check("Alprazolam survives the লাম suffix",
+      judge_medication("অ্যালপ্রাজোলাম").tier, "verified")
+check("Combiflam survives the লাম suffix",
+      judge_medication("কম্বিফ্লাম").tier, "verified")
+check("Dolo survives the লো suffix",
+      judge_medication("ডোলো").tier, "verified")
+check("Contiflo survives the লো suffix",
+      judge_medication("কন্টিফ্লো").tier, "verified")
+# At four consonants a skeleton is the size of an ordinary word, and
+# collisions() cannot see that - it never compares against everyday Bengali.
+#   bjlm  বুঝলাম == ভ্যালুম (Valium),  strn  স্ট্রেন == Isotroin
+# Every true recovery measured 5 or more.
+check("skeleton recovery still works at 5+",
+      judge_medication("টিনিটা জল").canonical, "Tinidazole")
+check("and at 7",
+      judge_medication("Rasu Basta Tin").canonical, "Rosuvastatin")
+
+print()
+print("=" * 70)
+print("28. THE SITE MAKES IT A DIAGNOSIS; A CATCH-ALL IS NOT AN ORDER")
+print("=" * 70)
+_cardiac = ("আপনার লক্ষণগুলো কিন্তু অন্জিনা বা হার্টের সমস্যার দিকে নির্দেশ করছে "
+            "কিন্তু ব্লকেজ থাকতে পারে আজই আপনি কিছু ল্যাব টেস্ট করবেন ইকুড ইকো "
+            "এগুলো লিখে দিলাম")
+check("angina names the heart, so blockage is heart blockage",
+      sorted(scan_conditions(_cardiac)), ["angina", "heart blockage"])
+# "ইকুড ইকো" is the ASR on "ECG, Echo" - the two are ordered together and
+# only the Echo half used to resolve, so the ECG silently vanished.
+check("the ECG half of 'ইকুড ইকো' is recovered",
+      sorted(scan_labs(_cardiac)), ["2D Echo", "ECG", "test (unspecified)"])
+# ...and the catch-all is dropped once a real lab is present, because it
+# names no investigation and reads as though one was requested.
+_labrx = validate(ExtractedRx(source_transcript=_cardiac,
+                               labs_ordered=scan_labs(_cardiac)))
+check("the placeholder is dropped beside real labs",
+      sorted(_labrx.labs_ordered), ["2D Echo", "ECG"])
+# ...but kept when it is the only evidence tests were ordered at all.
+_only = validate(ExtractedRx(source_transcript="কিছু টেস্ট করবেন",
+                              labs_ordered=["test (unspecified)"]))
+check("the placeholder survives alone",
+      _only.labs_ordered, ["test (unspecified)"])
+
+print()
+print("=" * 70)
 print("21. GAZETTEER INTEGRITY")
 print("=" * 70)
 check("no two entries fold together", collisions(), [])

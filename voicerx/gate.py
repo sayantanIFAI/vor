@@ -208,6 +208,44 @@ class Verdict:
 _CONTEXT_BONUS = 0.12
 
 
+# Bengali verb inflections. A token carrying one is something the speaker
+# DID, not something they were prescribed.
+#
+# This guards the FUZZY path only. SequenceMatcher against ~1300 drug keys
+# always returns its nearest neighbour, and SIMILARITY_FLOOR was measured on
+# GARBLED DRUG NAMES - not on ordinary vocabulary, which was never in the
+# sample. So an everyday word clears it easily: "বুঝলাম" ("I understand")
+# scored 0.714 against Diazepam and was proposed as a medication on a
+# cardiac consultation.
+#
+# MEASURED against all 1,339 registered drug surface forms, and the list is
+# what survived that check - these end no real drug name. Two obvious
+# candidates were REJECTED because they do:
+#     লো   ends ডোলো (Dolo), কন্টিফ্লো (Contiflo)
+#     লাম  ends অ্যালপ্রাজোলাম (Alprazolam), কম্বিফ্লাম (Combiflam)
+# লাম is kept with a length bound instead, since the verb forms are short
+# and those two drugs are not (বুঝলাম 6, কম্বিফ্লাম 10, অ্যালপ্রাজোলাম 13).
+_VERB_SUFFIXES = ("ছি", "ছে", "ছেন", "ছিল", "ছিলাম", "বেন", "বো", "লেন",
+                   "তাম", "চ্ছি", "চ্ছে", "চ্ছেন", "য়েছে", "য়েছি", "য়েছেন")
+_SHORT_VERB_SUFFIXES = ("লাম",)
+_MAX_SHORT_VERB = 7
+
+
+def _is_bengali_verb_form(raw: str) -> bool:
+    """Whether this single token is an inflected Bengali verb.
+
+    Only single tokens: "খেয়েছি" is a verb, but a multi-word drug name that
+    happens to end in one of these is not being judged here.
+    """
+    tok = raw.strip()
+    if not tok or " " in tok:
+        return False
+    if tok.endswith(_VERB_SUFFIXES):
+        return True
+    return (len(tok) <= _MAX_SHORT_VERB
+            and tok.endswith(_SHORT_VERB_SUFFIXES))
+
+
 def _fuzzy(text: str, department: str = "") -> tuple[Drug | None, float]:
     """Closest gazetteer drug in folded space. Proposes only.
 
@@ -371,7 +409,18 @@ def judge_medication(name: str, department: str = "") -> Verdict:
                            similarity=1.0,
                            reason="combination product, all components resolved")
 
-    # 5. close to a real drug - propose, never apply
+    # 5. close to a real drug - propose, never apply.
+    #
+    # An inflected verb never reaches this step. Everything above is
+    # EVIDENCE - an exact name, a consonant match, a register entry - and a
+    # verb that somehow matched one of those has earned its place. This
+    # last step is a nearest-neighbour guess, and a guess about a word the
+    # speaker plainly used as a verb is not worth making.
+    if _is_bengali_verb_form(raw):
+        return Verdict(REJECTED,
+                       reason=f"'{raw}' is an inflected Bengali verb, not a "
+                              f"medicine name")
+
     cand, score = _fuzzy(raw, department)
     if cand is not None and score >= SIMILARITY_FLOOR:
         return Verdict(PROBABLE, canonical=cand.generic,
