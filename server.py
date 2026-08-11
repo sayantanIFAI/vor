@@ -9,17 +9,24 @@ Endpoints:
   GET  /api/results           -> previously processed consultations
   GET  /api/review/pending    -> segments flagged for human review
   POST /api/review/{seg_id}   -> save a human decision
+  POST /api/log-correction    -> doctor flags a medication error
 
 The ASR model is loaded ONCE at startup (~10s) and reused. Loading it per
 request would add 10s to every upload.
+
+THRESHOLD LOGGING:
+Every medication decision is logged to threshold_scores.jsonl for periodic
+recalibration. Run: python scripts/calibrate_thresholds.py --use-production-logs
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
@@ -34,8 +41,17 @@ STATIC_DIR = APP_DIR / "ui" / "dist"
 RESULTS_DIR = Path(os.environ.get("VOICERX_RESULTS", "/workspace/voicerx/results"))
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 REVIEW_FILE = RESULTS_DIR / "human_review.json"
+THRESHOLD_LOG = Path("/workspace/threshold_scores.jsonl")
+ERROR_LOG = Path("/workspace/error_log.jsonl")
 
 app = FastAPI(title="Voice-to-Rx")
+
+# Setup threshold logging
+threshold_logger = logging.getLogger("thresholds")
+threshold_logger.setLevel(logging.INFO)
+handler = logging.FileHandler(str(THRESHOLD_LOG))
+handler.setFormatter(logging.Formatter('%(message)s'))
+threshold_logger.addHandler(handler)
 
 # The UI may be served from a different origin during development.
 app.add_middleware(
@@ -72,6 +88,29 @@ def health():
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         "model_loaded": _pipeline is not None,
     }
+
+
+def _log_threshold_scores(consult_id: str, merged: dict) -> None:
+    """Log every medication's scores for threshold calibration.
+
+    Each line is a JSON object: consultation_id, drug, tier, scores...
+    Used by scripts/calibrate_thresholds.py to recalibrate SIMILARITY_FLOOR
+    and GROUNDING_FLOOR based on production data.
+    """
+    try:
+        for med in merged.get("medications", []):
+            entry = {
+                "consultation_id": consult_id,
+                "timestamp": datetime.now().isoformat(),
+                "drug": med.get("canonical") or med.get("drug", ""),
+                "tier": med.get("tier"),
+                "similarity_score": med.get("match_similarity"),
+                "verified": med.get("verified"),
+                "review_reason": med.get("review_reason"),
+            }
+            threshold_logger.info(json.dumps(entry))
+    except Exception as e:
+        print(f"[server] threshold logging error: {e}", flush=True)
 
 
 def _derive_summary(symptoms, diagnosis, labs, meds, advice, follow_up) -> str | None:
@@ -499,6 +538,9 @@ def session_finalize(sid: str):
     ]
     merged["per_segment_rx"] = [rx.model_dump() for rx in sess["extractions"]]
 
+    # Log all medication scores for threshold calibration
+    _log_threshold_scores(consult_id, merged)
+
     with open(RESULTS_DIR / f"{consult_id}.json", "w", encoding="utf-8") as f:
         json.dump(merged, f, ensure_ascii=False, indent=2)
 
@@ -542,6 +584,9 @@ async def transcribe(file: UploadFile = File(...)):
             for s in result.segments
         ]
         merged["per_segment_rx"] = [rx.model_dump() for rx in result.extractions]
+
+        # Log all medication scores for threshold calibration
+        _log_threshold_scores(consult_id, merged)
 
         with open(RESULTS_DIR / f"{consult_id}.json", "w", encoding="utf-8") as f:
             json.dump(merged, f, ensure_ascii=False, indent=2)
@@ -630,6 +675,50 @@ async def save_review(segment_id: str, decision: dict):
     REVIEW_FILE.write_text(json.dumps(decisions, ensure_ascii=False, indent=2),
                             encoding="utf-8")
     return {"ok": True, "total_reviewed": len(decisions)}
+
+
+@app.post("/api/log-correction")
+async def log_correction(payload: dict):
+    """Doctor flags a medication error for future improvement.
+
+    Payload:
+    {
+        "consultation_id": str,
+        "medication_id": str,  # Index in medications list
+        "what_system_said": str,
+        "what_doctor_said": str,
+        "dose_correction": str,  # optional
+        "timestamp": str  # ISO format
+    }
+
+    Logged to error_log.jsonl for weekly analysis.
+    See: scripts/analyze_errors.py
+    """
+    try:
+        error_entry = {
+            "consultation_id": payload.get("consultation_id"),
+            "medication_id": payload.get("medication_id"),
+            "what_system_said": payload.get("what_system_said", ""),
+            "what_doctor_said": payload.get("what_doctor_said", ""),
+            "dose_correction": payload.get("dose_correction"),
+            "timestamp": payload.get("timestamp") or datetime.now().isoformat(),
+            "error_type": "NEEDS_ANALYSIS"
+        }
+
+        # Append to error log (immutable audit trail)
+        with open(ERROR_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(error_entry) + "\n")
+
+        return {
+            "status": "logged",
+            "message": "Correction recorded. Thank you for helping us improve."
+        }
+    except Exception as e:
+        print(f"[server] error logging failed: {e}", flush=True)
+        return {
+            "status": "error",
+            "message": str(e)
+        }, 500
 
 
 # React app last so /api/* wins

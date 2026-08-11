@@ -135,6 +135,25 @@ REJECTED = "rejected"
 # distribution when a bigger reviewed set exists - do not nudge it to fix a
 # single case.
 SIMILARITY_FLOOR = 0.65
+SIMILARITY_FLOOR_CONFIDENCE = "LOW"  # Based on 13 samples, 0.06 gap
+SIMILARITY_FLOOR_NOTES = """
+    Measured on 13 garbled drug names from 16 consultations.
+    Gap to next wrong decision: ~0.06 (weak).
+    Before clinic deployment: re-calibrate on 50+ samples.
+    Run: python scripts/calibrate_thresholds.py
+"""
+
+# Phonetic matching floor (PHASE 4: ASR recovery via romanization)
+# If fuzzy matching fails but romanization succeeds above this threshold,
+# PROBABLE tier is assigned instead of rejection.
+GROUNDING_FLOOR = 0.72
+GROUNDING_FLOOR_CONFIDENCE = "LOW"  # Based on 12 samples, 0.05 gap
+GROUNDING_FLOOR_NOTES = """
+    Measured on 12 medications from 16 consultations.
+    Gap to next wrong decision: ~0.05 (weak).
+    Before clinic deployment: re-calibrate on 50+ samples.
+    Run: python scripts/calibrate_thresholds.py --use-production-logs
+"""
 
 # Never propose a drug for these, whatever the edit distance says. A term
 # that is a known symptom or a known lab test has already been positively
@@ -275,7 +294,7 @@ def _is_bengali_verb_form(raw: str) -> bool:
             and tok.endswith(_SHORT_VERB_SUFFIXES))
 
 
-def _phonetic_match(unknown_word: str, min_score: float = 0.72) -> tuple[Drug | None, float]:
+def _phonetic_match(unknown_word: str, min_score: float = GROUNDING_FLOOR) -> tuple[Drug | None, float]:
     """PHASE 4: Phonetic fallback for ASR garbles.
 
     When fuzzy matching fails (< SIMILARITY_FLOOR), check if the unknown word
@@ -488,7 +507,7 @@ def judge_medication(name: str, department: str = "") -> Verdict:
     # PHASE 4: Phonetic fallback - if fuzzy missed it, try phonetic matching
     # This catches ASR garbles that are phonetically close but not orthographically similar
     phon_cand, phon_score = _phonetic_match(raw)
-    if phon_cand is not None and phon_score >= 0.72:
+    if phon_cand is not None and phon_score >= GROUNDING_FLOOR:
         return Verdict(PROBABLE, canonical=phon_cand.generic,
                        department=phon_cand.department, indication=phon_cand.indication,
                        similarity=round(phon_score, 2),
