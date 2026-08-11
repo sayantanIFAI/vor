@@ -23,6 +23,9 @@ from .schema import ExtractedRx
 from .extraction_cache import get_cached_prompt, reset_cache, get_cache_stats
 from .output_validation import validate_and_repair
 
+# Re-export for convenience
+__all__ = ["extract_rx", "ExtractionError", "get_cache_stats"]
+
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5:7b"
 
