@@ -34,7 +34,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from voicerx.pipeline import VoiceToRxPipeline
+try:
+    from voicerx.pipeline import VoiceToRxPipeline
+    PIPELINE_AVAILABLE = True
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"[server] Warning: Pipeline not available ({e}), using fallback", flush=True)
+    PIPELINE_AVAILABLE = False
+    VoiceToRxPipeline = None
 
 APP_DIR = Path(__file__).parent
 STATIC_DIR = APP_DIR / "ui" / "dist"
@@ -67,10 +73,17 @@ _pipeline: VoiceToRxPipeline | None = None
 def get_pipeline() -> VoiceToRxPipeline:
     global _pipeline
     if _pipeline is None:
+        if not PIPELINE_AVAILABLE:
+            print("[server] Pipeline unavailable, returning mock", flush=True)
+            return None
         print("[server] loading ASR model (one time, ~10s)...", flush=True)
         t0 = time.time()
-        _pipeline = VoiceToRxPipeline()
-        print(f"[server] model ready in {time.time()-t0:.1f}s", flush=True)
+        try:
+            _pipeline = VoiceToRxPipeline()
+            print(f"[server] model ready in {time.time()-t0:.1f}s", flush=True)
+        except Exception as e:
+            print(f"[server] Pipeline failed to load: {e}", flush=True)
+            return None
     return _pipeline
 
 
@@ -568,7 +581,10 @@ async def transcribe(file: UploadFile = File(...)):
 
     try:
         t0 = time.time()
-        result = get_pipeline().process_file(wav_path)
+        pipeline = get_pipeline()
+        if pipeline is None:
+            raise HTTPException(503, "Pipeline not available (ASR/LLM models loading or unavailable)")
+        result = pipeline.process_file(wav_path)
         merged = _merge_segments(result)
         merged["consult_id"] = consult_id
         merged["processing_s"] = round(time.time() - t0, 1)
