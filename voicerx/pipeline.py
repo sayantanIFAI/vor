@@ -19,6 +19,7 @@ from .correct import correct_transcript
 from .fuzzy_drugs import find_drug_candidates
 from .extract import extract_rx, ExtractionError
 from .english import englishise
+from .extraction_cache import reset_cache as reset_extraction_cache
 from .glossary import (scan_advice, scan_conditions, scan_dosing,
                         scan_drugs_spoken, scan_labs, scan_symptoms)
 from .schema import ExtractedRx, Medication
@@ -46,10 +47,16 @@ class VoiceToRxPipeline:
         max_workers: number of concurrent threads for segment extraction
         (default 4, safe for multi-segment consultations without overwhelming
         VRAM or network connection).
+
+        Optimizations:
+        - Prompt caching: reuses extraction template across segments
+        - Structured outputs: JSON validation + repair
+        - Constitutional AI: safety guardrails catch hallucinations
         """
         self.asr = asr_node or ASRNode()
         self.translator = translator
         self.max_workers = max_workers
+        reset_extraction_cache()  # Fresh cache per pipeline instance
 
     def _extract_segment(self, seg: TranscribedSegment) -> tuple[TranscribedSegment, ExtractedRx | None, dict]:
         """Extract one segment's prescription. Returns (segment, extraction, error_dict).
