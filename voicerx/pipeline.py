@@ -4,11 +4,15 @@ Extraction runs per VAD segment, not on the whole file concatenated. This
 follows directly from the root-cause finding this session: unsegmented
 audio is what caused the extraction LLM to hallucinate. Per-segment
 extraction keeps each LLM call's context small, short, and grounded.
+
+PHASE 3: Concurrent segment extraction within a chunk using ThreadPoolExecutor.
+Segments are processed in parallel; results are merged back in order.
 """
 from __future__ import annotations
 
 import dataclasses
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .asr import ASRNode, TranscribedSegment
 from .correct import correct_transcript
@@ -32,13 +36,115 @@ class PipelineResult:
 
 class VoiceToRxPipeline:
     def __init__(self, asr_node: ASRNode | None = None,
-                  translator: Translator | None = None):
+                  translator: Translator | None = None,
+                  max_workers: int = 4):
         """translator=None keeps the Bengali-only path that was actually
         verified. Pass a Translator to enable the bn->en bridge, so the two
         can be compared on the same audio instead of the change being
-        assumed to help."""
+        assumed to help.
+
+        max_workers: number of concurrent threads for segment extraction
+        (default 4, safe for multi-segment consultations without overwhelming
+        VRAM or network connection).
+        """
         self.asr = asr_node or ASRNode()
         self.translator = translator
+        self.max_workers = max_workers
+
+    def _extract_segment(self, seg: TranscribedSegment) -> tuple[TranscribedSegment, ExtractedRx | None, dict]:
+        """Extract one segment's prescription. Returns (segment, extraction, error_dict).
+
+        This is the per-segment extraction logic, factored out so it can run
+        in parallel via ThreadPoolExecutor.
+        """
+        try:
+            # post-ASR correction
+            cr = correct_transcript(seg.text)
+            seg.corrected_text = cr.text
+            seg.corrections_applied = (
+                [f"{a}->{b}" for a, b in cr.high_conf_applied]
+                + [f"{a}->{b}(medium)" for a, b in cr.medium_conf_applied]
+            )
+
+            # bn -> en bridge
+            english = None
+            if self.translator is not None:
+                english = self.translator.translate_one(cr.text)
+                if english == cr.text:
+                    english = None
+
+            rx, diag = extract_rx(cr.text, audio_file=seg.audio_file,
+                                   seg_start=seg.start_s, seg_end=seg.end_s,
+                                   transcript_en=english)
+            rx.transcript_en = english or ""
+            rx.decoder_used = seg.decoder_used
+            rx.decoder_agreement = seg.decoder_agreement
+            rx.corrections_applied = seg.corrections_applied
+            rx.correction_needs_confirmation = cr.needs_confirmation
+            rx.drug_candidates = [str(c) for c in find_drug_candidates(cr.text)]
+
+            # Gazetteer scans (read-only, thread-safe)
+            for lab in scan_labs(cr.text):
+                if lab not in rx.labs_ordered:
+                    rx.labs_ordered.append(lab)
+
+            known = {(m.canonical or m.drug).lower() for m in rx.medications}
+            for drug, printed, spoken, exact in scan_drugs_spoken(cr.text):
+                if drug.generic.lower() in known:
+                    continue
+                known.add(drug.generic.lower())
+                rx.medications.append(Medication(
+                    drug=spoken, canonical=drug.generic,
+                    prescribed_name=printed,
+                    heard_as=spoken if printed != spoken else "",
+                    tier="verified" if exact else "probable",
+                    verified=exact,
+                    department=drug.department, indication=drug.indication,
+                    match_similarity=1.0 if exact else 0.9,
+                    review_reason="found in transcript by gazetteer, "
+                                   "not proposed by the model",
+                ))
+
+            for sym in scan_symptoms(cr.text):
+                if sym not in rx.symptoms:
+                    rx.symptoms.append(sym)
+
+            for adv in scan_advice(cr.text):
+                if adv not in rx.advice:
+                    rx.advice.append(adv)
+
+            conditions = scan_conditions(cr.text)
+            if conditions and not rx.diagnosis:
+                rx.diagnosis = ", ".join(conditions)
+
+            if len(rx.medications) == 1:
+                freq, dur = scan_dosing(cr.text)
+                med = rx.medications[0]
+                if freq and not med.frequency:
+                    med.frequency = freq
+                if dur and not med.duration:
+                    med.duration = dur
+
+            englishise(rx)
+            rx = validate(rx)
+
+            return (seg, rx, {})
+
+        except ExtractionError as e:
+            error_info = {"segment": f"{seg.start_s}-{seg.end_s}", "error": str(e)}
+            placeholder = ExtractedRx(
+                source_transcript=seg.corrected_text or seg.text,
+                audio_file=seg.audio_file,
+                segment_start_s=seg.start_s,
+                segment_end_s=seg.end_s,
+                decoder_used=seg.decoder_used,
+                decoder_agreement=seg.decoder_agreement,
+                corrections_applied=seg.corrections_applied,
+                confidence_note="EXTRACTION FAILED - transcript preserved, not interpreted",
+                needs_human_review=True,
+                review_reasons=[f"extraction failed after retries: {e}"],
+            )
+            return (seg, placeholder, error_info)
 
     def process_file(self, audio_path: str, skip_before_s: float = 0.0,
                       max_end_s: float | None = None) -> PipelineResult:
@@ -54,163 +160,38 @@ class VoiceToRxPipeline:
                                              max_end_s=max_end_s)
         asr_time = time.time() - t0
 
+        # PHASE 3: Process segments concurrently
         extractions: list[ExtractedRx] = []
-        extract_time = 0.0
         extract_errors = []
+        extract_time = 0.0
 
-        for seg in segments:
+        if len(segments) > 1:
+            # Parallel extraction using ThreadPoolExecutor
             t1 = time.time()
-            try:
-                # post-ASR correction of known systematic confusions, learned
-                # from real human corrections (see correct.py). Runs BEFORE
-                # extraction so the LLM sees "ক্ল্যাভাম" rather than "ক্লাব".
-                cr = correct_transcript(seg.text)
-                seg.corrected_text = cr.text
-                seg.corrections_applied = (
-                    [f"{a}->{b}" for a, b in cr.high_conf_applied]
-                    + [f"{a}->{b}(medium)" for a, b in cr.medium_conf_applied]
-                )
+            with ThreadPoolExecutor(max_workers=min(self.max_workers, len(segments))) as executor:
+                futures = {executor.submit(self._extract_segment, seg): i
+                          for i, seg in enumerate(segments)}
 
-                # bn -> en bridge, when enabled. Falls back to the Bengali
-                # text on any failure (see translate.py), so this can only
-                # change output quality, never lose a segment.
-                english = None
-                if self.translator is not None:
-                    english = self.translator.translate_one(cr.text)
-                    if english == cr.text:      # pass-through == not translated
-                        english = None
+                # Collect results in order (maintains segments[] ↔ extractions[] alignment)
+                results = [None] * len(segments)
+                for future in as_completed(futures):
+                    idx = futures[future]
+                    seg, rx, error = future.result()
+                    results[idx] = rx
+                    if error:
+                        extract_errors.append(error)
 
-                rx, diag = extract_rx(cr.text, audio_file=seg.audio_file,
-                                       seg_start=seg.start_s, seg_end=seg.end_s,
-                                       transcript_en=english)
-                rx.transcript_en = english or ""
-                rx.decoder_used = seg.decoder_used
-                rx.decoder_agreement = seg.decoder_agreement
-                rx.corrections_applied = seg.corrections_applied
-                rx.correction_needs_confirmation = cr.needs_confirmation
-                # propose (never apply) drug names for still-mangled tokens
-                rx.drug_candidates = [str(c) for c in find_drug_candidates(cr.text)]
-
-                # Lab tests come from the gazetteer reading the ORIGINAL
-                # Bengali, not from the SLM and not from the translation.
-                # The SLM missed every lab order in the 10 consultations;
-                # the gazetteer finds CBC even in the ASR's mangled
-                # "সি ভিসিটা". Merged rather than replacing, so anything the
-                # SLM did catch survives.
-                for lab in scan_labs(cr.text):
-                    if lab not in rx.labs_ordered:
-                        rx.labs_ordered.append(lab)
-
-                # Drugs, same principle as labs. The SLM misses drug names
-                # the ASR split across words - a live consultation had
-                # "মেট ফর্মিন", "রসু ভাস্টাটিন" and "মেটো প্রোল" all absent
-                # from medications[] while sitting in the transcript. The
-                # fold joins the pieces and resolves them exactly.
-                # scan_drugs_spoken, not scan_drugs: the brand the doctor
-                # actually named has to survive. Scanning for the generic
-                # is what put "Nitroglycerin" on a prescription where the
-                # word spoken was সরবিট্রেট (Sorbitrate).
-                known = {(m.canonical or m.drug).lower() for m in rx.medications}
-                for drug, printed, spoken, exact in scan_drugs_spoken(cr.text):
-                    if drug.generic.lower() in known:
-                        continue
-                    known.add(drug.generic.lower())
-                    rx.medications.append(Medication(
-                        drug=spoken, canonical=drug.generic,
-                        prescribed_name=printed,
-                        heard_as=spoken if printed != spoken else "",
-                        tier="verified" if exact else "probable",
-                        verified=exact,
-                        department=drug.department, indication=drug.indication,
-                        match_similarity=1.0 if exact else 0.9,
-                        review_reason="found in transcript by gazetteer, "
-                                       "not proposed by the model",
-                    ))
-
-                # Symptoms and the diagnosis from the gazetteer, same
-                # principle as drugs and labs. A live cataract consultation
-                # transcribed "ক্যাটারাক্ট" and "ছানি" perfectly and the
-                # gazetteer recognised both, yet the prescription came back
-                # with a blank diagnosis and no mention of cataract -
-                # nothing ever carried the term into an output field.
-                for sym in scan_symptoms(cr.text):
-                    if sym not in rx.symptoms:
-                        rx.symptoms.append(sym)
-
-                # Advice, same principle. It was recognised as non-clinical
-                # and then dropped because nothing carried it anywhere.
-                for adv in scan_advice(cr.text):
-                    if adv not in rx.advice:
-                        rx.advice.append(adv)
-
-                # A named condition is a DIAGNOSIS, not a symptom. Only
-                # filled when the model left it blank - the doctor's own
-                # stated diagnosis always wins.
-                conditions = scan_conditions(cr.text)
-                if conditions and not rx.diagnosis:
-                    rx.diagnosis = ", ".join(conditions)
-
-                # Frequency and duration are spoken in plain Bengali
-                # ("দুপুরে খাওয়ার পর"), which the model returns as blank
-                # because it expects clinical shorthand. Filled only where
-                # the model left them empty - never overwriting it.
-                # ONLY when the segment prescribes ONE medicine. A segment
-                # timing is a segment fact; attributing it to a particular
-                # drug is a guess, and copying it to every drug in the
-                # segment made that guess silently, several times over.
-                #
-                # It produced a clinically wrong instruction on a real
-                # cardiology consultation:
-                #
-                #   "রোজ সকালে খাওয়ার পর ... ইকোস্পিডিন আর রসু ভাস্টা টিন ...
-                #    আর বুকে ব্যাথা উঠলে ... জিভের তলায় একটা সর্বিট্রেট"
-                #
-                # One sentence, two schedules: a daily tablet and an
-                # as-needed sublingual. "after breakfast" was copied onto
-                # the Sorbitrate, which is taken WHEN THE PAIN STARTS.
-                # Nitrate timing is not cosmetic - a patient following that
-                # takes it at breakfast and has none during angina.
-                #
-                # With several drugs in one segment the model's own
-                # attribution is the only one with the sentence structure
-                # to go on, so nothing is filled in behind it. A blank
-                # prompts a question; a wrong schedule does not.
-                if len(rx.medications) == 1:
-                    freq, dur = scan_dosing(cr.text)
-                    med = rx.medications[0]
-                    if freq and not med.frequency:
-                        med.frequency = freq
-                    if dur and not med.duration:
-                        med.duration = dur
-
-                # Force output fields to English. Chinese is dropped
-                # outright (Qwen falls back to it on Bengali input);
-                # Bengali clinical terms are translated via the gazetteer.
-                englishise(rx)
-
-                rx = validate(rx)
+            extractions = results
+            extract_time = time.time() - t1
+        else:
+            # Single segment: no threading overhead
+            for seg in segments:
+                t1 = time.time()
+                _, rx, error = self._extract_segment(seg)
                 extractions.append(rx)
-            except ExtractionError as e:
-                # NEVER silently drop a segment. Doing so lost real clinical
-                # content (a segment containing "পাতলা পায়খানা" vanished
-                # entirely) AND misaligned segments[] against extractions[]
-                # for everything downstream, because callers zip() them.
-                # Emit a placeholder that is impossible to miss instead.
-                extract_errors.append({"segment": f"{seg.start_s}-{seg.end_s}", "error": str(e)})
-                placeholder = ExtractedRx(
-                    source_transcript=seg.corrected_text or seg.text,
-                    audio_file=seg.audio_file,
-                    segment_start_s=seg.start_s,
-                    segment_end_s=seg.end_s,
-                    decoder_used=seg.decoder_used,
-                    decoder_agreement=seg.decoder_agreement,
-                    corrections_applied=seg.corrections_applied,
-                    confidence_note="EXTRACTION FAILED - transcript preserved, not interpreted",
-                    needs_human_review=True,
-                    review_reasons=[f"extraction failed after retries: {e}"],
-                )
-                extractions.append(placeholder)
-            extract_time += time.time() - t1
+                if error:
+                    extract_errors.append(error)
+                extract_time += time.time() - t1
 
         return PipelineResult(
             audio_file=audio_path,
