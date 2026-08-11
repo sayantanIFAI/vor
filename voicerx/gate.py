@@ -131,6 +131,35 @@ _FORM_WORDS = (
 )
 
 
+# Ordinary words that are NEVER a drug, whatever the edit distance says.
+#
+# The gate had no defence against everyday vocabulary. Fuzzy matching always
+# returns its nearest neighbour, so a common word does not have to look like
+# a drug - it only has to look more like one drug than any other. On a food
+# poisoning consultation "খাবার" (food) resolved to Amoxicillin+Clavulanate
+# and was proposed as a medication. The ASR heard it correctly and the model
+# passed it through correctly; nothing downstream was willing to say that an
+# ordinary noun is not a pharmaceutical.
+#
+# These are words a consultation says constantly BECAUSE it is a
+# consultation - meals, water, timing, the body. Registering them as
+# clinical terms would be wrong (they are not findings), so they are refused
+# here instead, before any similarity is computed.
+_NEVER_A_DRUG = frozenset(fold(w) for w in (
+    # food and drink - the commonest source, and the one that failed
+    "খাবার", "খাবেন", "খাওয়া", "খাদ্য", "ভাত", "রুটি", "জল", "পানি",
+    "দুধ", "চা", "তেল", "নুন", "চিনি হীন", "ফাস্ট ফুড", "ঘুগনি", "চপ",
+    "food", "water", "milk", "tea", "rice", "meal", "diet",
+    # time and routine
+    "সকাল", "দুপুর", "বিকেল", "রাত", "রোজ", "দিন", "সপ্তাহ", "মাস",
+    "morning", "night", "daily", "week", "month",
+    # everyday verbs and fillers that reach the gate as "names"
+    "বাড়ি", "দোকান", "রাস্তা", "বাইরে", "বাসি", "ধন্যবাদ", "নার্স",
+    "ডাক্তার", "রোগী", "হাসপাতাল",
+    "doctor", "nurse", "patient", "hospital", "shop", "outside",
+) if fold(w))
+
+
 def _strip_form(name: str) -> str:
     """Remove a leading/trailing dosage form. Returns "" if nothing is left."""
     parts = [p for p in name.split() if p]
@@ -211,6 +240,13 @@ def judge_medication(name: str, department: str = "") -> Verdict:
     raw = (name or "").strip()
     if not raw or raw.lower() in ("null", "none", "n/a"):
         return Verdict(REJECTED, reason="empty or null drug name")
+
+    # Ordinary vocabulary, refused before any similarity is computed. This
+    # runs FIRST because every later step - skeleton, brand register, fuzzy -
+    # is a nearest-neighbour search that will happily return something.
+    if fold(raw) in _NEVER_A_DRUG:
+        return Verdict(REJECTED,
+                       reason=f"'{raw}' is an ordinary word, not a medicine")
 
     # 1. exact gazetteer hit, post-fold
     #

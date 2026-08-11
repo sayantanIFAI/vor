@@ -252,6 +252,24 @@ GI = [
     Drug("Metronidazole", ("Flagyl", "Metrogyl"),
          ("মেট্রোনিডাজল", "মেট্রোজিল", "ফ্ল্যাজিল"),
          "anaerobic / amoebic infection", "gastro"), #
+    # Prescribed alongside Ciprofloxacin on gastroenteritis. "টিনিটা জল" is
+    # the ASR's rendering - it splits the name and turns the ending into
+    # "জল" (water), so neither the fold nor the skeleton reaches
+    # Tinidazole. Without a Bengali form the grounding check could not find
+    # the drug in the transcript either: the model named it correctly and
+    # it was rejected at 0.60 as a name nobody said.
+    Drug("Tinidazole", ("Tiniba", "Fasigyn", "Tinidral"),
+         ("টিনিডাজোল", "টিনিডাজল", "টিনিবা", "টিনিটা জল", "টিনিডা জল"),
+         "anaerobic / amoebic infection", "gastro"), #
+    # ORS was filed as a clinical term - "rehydration, NOT a pharmaceutical".
+    # Defensible chemically, wrong operationally: it is dispensed, it carries
+    # a dose and a frequency, and on a diarrhoea consultation it is the most
+    # important thing prescribed. Filed as a non-drug, the gate rejected it
+    # from medications every time, exactly as designed.
+    Drug("ORS", ("Electral", "Enerzal", "Walyte"),
+         ("ওআরএস", "ওরস", "ওয়ারেস্ট", "ও আর এস", "ওয়ার এস",
+          "ওরস্যালাইন", "খাবার স্যালাইন"),
+         "oral rehydration", "gastro"), #
     # FDC ENHANCEMENT
     Drug("Ofloxacin+Ornidazole", ("O2", "Oflomac-OZ", "Zenflox-OZ"),
          ("অফ্লক্সাসিন অর্নিডাজোল", "ওফ্লোম্যাক ওজেড", "ও টু", "অফ্লক্সাসিন এবং অর্নিডাজোল"),
@@ -1190,9 +1208,35 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "enlarged prostate": ("প্রস্টেট বড়", "প্রোস্টেট বড়", "প্রস্টেট বড় হয়েছে",
                            "পোস্টার টা বড়", "প্রস্টেট বেড়ে গেছে",
                            "enlarged prostate", "bph"), #
+    # "খাদ্য নালীতে ইনফেকশন" - infection in the alimentary canal. The
+    # doctor's own words on a food poisoning consultation, and with only
+    # the পেট ("stomach") spellings registered, the generic "infection"
+    # was all that matched. A named site is what makes it a diagnosis.
     "stomach infection": ("পেটে ইনফেকশন", "পেটের ইনফেকশন",
                            "পেটে সংক্রমণ", "গ্যাস্ট্রোএন্টেরাইটিস",
-                           "পেটে ইনফেকশন হয়েছে"), #
+                           "পেটে ইনফেকশন হয়েছে",
+                           "খাদ্য নালীতে ইনফেকশন", "খাদ্যনালীতে ইনফেকশন",
+                           "খাদ্য নালীর ইনফেকশন", "পাকস্থলীতে ইনফেকশন"), #
+    # "ফুড পয়সা নেই" is the ASR on "ফুড পয়জনিং" - it hears the English
+    # loanword as পয়সা ("money"). Registering the garble matters as much as
+    # the correct spelling: the doctor named the diagnosis out loud and
+    # nothing in the tables could recognise what came back.
+    #
+    # "ফুড পয়সা নেই" is registered WITH the নেই, and that needs saying.
+    # Negation suppression would otherwise read it as "no food poisoning"
+    # and drop the diagnosis the doctor had just made. The নেই is not a
+    # negation here - it is the tail of the ASR's attempt at "পয়জনিং".
+    # Registering the whole garble makes the longest span win, so the token
+    # is consumed as part of the term instead of modifying it.
+    #
+    # A REAL denial is unaffected: "ফুড পয়জনিং নেই" spells the word
+    # correctly, matches the shorter alias, and stays suppressed. Only the
+    # garble - where পয়সা means "money" and belongs to no denial anyone
+    # would utter - is treated this way.
+    "food poisoning": ("ফুড পয়জনিং", "ফুড পয়জন", "ফুড পয়সা",
+                        "ফুড পয়সা নেই",
+                        "খাদ্যে বিষক্রিয়া", "বিষাক্ত খাবার",
+                        "food poisoning"), #
     # --- department-specific symptoms and findings --------------------
     # dermatology
     "itching": ("চুলকানি", "চুলকায়", "খুজলি", "ইচিং"), #
@@ -1347,8 +1391,10 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     "drink water": ("প্রচুর জল খাবেন", "বেশি করে জল খাবেন", "অনেক জল খাবেন", "বেশি পানি", "জল খাবেন"), #
     # "ওয়ারেস্ট" is the ASR's rendering on a diarrhoea consultation, where
     # ORS is the single most important instruction given.
-    "ORS": ("ওআরএস", "ওরস", "ওয়ারেস্ট", "ও আর এস", "ওয়ার এস",
-             "ওরস্যালাইন", "খাবার স্যালাইন"),   # rehydration, NOT a pharmaceutical
+    # ORS moved to the DRUG table - it is dispensed with a dose, and while
+    # it sat here the gate rejected it out of every prescription. Its
+    # spellings live with the Drug entry now; keeping them here as well
+    # would fold to the same key and trip the collision check.
     "rest": ("বিশ্রাম",), #
     # Advice the consultations actually give, in the words they use. It
     # was recognised as non-clinical and then dropped, because nothing
@@ -1895,6 +1941,36 @@ def _span_is_negated(tokens: list[str], start: int, end: int) -> bool:
     return False #
 
 
+# Aliases that were AUTHORED with a negator inside them.
+#
+# _span_is_negated scans the span itself, and must keep doing so - a longer
+# n-gram swallowing a real "না" is how "I don't want the angiogram" got
+# reported. But an alias that CONTAINS a negator is a different thing: the
+# token belongs to the term's own spelling, not to a denial of it.
+#
+# Two real cases, and the second was already broken:
+#   "ফুড পয়সা নেই"      the ASR's rendering of "ফুড পয়জনিং". Its নেই is the
+#                        tail of a mangled English word, and reading it as a
+#                        denial discarded the diagnosis just given.
+#   "খাওয়ার ইচ্ছে নেই"   IS loss of appetite. The নেই is the finding.
+#
+# A correctly-spelled denial still suppresses, because it matches the
+# shorter alias that carries no negator: "ফুড পয়জনিং নেই" stays dropped.
+def _build_negator_bearing_keys() -> frozenset[str]:
+    out: set[str] = set() #
+    for aliases in CLINICAL_TERMS.values(): #
+        for alias in aliases: #
+            toks = [t.strip("।,?!.") for t in alias.split()] #
+            if any(t in _NEGATORS for t in toks): #
+                key = fold(alias) #
+                if key: #
+                    out.add(key) #
+    return frozenset(out) #
+
+
+_NEGATOR_BEARING_KEYS = _build_negator_bearing_keys() #
+
+
 def _span_variants(tokens: list[str], i: int, n: int) -> list[str]:
     """Folded forms of tokens[i:i+n]: the full span, plus each variant with
     ONE interior token removed.
@@ -2030,7 +2106,9 @@ def _ngram_scan_spans(text: str, table: dict, #
             hit, _key = _lookup_span(_span_variants(tokens, i, n), table, n, #
                                       allow_near=True) #
             if hit is not None and hit not in seen: #
-                if honour_negation and _span_is_negated(tokens, i, i + n): #
+                if (honour_negation #
+                        and _key not in _NEGATOR_BEARING_KEYS #
+                        and _span_is_negated(tokens, i, i + n)): #
                     continue #
                 seen.append(hit) #
                 found.append((hit, " ".join(tokens[i:i + n]), i, i + n)) #
@@ -2474,6 +2552,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "infection", "acne", "menopause", "pregnancy", "dementia",
     "osteoporosis", "arthritis", "asthma", "muscle strain", "sprain",
     "dust allergy", "allergic rhinitis", "epilepsy", "stomach infection",
+    "food poisoning",
     "urine infection", "enlarged prostate",
     "vertigo", "inner ear balance disorder",
     "severe allergy", "hives", "mastitis", "breast abscess", "lipoma", "traumatic ulcer",
@@ -2482,7 +2561,7 @@ CONDITIONS: frozenset[str] = frozenset({
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
 NON_CLINICAL_TERMS: frozenset[str] = frozenset({
-    "exercise", "lean diet", "avoid oily food", "drink water", "ORS",
+    "exercise", "lean diet", "avoid oily food", "drink water",
     "use less soap", "avoid dust", "avoid allergic foods",
     "do not press the breast", "use a breast pump", "warm compress",
     "wear a wrist splint", "keep wearing the denture",
@@ -2514,6 +2593,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "muscle strain": "bone", "sprain": "bone",
     "kidney failure": "nephrology",
     "stomach infection": "gastro", "gastritis": "gastro",
+    "food poisoning": "gastro",
     "urine infection": "urology", "enlarged prostate": "urology",
     "vertigo": "ent", "inner ear balance disorder": "ent",
     "severe allergy": "general", "hives": "dermatology",

@@ -491,10 +491,19 @@ check("racecadotril, ASR-split",
 check("ofloxacin by brand",
       [m.printed for m in scan_drugs_spoken("অ্যান্টিবায়োটিক হিসাবে ওফ্লোম্যাক দিলাম")],
       ["Oflomac"])
-# ORS is the single most important instruction on a diarrhoea
+# ORS is the single most important thing prescribed on a diarrhoea
 # consultation, and the ASR renders it "ওয়ারেস্ট".
+#
+# It used to be filed as advice - "rehydration, NOT a pharmaceutical".
+# Chemically fair, operationally wrong: it is dispensed, it carries a dose
+# and a frequency, and while it sat there the gate rejected it out of
+# medications every single time, with the reason "clinical term, not a
+# drug". It is a Drug entry now, so it must be found as one.
 check("ORS as the ASR hears it",
-      scan_advice("বারবার ওয়ারেস্ট খাবেন"), ["ORS"])
+      [m.drug.generic for m in scan_drugs_spoken("বারবার ওয়ারেস্ট খাবেন")],
+      ["ORS"])
+check("ORS reaches the prescription",
+      judge_medication("Ors").tier, "verified")
 # With the site known, the wrong drug is caught by specialty.
 _rx = validate(ExtractedRx(
     diagnosis="stomach infection",
@@ -679,6 +688,52 @@ _pair = validate(ExtractedRx(
     source_transcript="Ecosprin আর Ecosprin AV",
     medications=[Medication(drug="Ecosprin"), Medication(drug="Ecosprin AV")]))
 check("look-alike real drugs both survive", len(_pair.medications), 2)
+
+print()
+print("=" * 70)
+print("24. AN ORDINARY WORD IS NOT A DRUG, WHATEVER THE DISTANCE SAYS")
+print("=" * 70)
+# Fuzzy matching always returns its nearest neighbour, so a common word does
+# not have to look like a drug - it only has to look more like one drug than
+# any other. On a food poisoning consultation "খাবার" (food) resolved to
+# Amoxicillin+Clavulanate and was proposed as a medication. The ASR heard it
+# correctly and the model passed it through correctly; nothing was willing
+# to say that an ordinary noun is not a pharmaceutical.
+for _word in ("খাবার", "জল", "রাত", "নার্স", "food", "water"):
+    check(f"'{_word}' is not a medicine",
+          judge_medication(_word).tier, "rejected")
+# ...while the drugs actually said on that consultation all survive.
+check("ORS is prescribed, not advice",
+      judge_medication("Ors").canonical, "ORS")
+check("Tinidazole is in the gazetteer",
+      judge_medication("Tinidazole").tier, "verified")
+# The ASR splits Tinidazole and turns its ending into জল ("water"), so
+# without a Bengali form the grounding check rejected the model's correct
+# reading at 0.60 as a name nobody said.
+check("the ASR's Tinidazole is grounded",
+      [m.drug.generic for m in scan_drugs_spoken("টিনিটা জল ট্যাবলেট দিচ্ছি")],
+      ["Tinidazole"])
+
+print()
+print("=" * 70)
+print("25. A NEGATOR INSIDE AN ALIAS IS NOT A DENIAL")
+print("=" * 70)
+# "আপনার ফুড পয়সা নেই" - the ASR on "ফুড পয়জনিং". Its নেই is the tail of a
+# mangled English word, and reading it as a denial discarded the diagnosis
+# the doctor had just given.
+check("the garbled diagnosis is recovered",
+      sorted(scan_conditions("আপনার ফুড পয়সা নেই আপনার খাদ্য নালীতে ইনফেকশন হয়ে যায়")),
+      ["food poisoning", "stomach infection"])
+# ...and a correctly-spelled denial is still suppressed, because it matches
+# the shorter alias that carries no negator.
+check("a real denial still suppresses",
+      scan_conditions("আপনার ফুড পয়জনিং নেই"), [])
+# This was already broken for a term whose negator IS the finding.
+check("no appetite is a symptom, not a denial",
+      scan_symptoms("খাওয়ার ইচ্ছে নেই"), ["loss of appetite"])
+# The case the span-scanning rule exists for must keep working.
+check("a swallowed negator still suppresses",
+      scan_labs("ওই এনজিওগ্রাম করতে চাই না এখন"), [])
 
 print()
 print("=" * 70)
