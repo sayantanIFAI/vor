@@ -126,6 +126,12 @@ def _log_threshold_scores(consult_id: str, merged: dict) -> None:
         print(f"[server] threshold logging error: {e}", flush=True)
 
 
+# Conditions too broad to stand as the diagnosis when a specific one was
+# also named. "fungal infection" beside "pityriasis versicolor" is the same
+# finding twice, and the vaguer of the two is not what goes on a script.
+_GENERIC_DIAGNOSES = frozenset({"infection", "fungal infection", "severe allergy"})
+
+
 def _derive_summary(symptoms, diagnosis, labs, meds, advice, follow_up) -> str | None:
     """Build the summary from validated fields only.
 
@@ -318,6 +324,41 @@ def _merge_segments(result) -> dict:
         conditions = []
         for rx in result.extractions:
             conditions.extend(scan_conditions(rx.source_transcript or ""))
+
+        # THE DIAGNOSIS IS WHICHEVER IS MOST SPECIFIC, NOT WHICHEVER CAME
+        # FIRST.
+        #
+        # The loop above takes the first segment that offers one, and a
+        # consultation does not work that way: the doctor examines, talks
+        # around the problem, and NAMES the condition near the end. A
+        # generic early reading therefore locked out the real answer -
+        # "ছুলি" (pityriasis versicolor) is stated late on a skin
+        # consultation and lost to whatever an earlier segment had already
+        # put in the field.
+        #
+        # scan_conditions is deterministic and already prefers the specific
+        # reading within a segment - see _GENERIC_CONDITIONS, which is why
+        # "stomach infection, infection" does not name one finding twice.
+        # This applies the same preference ACROSS segments, which is the
+        # only place the whole consultation is visible.
+        #
+        # It never invents: every condition here was matched in the
+        # transcript by the curated table. A model-authored diagnosis is
+        # kept when the gazetteer found nothing, and kept alongside when it
+        # already names what was found.
+        specific = [c for c in dict.fromkeys(conditions)
+                    if c not in _GENERIC_DIAGNOSES]
+        if specific:
+            named = ", ".join(specific)
+            if not diagnosis:
+                diagnosis = named
+            elif not any(c.lower() in diagnosis.lower() for c in specific):
+                # The model named something the doctor never did, or
+                # something vaguer. Lead with what was actually said and
+                # keep the model's reading behind it rather than dropping
+                # it - a doctor can see both and choose.
+                diagnosis = f"{named} ({diagnosis})"
+
         consult_dept = department_for(([diagnosis] if diagnosis else []) + conditions)
 
         if consult_dept:

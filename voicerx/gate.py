@@ -135,6 +135,18 @@ REJECTED = "rejected"
 # distribution when a bigger reviewed set exists - do not nudge it to fix a
 # single case.
 SIMILARITY_FLOOR = 0.65
+
+# How strong a fuzzy drug match must be to overrule a clinical term that
+# matched only PART of the candidate. Deliberately far above
+# SIMILARITY_FLOOR: the term table already recognised something in this
+# string, so overruling it needs more than the ordinary bar.
+#
+#   0.84  "ফলু কোনাচেল"  -> Fluconazole   RIGHT, must pass
+#   0.67  "পেট ব্যাথা"   -> Mupirocin     WRONG, must not
+#
+# Tuned on the two real cases available. Re-derive with more - the same
+# caveat as SIMILARITY_FLOOR above.
+_TERM_OVERRIDE_FLOOR = 0.80
 SIMILARITY_FLOOR_CONFIDENCE = "LOW"  # Based on 13 samples, 0.06 gap
 SIMILARITY_FLOOR_NOTES = """
     Measured on 13 garbled drug names from 16 consultations.
@@ -439,8 +451,31 @@ def judge_medication(name: str, department: str = "") -> Verdict:
     whole = fold(raw)
     term = is_clinical_term(raw)
     if term and (hit is None or whole in _TERM_LOOKUP):
-        return Verdict(REJECTED, canonical=term,
-                       reason=f"clinical term, not a drug: {term}")
+        # A term covering the WHOLE candidate is an identification and
+        # always wins - "মাসল স্ট্রেন" is muscle strain, not Progesterone,
+        # which it otherwise resembles at 0.67.
+        #
+        # A term covering only PART of it is a fragment, and a fragment was
+        # silently deleting real prescriptions. The ASR splits a drug name
+        # it cannot hold together, and "ফ্লুকোনাজোল ১৫০" arrived as "ফলু
+        # কোনাচেল" - two tokens. The first, ফলু, is the term table's "flu",
+        # so an antifungal on a PITYRIASIS VERSICOLOR consultation was
+        # thrown away as a symptom before any drug matching ran at all.
+        # Joined up, the same string matches Fluconazole at 0.84.
+        #
+        # The fragment is not ignored - it still has to be outvoted. A
+        # marginal resemblance must NOT be enough, or "পেট ব্যাথা" (stomach
+        # pain, term "pain") becomes Mupirocin at 0.67. Measured on the
+        # real cases, the true reading sits at 0.84 and the false ones at
+        # 0.67, so the bar to overrule a term is set well above the
+        # ordinary floor - see _TERM_OVERRIDE_FLOOR.
+        if whole in _TERM_LOOKUP:
+            return Verdict(REJECTED, canonical=term,
+                           reason=f"clinical term, not a drug: {term}")
+        _tc, _ts = _fuzzy(raw, department)
+        if _tc is None or _ts < _TERM_OVERRIDE_FLOOR:
+            return Verdict(REJECTED, canonical=term,
+                           reason=f"clinical term, not a drug: {term}")
     lab = is_lab_test(raw)
     if lab and (hit is None or whole in _LAB_LOOKUP):
         return Verdict(REJECTED, canonical=lab,
