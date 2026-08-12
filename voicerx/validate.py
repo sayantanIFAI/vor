@@ -90,19 +90,32 @@ def _grounding_score(name: str, canonical: str, transcript: str) -> float:
     return best
 
 
-def _department_clash(verdict, consult_dept: str) -> bool:
+def department_clash(drug_dept: str, consult_dept: str) -> bool:
     """Whether a fuzzy match landed in a specialty the consultation is not.
 
     Both sides must be SPECIFIC. "general" drugs - paracetamol, antacids -
     are prescribed in every clinic, so a general drug is never a clash, and
     a consultation with no diagnosis yields no department and no signal.
+
+    Public because the same rule has to run TWICE, on the same terms. This
+    function validates one SEGMENT, and a segment rarely states the
+    diagnosis - it is a consultation-level fact that only exists after the
+    merge. So the check below almost never had a consult_dept to work with
+    and silently passed everything. Re-running it at merge time is what
+    makes it fire; sharing one function is what stops the two copies from
+    drifting apart. See server._merge_segments.
     """
     if not consult_dept or consult_dept == "general":
         return False
-    drug_dept = (verdict.department or "").strip()
+    drug_dept = (drug_dept or "").strip()
     if not drug_dept or drug_dept == "general":
         return False
     return drug_dept != consult_dept
+
+
+def _department_clash(verdict, consult_dept: str) -> bool:
+    """Segment-level wrapper: pulls the department off a gate Verdict."""
+    return department_clash(getattr(verdict, "department", ""), consult_dept)
 
 
 def _set_prescribed_name(med) -> None:
