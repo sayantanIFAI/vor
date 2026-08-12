@@ -1,6 +1,6 @@
 """Node 2c: gazetteer-biased ASR decoding (CTC-WS context biasing).
 
-STATUS: BLOCKED. NOT USABLE WITH THIS MODEL. DO NOT ENABLE.
+STATUS: BLOCKED. NOT USABLE WITH THIS MODEL. DO NOT ENABLE. DISABLE IMPORTS."""
 =========================================================
 NeMo's CTC-WS cannot run against IndicConformer, for an architectural
 reason rather than a fixable API mismatch. Recorded here so nobody spends
