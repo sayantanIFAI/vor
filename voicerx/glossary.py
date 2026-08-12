@@ -1037,6 +1037,7 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "Lacrimal sac syringing": ("lacrimal sac syringing", "syringing", "ল্যাক্রিমাল স্যাক সিরিঞ্জিং"),
     # Generic orders - a test WAS ordered even if unnamed. Surfaced so the
     # reviewer names it, rather than dropped silently or guessed at.
+    "Malaria test": ("malaria test", "ম্যালেরিয়া", "ম্যালেরিয়া পরীক্ষা", "malaria"),
     "blood test (unspecified)": ("রক্ত পরীক্ষা", "ব্লাড টেস্ট", "রক্ত টেস্ট"), #
     "test (unspecified)": ("পরীক্ষা করাতে", "টেস্ট দিচ্ছি", "টেস্ট করবেন",
                             "পরীক্ষা করতে", "পরীক্ষা করতে হবে"), #

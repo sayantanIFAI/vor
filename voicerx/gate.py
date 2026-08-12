@@ -193,6 +193,11 @@ _FORM_WORDS = (
 # consultation - meals, water, timing, the body. Registering them as
 # clinical terms would be wrong (they are not findings), so they are refused
 # here instead, before any similarity is computed.
+#
+# CRITICAL ADDITION: Medical conditions that may be confused with medications.
+# These are diseases, tests, or symptoms that Qwen might extract as "medications"
+# due to context ambiguity. The Gate must recognize them as non-drugs BEFORE
+# fuzzy matching can propose them as real drug names.
 _NEVER_A_DRUG = frozenset(fold(w) for w in (
     # food and drink - the commonest source, and the one that failed
     "খাবার", "খাবেন", "খাওয়া", "খাদ্য", "ভাত", "রুটি", "জল", "পানি",
@@ -205,6 +210,20 @@ _NEVER_A_DRUG = frozenset(fold(w) for w in (
     "বাড়ি", "দোকান", "রাস্তা", "বাইরে", "বাসি", "ধন্যবাদ", "নার্স",
     "ডাক্তার", "রোগী", "হাসপাতাল",
     "doctor", "nurse", "patient", "hospital", "shop", "outside",
+    # PHASE 5: Medical conditions and tests (cannot be drugs)
+    # Diseases/conditions that Qwen might misclassify as medications
+    "ম্যালেরিয়া", "malaria", "জ্বর", "fever", "সর্দি", "cold", "কাশি", "cough",
+    "ডায়ারিয়া", "diarrhea", "বমি", "vomiting", "মাথাব্যথা", "headache",
+    "পেটব্যথা", "abdominal pain", "পেটের ব্যথা", "belly pain",
+    "ডায়াবেটিস", "diabetes", "উচ্চ রক্তচাপ", "high blood pressure", "hypertension",
+    "হৃদরোগ", "heart disease", "কিডনি রোগ", "kidney disease", "ফুসফুস রোগ",
+    "চর্মরোগ", "skin disease", "চোখের রোগ", "eye disease",
+    # Common test/lab terminology
+    "পরীক্ষা", "test", "টেস্ট", "রক্ত পরীক্ষা", "blood test", "এক্স রে", "xray",
+    "আলট্রাসাউন্ড", "ultrasound", "সিটি স্ক্যান", "ct scan", "এমআরআই", "mri",
+    # Bengali disease names that might appear in speech
+    "গনোরিয়া", "যক্ষ্মা", "চিকুনগুনিয়া", "হাঁপানি", "asthma",
+    "এনজাইনা", "angina", "ইনফার্কশন", "infarction", "স্ট্রোক", "stroke",
 ) if fold(w))
 
 
