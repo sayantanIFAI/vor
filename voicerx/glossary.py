@@ -1227,6 +1227,18 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # A missing diagnosis silently switches off the drug protection.
     #
     # "টানেল" alone is deliberately NOT an alias - it is an ordinary word.
+    # "এটাকে আমরা ক্যালাজিওন বলি" - named outright on an eyelid
+    # consultation, and absent, which cost far more than the diagnosis
+    # line. With no condition there is no department, and without
+    # ophthalmology the specialty guard let an ENDOCRINE drug, a
+    # NEUROLOGY drug and a DERMATOLOGY drug all stand on an eye
+    # complaint. The word itself was being read as Calamine at 0.82.
+    "chalazion": ("ক্যালাজিওন", "ক্যালাজিয়ন", "ক্যালেজিয়ন",
+                   "চ্যালাজিওন", "chalazion"), #
+    # A procedure, not a medicine. "ইন্সিশন" was matching Human insulin
+    # at 0.77 - an insulin injection proposed because a doctor described
+    # cutting something open.
+    "incision": ("ইন্সিশন", "ইনসিশন", "incision"), #
     "carpal tunnel syndrome": ("কার্পেল টানেল সিন্ড্রোম",
                                 "কার্পাল টানেল সিন্ড্রোম",
                                 "কার্পেল টানেল সিনড্রোম",
@@ -2703,6 +2715,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "severe allergy", "hives", "mastitis", "breast abscess", "lipoma", "traumatic ulcer",
     "deviated nasal septum",
     "carpal tunnel syndrome",
+    "chalazion",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2746,6 +2759,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "mastitis": "gynaecology", "breast abscess": "gynaecology",
     "lipoma": "surgery", "deviated nasal septum": "ent",
     "carpal tunnel syndrome": "neurology",
+    "chalazion": "ophthalmology",
     "traumatic ulcer": "dental",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",

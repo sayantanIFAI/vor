@@ -131,6 +131,34 @@ def _log_threshold_scores(consult_id: str, merged: dict) -> None:
 # finding twice, and the vaguer of the two is not what goes on a script.
 _GENERIC_DIAGNOSES = frozenset({"infection", "fungal infection", "severe allergy"})
 
+# Words that name a FORM or ROUTE rather than a different substance.
+_FORM_WORDS = frozenset({
+    "eye", "ear", "nasal", "oral", "topical", "drops", "drop", "spray",
+    "gel", "cream", "ointment", "paste", "lotion", "solution", "syrup",
+    "tablet", "tablets", "capsule", "capsules", "injection", "inhaler",
+    "suspension", "shampoo", "powder", "sachet",
+})
+
+
+def _molecule_key(name: str) -> str:
+    """Identity of the SUBSTANCE, with formulation wording removed.
+
+    The dedup below keyed on the full canonical, so the gazetteer's
+    "Tobramycin eye drops" and the brand register's "Tobramycin" - one
+    molecule, reached through two tables - were printed as two lines of
+    the same antibiotic on one eye prescription. That is the double-dose
+    risk the dedup exists to prevent, arriving through the door it left
+    open.
+
+    Only trailing FORM words are stripped, never a second active
+    ingredient: "Amoxicillin+Clavulanate" is a different product from
+    "Amoxicillin" and must stay its own line.
+    """
+    parts = (name or "").strip().lower().replace("+", " + ").split()
+    while parts and parts[-1] in _FORM_WORDS:
+        parts.pop()
+    return " ".join(parts) or (name or "").strip().lower()
+
 
 def _derive_summary(symptoms, diagnosis, labs, meds, advice, follow_up) -> str | None:
     """Build the summary from validated fields only.
@@ -208,9 +236,9 @@ def _merge_segments(result) -> dict:
             # SLM heard it and once as the gazetteer found it - and earlier
             # "Salbutamol" appeared twice for the same reason. Two lines for
             # one molecule is a double-dose risk on a printed prescription.
-            key = (m.canonical or m.drug).strip().lower()
+            key = _molecule_key(m.canonical or m.drug)
             existing = next((x for x in meds
-                             if (x.get("canonical") or x["drug"]).strip().lower() == key), None)
+                             if _molecule_key(x.get("canonical") or x["drug"]) == key), None)
             if existing is not None:
                 # Prefer the form the clinician actually SAID over a generic
                 # the gazetteer supplied, and keep any dosing already found.
@@ -221,6 +249,19 @@ def _merge_segments(result) -> dict:
                     if m.prescribed_name:
                         existing["prescribed_name"] = m.prescribed_name
                         existing["heard_as"] = m.heard_as
+                # Keep the FORM. "Tobramycin eye drops" and "Tobramycin"
+                # are the same molecule, and the row that names the route
+                # is the one a pharmacist can fill.
+                _new_canon = (m.canonical or "").strip()
+                _old_canon = (existing.get("canonical") or "").strip()
+                if len(_new_canon) > len(_old_canon):
+                    existing["canonical"] = _new_canon
+                    if m.department:
+                        existing["department"] = m.department
+                    if m.indication:
+                        existing["indication"] = m.indication
+                    if not existing.get("verified"):
+                        existing["prescribed_name"] = m.prescribed_name or _new_canon
                 for fld in ("dosage", "frequency", "duration"):
                     if not existing.get(fld) and getattr(m, fld, ""):
                         existing[fld] = getattr(m, fld)
