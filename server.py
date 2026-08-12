@@ -131,6 +131,11 @@ def _log_threshold_scores(consult_id: str, merged: dict) -> None:
 # finding twice, and the vaguer of the two is not what goes on a script.
 _GENERIC_DIAGNOSES = frozenset({"infection", "fungal infection", "severe allergy"})
 
+# What a GUESS must score to stand on a consultation whose specialty nothing
+# could establish. Same bar as validate._GENERAL_FLOOR and for the same
+# reason: where no second check is possible, the first one carries alone.
+_UNKNOWN_DEPT_FLOOR = 0.80
+
 # Words that name a FORM or ROUTE rather than a different substance.
 _FORM_WORDS = frozenset({
     "eye", "ear", "nasal", "oral", "topical", "drops", "drop", "spray",
@@ -400,7 +405,85 @@ def _merge_segments(result) -> dict:
                 # it - a doctor can see both and choose.
                 diagnosis = f"{named} ({diagnosis})"
 
+        # THE SPECIALTY IS TAKEN FROM THE BEST EVIDENCE AVAILABLE, NOT ONLY
+        # FROM THE DIAGNOSIS.
+        #
+        # It used to come solely from a curated list of ~50 conditions, so
+        # any consultation whose condition was not on that list had no
+        # department - and no department meant no drug protection at all.
+        # Chalazion, carpal tunnel and impacted ear wax each cost a whole
+        # prescription's worth of checks that way. Medicine has thousands of
+        # conditions; a 50-item list will never be the reliable input.
+        #
+        # The answer was already in the record both times. On the eyelid
+        # consultation the gate had VERIFIED "Tobramycin eye drops" at 1.0 -
+        # ophthalmology, stated with certainty - while the guard reported no
+        # department and let a dermatology, an endocrine and a neurology
+        # drug stand beside it. The ear consultation had Paradichlorobenzene
+        # / Chlorbutol, ENT, and kept a glaucoma drop.
+        #
+        # Order is by how firmly each source is established, and the
+        # diagnosis still goes first when it resolves - this only ADDS a
+        # fallback where there was none:
+        #
+        #   1. the named diagnosis / conditions   (explicit)
+        #   2. VERIFIED drugs                     (exact match = really said)
+        #   3. the tests ordered                  (Audiometry -> ENT)
+        #
+        # Every drug in the gazetteer carries a department and only 50
+        # conditions do, so 2 is the broader signal by a wide margin.
         consult_dept = department_for(([diagnosis] if diagnosis else []) + conditions)
+        dept_source = "diagnosis" if consult_dept else ""
+
+        if not consult_dept:
+            from collections import Counter
+            votes = Counter(
+                (m.get("department") or "").strip()
+                for m in meds
+                if m.get("tier") == "verified"
+                and (m.get("department") or "").strip() not in ("", "general"))
+            if votes:
+                consult_dept = votes.most_common(1)[0][0]
+                dept_source = "verified medication"
+
+        if not consult_dept:
+            from voicerx.glossary import department_for_labs
+            consult_dept = department_for_labs(labs)
+            if consult_dept:
+                dept_source = "tests ordered"
+
+        # FAIL LOUD. A consultation whose specialty is unknown gets weaker
+        # checking than one that resolved, so it must say so on the record
+        # rather than look identical to a clean result.
+        if not consult_dept:
+            # FAIL CLOSED, at the one place the whole consultation is
+            # visible. Nothing identified this record's specialty - not the
+            # diagnosis, not a verified drug, not a test - so a guess has
+            # nothing left to check it, and the weakest guesses do not get
+            # to stand unexamined. Demoted, never deleted: the UI shows the
+            # rejected panel so a doctor can put any of them back.
+            surviving = []
+            for m in meds:
+                if m.get("tier") != "probable":
+                    surviving.append(m)
+                    continue
+                sim = m.get("match_similarity") or 0
+                if sim >= _UNKNOWN_DEPT_FLOOR:
+                    surviving.append(m)
+                    continue
+                rejected.append(
+                    f"{m.get('drug')} — resembles {m.get('canonical')} "
+                    f"({sim:.2f}), but the specialty of this consultation "
+                    f"could not be determined, so nothing could check it")
+            meds[:] = surviving
+            reasons.append(
+                "the specialty of this consultation could not be determined "
+                "- drug specialty checks did NOT run, every medication here "
+                "needs confirming")
+        elif dept_source != "diagnosis":
+            reasons.append(
+                f"specialty taken from the {dept_source} ({consult_dept}) - "
+                f"no diagnosis named one")
 
         if consult_dept:
             surviving = []

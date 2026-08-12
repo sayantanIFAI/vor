@@ -2770,6 +2770,67 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
 }
 
 
+# The specialty a TEST belongs to.
+#
+# Only tests that are ordered by one kind of clinic. A CBC, an ESR, a plain
+# X-ray or a USG is ordered everywhere and says nothing about where you are,
+# so they are deliberately absent - a wrong department is worse than none,
+# because it would veto correct drugs.
+DEPARTMENT_BY_LAB: dict[str, str] = {
+    # ophthalmology
+    "Fundus examination": "ophthalmology", "Intraocular pressure": "ophthalmology",
+    "OCT": "ophthalmology", "Perimetry": "ophthalmology",
+    "Refraction": "ophthalmology", "Schirmer's test": "ophthalmology",
+    "Tear film breakup time": "ophthalmology", "Visual acuity": "ophthalmology",
+    "Biometry": "ophthalmology", "Lacrimal sac syringing": "ophthalmology",
+    # ent
+    "Audiometry": "ent", "Tympanometry": "ent", "Nasal endoscopy": "ent",
+    "Indirect laryngoscopy": "ent", "Video laryngoscopy": "ent",
+    "HRCT temporal bone": "ent", "Dix-Hallpike test": "ent",
+    # cardiac
+    "2D Echo": "cardiac", "ECG": "cardiac", "TMT": "cardiac",
+    "Troponin": "cardiac", "CK-MB": "cardiac", "BNP": "cardiac",
+    "Holter monitor": "cardiac", "Angiography": "cardiac",
+    "Carotid doppler": "cardiac", "Electrophysiology study": "cardiac",
+    "Tilt table test": "cardiac",
+    # neurology
+    "EEG": "neurology", "NCV": "neurology", "EMG": "neurology",
+    "CT brain": "neurology", "MRI brain": "neurology",
+    # endocrine
+    "HbA1c": "endocrine", "Fasting sugar": "endocrine", "PP sugar": "endocrine",
+    "Random blood sugar": "endocrine", "TSH": "endocrine", "PTH": "endocrine",
+    "Prolactin": "endocrine",
+    # nephrology
+    "KFT": "nephrology", "eGFR": "nephrology", "Urine ACR": "nephrology",
+    "Renal biopsy": "nephrology",
+    # urology
+    "PSA": "urology", "USG KUB": "urology", "Urine culture": "urology",
+    # gynaecology
+    "Pap smear": "gynaecology", "Beta hCG": "gynaecology",
+    "CA-125": "gynaecology", "High vaginal swab": "gynaecology",
+    "Mammography": "gynaecology", "USG pelvis": "gynaecology",
+    # dermatology
+    "Patch test": "dermatology", "KOH mount": "dermatology",
+    "Skin biopsy": "dermatology", "Wood's lamp examination": "dermatology",
+    # respiratory
+    "Spirometry": "respiratory", "Chest X-ray": "respiratory",
+    # gastro
+    "LFT": "gastro", "Upper GI endoscopy": "gastro", "Lipase": "gastro",
+    "Stool routine": "gastro",
+    # bone
+    "DEXA scan": "bone", "X-ray Knee": "bone", "X-ray LS spine": "bone",
+    # dental
+    "IOPA": "dental", "OPG": "dental",
+}
+
+
+def department_for_labs(labs: list[str]) -> str:
+    """Specialty implied by the tests ordered, by majority."""
+    from collections import Counter
+    votes = Counter(DEPARTMENT_BY_LAB[l] for l in labs if l in DEPARTMENT_BY_LAB)
+    return votes.most_common(1)[0][0] if votes else ""
+
+
 def department_for(conditions: list[str]) -> str:
     """The specialty a consultation belongs to, from its diagnoses."""
     for c in conditions:

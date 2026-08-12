@@ -113,6 +113,115 @@ def department_clash(drug_dept: str, consult_dept: str) -> bool:
     return drug_dept != consult_dept
 
 
+# A drug whose department is "general" is never specialty-checked - it is
+# prescribed in every clinic, so there is no clash to detect. That is 15% of
+# the gazetteer (35 of 234) receiving NO second opinion at all, and it is
+# where the survivors cluster: Paracetamol from "একটা ফল" (one fruit) at
+# 0.73, Biotin from "hair" at 0.67.
+#
+# Grounding cannot help either - the garbled words ARE in the transcript, so
+# _grounding_score passes them. Nothing downstream will catch these.
+#
+# So the bar on the FIRST check is raised for exactly the drugs that get no
+# second one. Measured on the corpus: general-department guesses that were
+# right sit at 0.90 (Dexamethasone), wrong ones at 0.67-0.73.
+_GENERAL_FLOOR = 0.80
+
+
+def _department_from_evidence(rx) -> str:
+    """Specialty from what is already established, when no condition names it.
+
+    The diagnosis is the explicit statement and is tried first by the caller.
+    It is also the narrowest source in the system: ~50 curated conditions,
+    against a gazetteer where all 234 drugs carry a department. So when no
+    condition resolves, the record is asked instead of giving up.
+
+    This runs a throwaway pass of the gate over the drug names purely to
+    find the EXACT matches. An exact match means the doctor really said that
+    name, which makes its department firmer evidence of the clinic than a
+    diagnosis the model may have paraphrased - and it was being discarded.
+    An eyelid consultation held a VERIFIED "Tobramycin eye drops" while the
+    guard reported no department and let three out-of-specialty drugs stand.
+
+    Only VERIFIED counts. A PROBABLE department would let one bad guess pick
+    the specialty and then validate the rest of the guesses against itself.
+    """
+    from collections import Counter
+    from .glossary import department_for_labs
+
+    votes = Counter()
+    for med in rx.medications:
+        name = (med.drug or "").strip()
+        if not name:
+            continue
+        v = judge_medication(name)
+        if v.tier == VERIFIED and v.department and v.department != "general":
+            votes[v.department] += 1
+    if votes:
+        return votes.most_common(1)[0][0]
+
+    return department_for_labs(rx.labs_ordered or [])
+
+
+def medication_decision(verdict, consult_dept: str,
+                        strict_unknown: bool = False) -> tuple[str, str]:
+    """Keep or demote one medication. THE single implementation.
+
+    Returns ("keep", "") or ("demote", human-readable reason).
+
+    This rule used to be written in three places - the main loop below, the
+    uncertain-terms recovery further down, and again at merge in server.py -
+    and the recovery copy simply omitted it. An EAR consultation kept
+    Dorzolamide, a GLAUCOMA drop, because a guess too weak for the front
+    door came in through a side one. Three copies of a safety rule is two
+    copies too many.
+
+    VERIFIED is never demoted here: an exact gazetteer hit means the name
+    really was spoken, and a doctor may prescribe outside their specialty.
+    Only a GUESS is second-guessed.
+    """
+    if verdict.tier != PROBABLE:
+        return "keep", ""
+
+    drug_dept = (verdict.department or "").strip()
+
+    # A guess in the wrong specialty.
+    if _department_clash(verdict, consult_dept):
+        return "demote", (f"that is a {drug_dept} drug on a "
+                          f"{consult_dept} consultation")
+
+    # A guess that no specialty check can reach - see _GENERAL_FLOOR.
+    if (not drug_dept or drug_dept == "general") and \
+            (verdict.similarity or 0) < _GENERAL_FLOOR:
+        return "demote", (f"a general-use drug matched only by similarity "
+                          f"({verdict.similarity:.2f}), below the "
+                          f"{_GENERAL_FLOOR:.2f} needed where no specialty "
+                          f"check applies")
+
+    # A guess on a consultation that could not name its own specialty.
+    #
+    # FAILING OPEN IS WHAT MADE THE GAZETTEER GAPS EXPENSIVE: an unknown
+    # department returned "no clash" and waved everything through, so the
+    # consultations the system understood LEAST were policed least. An
+    # unrecognised condition must mean more scrutiny, not none.
+    #
+    # ONLY WHERE THE SPECIALTY IS ACTUALLY KNOWABLE - strict_unknown, set
+    # at merge. Per SEGMENT an unknown department is the ordinary case, not
+    # a warning: the doctor names the condition in one segment and
+    # prescribes in another, so every prescribing segment looks
+    # "unidentified" on its own. Enforcing it there deleted real drugs -
+    # Glimepiride beside its Metformin on a diabetes consultation, and the
+    # only medication on a mouth-ulcer one - both of which resolve
+    # perfectly once the segments are merged.
+    if strict_unknown and not consult_dept and \
+            (verdict.similarity or 0) < _GENERAL_FLOOR:
+        return "demote", (f"matched only by similarity "
+                          f"({verdict.similarity:.2f}) on a consultation "
+                          f"whose specialty could not be determined")
+
+    return "keep", ""
+
+
 def _department_clash(verdict, consult_dept: str) -> bool:
     """Segment-level wrapper: pulls the department off a gate Verdict."""
     return department_clash(getattr(verdict, "department", ""), consult_dept)
@@ -289,6 +398,8 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
     dept = department_for(
         ([rx.diagnosis] if rx.diagnosis else []) +
         scan_conditions(rx.source_transcript or ""))
+    if not dept:
+        dept = _department_from_evidence(rx)
 
     kept = []
     for med in rx.medications:
@@ -328,7 +439,7 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
                     f'and was NOT resolved to a number - CONFIRM'
                 )
             kept.append(med)
-        elif v.tier == PROBABLE and _department_clash(v, dept):
+        elif v.tier == PROBABLE and medication_decision(v, dept)[0] == "demote":
             # A GUESS that also lands in the wrong specialty.
             #
             # An exact match is evidence in its own right - the name was
@@ -350,13 +461,13 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
             # Colonsalicyl and Montuculast, and catches only Traject and
             # Roxatodil. Demoted, never deleted - it goes where a human
             # still sees it.
+            _why = medication_decision(v, dept)[1]
             rx.rejected_terms.append(
                 f"{med.drug} — resembles {v.canonical} ({v.similarity:.2f}), "
-                f"but that is a {v.department} drug on a {dept} consultation")
+                f"but {_why}")
             reasons.append(
                 f'"{med.drug}" was resolved only by similarity to '
-                f'{v.canonical}, a {v.department} drug, on a {dept} '
-                f'consultation - NOT included, confirm if intended'
+                f'{v.canonical} - {_why} - NOT included, confirm if intended'
             )
         elif v.tier == PROBABLE:
             # Real drug, garbled name. Kept, but the canonical name stays a
@@ -569,6 +680,23 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
         v = judge_medication(candidate, dept)
         if v.tier not in (VERIFIED, PROBABLE):
             continue
+
+        # The SAME rule the main loop applies. This branch used to append
+        # straight to rx.medications, which is how Dorzolamide reached an
+        # ear consultation. A recovered term is the weakest evidence in the
+        # file - the model already said it was unsure - so it does not get
+        # a weaker check than everything else.
+        _act, _why = medication_decision(v, dept)
+        if _act == "demote":
+            rx.rejected_terms.append(
+                f"{candidate} — resembles {v.canonical} "
+                f"({v.similarity:.2f}), but {_why}")
+            reasons.append(
+                f'uncertain term "{candidate}" resembles {v.canonical} - '
+                f'{_why} - NOT included, confirm if intended')
+            recovered.append(term)
+            continue
+
         key = (v.canonical or candidate).strip().lower()
         if any((m.canonical or m.drug).strip().lower() == key
                for m in rx.medications):
