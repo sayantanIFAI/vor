@@ -1208,6 +1208,22 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # which is what the treatment addresses.
     "traumatic ulcer": ("ট্রমাটিক আলসার", "ট্রম্যাটিক আলসার",
                          "ট্রমাটিক ঘা", "traumatic ulcer"), #
+    # "আপনার কার্পেল টানেল সিন্ড্রোম হয়েছে" - stated outright, and absent
+    # from the gazetteer, so the consultation came back with NO diagnosis
+    # at all. That is not cosmetic: department_for() returns "" without a
+    # diagnosis, and the specialty guard added in server._merge_segments
+    # is disabled the moment it has no department to compare against. This
+    # consultation therefore kept Clobetasol - a DERMATOLOGY steroid -
+    # matched from "টেলভে", the word "twelve" out of "ভিটামিন ব টেলভে".
+    # A missing diagnosis silently switches off the drug protection.
+    #
+    # "টানেল" alone is deliberately NOT an alias - it is an ordinary word.
+    "carpal tunnel syndrome": ("কার্পেল টানেল সিন্ড্রোম",
+                                "কার্পাল টানেল সিন্ড্রোম",
+                                "কার্পেল টানেল সিনড্রোম",
+                                "কার্পেল টানেল", "কার্পাল টানেল",
+                                "carpal tunnel syndrome",
+                                "carpal tunnel"), #
     "lipoma": ("লাইপোমা", "লিপোমা", "চর্বির টিউমার", "lipoma"), #
     "mastitis": ("মাস্টিটাইটিস", "স্তনপ্রদাহ", "স্তনে ইনফেকশন",
                   "বুকে ইনফেকশন", "mastitis"), #
@@ -2639,6 +2655,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "vertigo", "inner ear balance disorder",
     "severe allergy", "hives", "mastitis", "breast abscess", "lipoma", "traumatic ulcer",
     "deviated nasal septum",
+    "carpal tunnel syndrome",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2681,6 +2698,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "severe allergy": "general", "hives": "dermatology",
     "mastitis": "gynaecology", "breast abscess": "gynaecology",
     "lipoma": "surgery", "deviated nasal septum": "ent",
+    "carpal tunnel syndrome": "neurology",
     "traumatic ulcer": "dental",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",
