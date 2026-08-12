@@ -1462,6 +1462,12 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
 }
 
 
+# Combined list of all drugs for easy access
+DRUGS = (CARDIAC + ENDOCRINE + RESPIRATORY + GI + GENERAL + UROLOGY + BONE +
+         DERMATOLOGY + OPHTHALMOLOGY + ENT + DENTAL + GYNAECOLOGY +
+         NEPHROLOGY + NEUROLOGY + SURGERY + REVIEWED)
+
+
 # ===========================================================================
 # PHONETIC FOLDING
 # ===========================================================================
