@@ -1463,6 +1463,12 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
 
 
 # ===========================================================================
+# Combined list of all drugs for easy access
+DRUGS = (CARDIAC + ENDOCRINE + RESPIRATORY + GI + GENERAL + UROLOGY + BONE +
+         DERMATOLOGY + OPHTHALMOLOGY + ENT + DENTAL + GYNAECOLOGY +
+         NEPHROLOGY + NEUROLOGY + SURGERY + REVIEWED)
+
+
 # PHONETIC FOLDING
 # ===========================================================================
 # The gazetteer used to match on NFC + lowercase only. That failed on real
@@ -2102,9 +2108,21 @@ def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1,
     # though it were a lab test.
     if grams and grams[0]: #
         if table is _DRUG_LOOKUP: #
-            hit = _DRUG_SKELETON.get(_skeleton(grams[0])) #
-            if hit is not None: #
-                return hit, grams[0] #
+            # A span of SEVERAL words needs more consonant evidence than a
+            # single token. Concatenating words manufactures skeletons that
+            # were never a name: "মানে ওইটু জোরে" ("meaning, that one,
+            # loudly") collapses to mntjr, which is also মন্টেয়ার - Montair,
+            # a Montelukast brand. An asthma drug was therefore proposed on
+            # an ANGINA consultation, at similarity 0.9, from three ordinary
+            # words. Real split names carry more: Dexamethasone heard as
+            # "ডেক্সা মিথোসেন" gives dksmtsn (7), Rosuvastatin heard as
+            # "Rasu Basta Tin" gives rsbsttn (7). The collision sat at the
+            # 5-char floor, so the bar for a multi-word span is above it.
+            _sk = _skeleton(grams[0]) #
+            if n_tokens == 1 or len(_sk) >= _MIN_SPAN_SKELETON: #
+                hit = _DRUG_SKELETON.get(_sk) #
+                if hit is not None: #
+                    return hit, grams[0] #
         elif table is _LAB_LOOKUP and allow_near: #
             hit = _lab_by_near_skeleton(grams[0]) #
             if hit is not None: #
@@ -2368,6 +2386,8 @@ def _skeleton(text: str) -> str: #
 # the gap the data shows, and raising it costs nothing measurable - the
 # regression suite is unchanged at 177.
 _MIN_SKELETON = 5 #
+# Same index, but reached by concatenating MULTIPLE words - see _lookup_span.
+_MIN_SPAN_SKELETON = 6 #
 _DRUG_SKELETON: dict[str, Drug] = {} #
 _skel_owners: dict[str, set] = {} #
 for _k, _d in _DRUG_LOOKUP.items(): #
