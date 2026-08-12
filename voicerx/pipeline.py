@@ -90,47 +90,7 @@ class VoiceToRxPipeline:
             rx.correction_needs_confirmation = cr.needs_confirmation
             rx.drug_candidates = [str(c) for c in find_drug_candidates(cr.text)]
 
-            # Gazetteer scans (read-only, thread-safe)
-            for lab in scan_labs(cr.text):
-                if lab not in rx.labs_ordered:
-                    rx.labs_ordered.append(lab)
-
-            known = {(m.canonical or m.drug).lower() for m in rx.medications}
-            for drug, printed, spoken, exact in scan_drugs_spoken(cr.text):
-                if drug.generic.lower() in known:
-                    continue
-                known.add(drug.generic.lower())
-                rx.medications.append(Medication(
-                    drug=spoken, canonical=drug.generic,
-                    prescribed_name=printed,
-                    heard_as=spoken if printed != spoken else "",
-                    tier="verified" if exact else "probable",
-                    verified=exact,
-                    department=drug.department, indication=drug.indication,
-                    match_similarity=1.0 if exact else 0.9,
-                    review_reason="found in transcript by gazetteer, "
-                                   "not proposed by the model",
-                ))
-
-            for sym in scan_symptoms(cr.text):
-                if sym not in rx.symptoms:
-                    rx.symptoms.append(sym)
-
-            for adv in scan_advice(cr.text):
-                if adv not in rx.advice:
-                    rx.advice.append(adv)
-
-            conditions = scan_conditions(cr.text)
-            if conditions and not rx.diagnosis:
-                rx.diagnosis = ", ".join(conditions)
-
-            if len(rx.medications) == 1:
-                freq, dur = scan_dosing(cr.text)
-                med = rx.medications[0]
-                if freq and not med.frequency:
-                    med.frequency = freq
-                if dur and not med.duration:
-                    med.duration = dur
+            self._gazetteer_fill(rx, cr.text)
 
             englishise(rx)
             rx = validate(rx)
@@ -147,11 +107,98 @@ class VoiceToRxPipeline:
                 decoder_used=seg.decoder_used,
                 decoder_agreement=seg.decoder_agreement,
                 corrections_applied=seg.corrections_applied,
-                confidence_note="EXTRACTION FAILED - transcript preserved, not interpreted",
+                confidence_note="EXTRACTION FAILED - gazetteer only, "
+                                 "model output not interpreted",
                 needs_human_review=True,
                 review_reasons=[f"extraction failed after retries: {e}"],
             )
+            # THE MODEL FAILING MUST NOT DISCARD WHAT THE GAZETTEER KNOWS.
+            #
+            # This path used to return the transcript and nothing else. The
+            # scans in _gazetteer_fill are deterministic - they never needed
+            # the model at all. On a carpal tunnel consultation the ONE
+            # segment carrying the diagnosis - "আপনার কার্পেল টানেল সিন্ড্রোম
+            # হয়েছে" - was the segment where Qwen returned unparseable JSON
+            # three times running. The consultation came back with
+            # diagnosis=None.
+            #
+            # A blank diagnosis is not cosmetic. It yields no department,
+            # and department_for() returning "" SWITCHES OFF the specialty
+            # guard in server._merge_segments for every drug in the
+            # consultation - the guard that stops a dermatology steroid
+            # being prescribed on a nerve complaint. One model failure
+            # silently disarmed the drug protection for the whole record.
+            #
+            # Degrading to gazetteer-only keeps the labs, symptoms, advice,
+            # diagnosis and any drug actually named in the transcript. It is
+            # the same scan, the same gate and the same validate() as the
+            # success path, so nothing is trusted more here than there, and
+            # the segment stays flagged for review regardless.
+            try:
+                self._gazetteer_fill(placeholder, seg.corrected_text or seg.text)
+                englishise(placeholder)
+                placeholder = validate(placeholder)
+                placeholder.needs_human_review = True
+                if not any("extraction failed" in r
+                           for r in placeholder.review_reasons):
+                    placeholder.review_reasons.append(
+                        f"extraction failed after retries: {e}")
+            except Exception as scan_exc:               # noqa: BLE001
+                # A recovery attempt must never turn a failed segment into
+                # a lost one.
+                placeholder.review_reasons.append(
+                    f"gazetteer recovery also failed: "
+                    f"{type(scan_exc).__name__}: {scan_exc}")
             return (seg, placeholder, error_info)
+
+    def _gazetteer_fill(self, rx, text: str) -> None:
+        """Add everything the curated tables can find in the transcript.
+
+        Deterministic and model-independent, which is why it runs on BOTH
+        the success path and the extraction-failure path - see the comment
+        in _extract_segment. Shared rather than copied so the two cannot
+        drift apart.
+        """
+        for lab in scan_labs(text):
+            if lab not in rx.labs_ordered:
+                rx.labs_ordered.append(lab)
+
+        known = {(m.canonical or m.drug).lower() for m in rx.medications}
+        for drug, printed, spoken, exact in scan_drugs_spoken(text):
+            if drug.generic.lower() in known:
+                continue
+            known.add(drug.generic.lower())
+            rx.medications.append(Medication(
+                drug=spoken, canonical=drug.generic,
+                prescribed_name=printed,
+                heard_as=spoken if printed != spoken else "",
+                tier="verified" if exact else "probable",
+                verified=exact,
+                department=drug.department, indication=drug.indication,
+                match_similarity=1.0 if exact else 0.9,
+                review_reason="found in transcript by gazetteer, "
+                               "not proposed by the model",
+            ))
+
+        for sym in scan_symptoms(text):
+            if sym not in rx.symptoms:
+                rx.symptoms.append(sym)
+
+        for adv in scan_advice(text):
+            if adv not in rx.advice:
+                rx.advice.append(adv)
+
+        conditions = scan_conditions(text)
+        if conditions and not rx.diagnosis:
+            rx.diagnosis = ", ".join(conditions)
+
+        if len(rx.medications) == 1:
+            freq, dur = scan_dosing(text)
+            med = rx.medications[0]
+            if freq and not med.frequency:
+                med.frequency = freq
+            if dur and not med.duration:
+                med.duration = dur
 
     def process_file(self, audio_path: str, skip_before_s: float = 0.0,
                       max_end_s: float | None = None) -> PipelineResult:

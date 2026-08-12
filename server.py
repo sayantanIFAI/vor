@@ -281,10 +281,76 @@ def _merge_segments(result) -> dict:
             n_flagged += 1
             review_reasons.extend(rx.review_reasons)
 
+    # THE SPECIALTY CHECK, RUN WHERE THE DIAGNOSIS EXISTS.
+    #
+    # validate.py already refuses a fuzzy match that lands in the wrong
+    # clinic - it is what stops "Traject" becoming Linagliptin, a diabetes
+    # drug, on a menopause consultation. But it runs per SEGMENT, and a
+    # segment almost never states the diagnosis: that is a consultation-level
+    # fact which does not exist until this function has read every segment.
+    # With no consult_dept the rule returns False, so in production it
+    # passed everything and the guard was effectively dead.
+    #
+    # What reached real prescriptions with it dead:
+    #     "টেস্ট" ("test")           -> Triamcinolone oral paste, DENTAL,
+    #                                    on a SEIZURE consultation
+    #     "হিয়ারিং টেস্ট" ("hearing  -> ORS, GASTRO, on VERTIGO
+    #                      test")
+    #     "আলার্জি" ("allergy")      -> Flurbiprofen eye drops,
+    #                                    OPHTHALMOLOGY, on a deviated septum
+    #     "স্লিপ সিন"                -> Cilnidipine, CARDIAC, on a LIPOMA
+    #
+    # None of those words is in the gazetteer, so no clinical-term veto can
+    # reach them, and no similarity threshold separates them either - a real
+    # match (Trimolat -> Norethisterone) scores 0.71 while a bogus one
+    # (Traject -> Linagliptin) scores 0.80. The specialty is the signal that
+    # works; it only ever lacked the diagnosis.
+    #
+    # VERIFIED is left alone. An exact gazetteer hit means the name really
+    # was spoken, and a doctor may prescribe outside their specialty. Only a
+    # GUESS is second-guessed here. Demoted to rejected_terms, never
+    # deleted - the UI shows that panel so the doctor can reinstate.
+    consult_dept = ""
+    try:
+        from voicerx.glossary import department_for, scan_conditions
+        from voicerx.validate import department_clash
+
+        conditions = []
+        for rx in result.extractions:
+            conditions.extend(scan_conditions(rx.source_transcript or ""))
+        consult_dept = department_for(([diagnosis] if diagnosis else []) + conditions)
+
+        if consult_dept:
+            surviving = []
+            for m in meds:
+                if (m.get("tier") == "probable"
+                        and department_clash(m.get("department") or "", consult_dept)):
+                    sim = m.get("match_similarity")
+                    sim_s = f" ({sim:.2f})" if isinstance(sim, (int, float)) else ""
+                    note = (f"{m['drug']} — resembles {m.get('canonical') or 'a drug'}"
+                            f"{sim_s}, but that is a {m.get('department')} drug on a "
+                            f"{consult_dept} consultation")
+                    if note not in rejected:
+                        rejected.append(note)
+                    review_reasons.append(
+                        f'"{m["drug"]}" was resolved only by similarity to '
+                        f'{m.get("canonical")}, a {m.get("department")} drug, on a '
+                        f'{consult_dept} consultation - NOT included, confirm if intended')
+                    continue
+                surviving.append(m)
+            meds = surviving
+    except Exception as exc:                        # noqa: BLE001
+        # A merge that cannot compute a department must still return the
+        # consultation. Failing open keeps the old behaviour; failing shut
+        # would lose the whole prescription over a lookup error.
+        logging.getLogger(__name__).warning(
+            "merge-time specialty check skipped: %s: %s", type(exc).__name__, exc)
+
     return {
         "patient_name": patient_name,
         "symptoms": symptoms,
         "diagnosis": diagnosis,
+        "consult_department": consult_dept or None,
         "labs_ordered": labs,
         "advice": advice,
         "medications": meds,

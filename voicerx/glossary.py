@@ -945,8 +945,16 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
                      "বুকের এক্স রে", "বুকের এক্সরে", "chest x-ray",
                      "chest xray", "cxr", "সি এক্স আর",
                      "চেস টেক্সটে", "চেস্ট টেক্সটে", "চেস এক্স রে"), #
+    # "আল্টা সাউন্ড" is "আল্ট্রাসাউন্ড" with the র dropped AND split in
+    # two by the ASR. It used to be recovered by the lab near-skeleton
+    # relaxation, which is now single-token only: that relaxation bought
+    # exactly this one real case and admitted ordinary two-word speech
+    # alongside it - "বলো ডাক্তার" became Blood culture, "অবস্থা সেটা"
+    # became Visual acuity. A known garble belongs in the table, where it
+    # matches this test and nothing else.
     "USG": ("ইউএসজি", "ইউ এস জি", "আল্ট্রাসাউন্ড", "ultrasound",
-             "sonography", "আলট্রাসনোগ্রাফি"), #
+             "sonography", "আলট্রাসনোগ্রাফি",
+             "আল্টা সাউন্ড", "আলটা সাউন্ড", "আল্ট্রা সাউন্ড"), #
     "USG Whole Abdomen": ("ইউএসজি হোল অ্যাবডোমেন", "হোল অ্যাবডোমেন", "usg whole abdomen"),
     "PSA": ("পিএসএ", "পি এস এ", "প্রস্টেট স্পেসিফিক অ্যান্টিজেন"), #
     "CRP": ("সিআরপি", "সি আর পি", "c reactive protein", "crp"),
@@ -1209,6 +1217,22 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # which is what the treatment addresses.
     "traumatic ulcer": ("ট্রমাটিক আলসার", "ট্রম্যাটিক আলসার",
                          "ট্রমাটিক ঘা", "traumatic ulcer"), #
+    # "আপনার কার্পেল টানেল সিন্ড্রোম হয়েছে" - stated outright, and absent
+    # from the gazetteer, so the consultation came back with NO diagnosis
+    # at all. That is not cosmetic: department_for() returns "" without a
+    # diagnosis, and the specialty guard added in server._merge_segments
+    # is disabled the moment it has no department to compare against. This
+    # consultation therefore kept Clobetasol - a DERMATOLOGY steroid -
+    # matched from "টেলভে", the word "twelve" out of "ভিটামিন ব টেলভে".
+    # A missing diagnosis silently switches off the drug protection.
+    #
+    # "টানেল" alone is deliberately NOT an alias - it is an ordinary word.
+    "carpal tunnel syndrome": ("কার্পেল টানেল সিন্ড্রোম",
+                                "কার্পাল টানেল সিন্ড্রোম",
+                                "কার্পেল টানেল সিনড্রোম",
+                                "কার্পেল টানেল", "কার্পাল টানেল",
+                                "carpal tunnel syndrome",
+                                "carpal tunnel"), #
     "lipoma": ("লাইপোমা", "লিপোমা", "চর্বির টিউমার", "lipoma"), #
     "mastitis": ("মাস্টিটাইটিস", "স্তনপ্রদাহ", "স্তনে ইনফেকশন",
                   "বুকে ইনফেকশন", "mastitis"), #
@@ -1470,6 +1494,12 @@ DRUGS = (CARDIAC + ENDOCRINE + RESPIRATORY + GI + GENERAL + UROLOGY + BONE +
 
 
 # ===========================================================================
+# Combined list of all drugs for easy access
+DRUGS = (CARDIAC + ENDOCRINE + RESPIRATORY + GI + GENERAL + UROLOGY + BONE +
+         DERMATOLOGY + OPHTHALMOLOGY + ENT + DENTAL + GYNAECOLOGY +
+         NEPHROLOGY + NEUROLOGY + SURGERY + REVIEWED)
+
+
 # PHONETIC FOLDING
 # ===========================================================================
 # The gazetteer used to match on NFC + lowercase only. That failed on real
@@ -2109,10 +2139,45 @@ def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1,
     # though it were a lab test.
     if grams and grams[0]: #
         if table is _DRUG_LOOKUP: #
-            hit = _DRUG_SKELETON.get(_skeleton(grams[0])) #
-            if hit is not None: #
-                return hit, grams[0] #
-        elif table is _LAB_LOOKUP and allow_near: #
+            # A span of SEVERAL words needs more consonant evidence than a
+            # single token. Concatenating words manufactures skeletons that
+            # were never a name: "মানে ওইটু জোরে" ("meaning, that one,
+            # loudly") collapses to mntjr, which is also মন্টেয়ার - Montair,
+            # a Montelukast brand. An asthma drug was therefore proposed on
+            # an ANGINA consultation, at similarity 0.9, from three ordinary
+            # words. Real split names carry more: Dexamethasone heard as
+            # "ডেক্সা মিথোসেন" gives dksmtsn (7), Rosuvastatin heard as
+            # "Rasu Basta Tin" gives rsbsttn (7). The collision sat at the
+            # 5-char floor, so the bar for a multi-word span is above it.
+            _sk = _skeleton(grams[0]) #
+            if n_tokens == 1 or len(_sk) >= _MIN_SPAN_SKELETON: #
+                hit = _DRUG_SKELETON.get(_sk) #
+                if hit is not None: #
+                    return hit, grams[0] #
+        elif (table is _LAB_LOOKUP and allow_near
+                and n_tokens <= _MAX_LAB_SPAN_TOKENS): #
+            # BOUNDED BY SPAN WIDTH, and for a stronger reason than the
+            # drug branch above: this match tolerates a dropped or inserted
+            # consonant, so it is looser than the exact skeleton equality
+            # drugs get, and gluing a whole clause together hands it a
+            # string that was never a test name. Every wrong lab across
+            # recordings 32-47 arrived this way, out of ordinary speech:
+            #
+            #   "দেখুন তো আরে আপনি শান্ত"          -> Troponin, on a LIPOMA
+            #   "মিডিয়ান নার্ভটা হাতে ঢোকে সেখানে"  -> DEXA scan
+            #   "নেবেন ফুসফুসের কি অবস্থা সেটা"     -> Visual acuity
+            #   "মানে কি বলবো বলো ডাক্তার"          -> Blood culture
+            #
+            # All four are five-word spans carrying 10-15 consonants. The
+            # relaxation was written for a garbled NAME, and a name is one
+            # or two words.
+            #
+            # Narrowing this to one token costs nothing real. The only
+            # genuine two-token case was "আল্ট্রাসাউন্ড" arriving as "আল্টা
+            # সাউন্ড", and that is now an alias on USG. Genuine multi-word
+            # labs are otherwise spelled-out acronyms ("ই সি জি", "টি এম
+            # টি"), which sit in the table verbatim, match exactly, and
+            # never reach this fallback at all.
             hit = _lab_by_near_skeleton(grams[0]) #
             if hit is not None: #
                 return hit, grams[0] #
@@ -2375,6 +2440,17 @@ def _skeleton(text: str) -> str: #
 # the gap the data shows, and raising it costs nothing measurable - the
 # regression suite is unchanged at 177.
 _MIN_SKELETON = 5 #
+# How wide a span the LAB near-skeleton fallback may glue together.
+#
+# ONE. Two was tried and does not hold: at two tokens the false matches
+# are indistinguishable from the real one on every measure available -
+# "বলো ডাক্তার" -> Blood culture and "অবস্থা সেটা" -> Visual acuity carry
+# 5-6 consonants across 2 words, exactly like "আল্টা সাউন্ড" -> USG. The
+# single real case is now an alias on USG itself, so the relaxation no
+# longer has to cover it. See _lookup_span.
+_MAX_LAB_SPAN_TOKENS = 1 #
+# Same index, but reached by concatenating MULTIPLE words - see _lookup_span.
+_MIN_SPAN_SKELETON = 6 #
 _DRUG_SKELETON: dict[str, Drug] = {} #
 _skel_owners: dict[str, set] = {} #
 for _k, _d in _DRUG_LOOKUP.items(): #
@@ -2626,6 +2702,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "vertigo", "inner ear balance disorder",
     "severe allergy", "hives", "mastitis", "breast abscess", "lipoma", "traumatic ulcer",
     "deviated nasal septum",
+    "carpal tunnel syndrome",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2668,6 +2745,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "severe allergy": "general", "hives": "dermatology",
     "mastitis": "gynaecology", "breast abscess": "gynaecology",
     "lipoma": "surgery", "deviated nasal septum": "ent",
+    "carpal tunnel syndrome": "neurology",
     "traumatic ulcer": "dental",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",
