@@ -418,7 +418,7 @@ function App(){
   const [summary,setSummary]=useState(""), [followUp,setFollowUp]=useState("");
 
   const [form,setForm]=useState({drugs:[],labs:[]});
-  const mr=useRef(null), sid=useRef(null), tick=useRef(null);
+  const mr=useRef(null), sid=useRef(null), tick=useRef(null), audio=useRef(null);
 
   useEffect(()=>{ fetch(API+"/api/formulary").then(r=>r.json())
     .then(d=>setForm({drugs:d.drugs||[],labs:d.labs||[]})).catch(()=>{}); },[]);
@@ -427,6 +427,58 @@ function App(){
     label:d.generic, alt:d.brands||[], note:[(d.brands||[]).slice(0,3).join(", "),d.indication].filter(Boolean).join(" · ")
   })),[form.drugs]);
   const labOpts=useMemo(()=>form.labs.map(l=>({label:l,alt:[],note:""})),[form.labs]);
+
+  /* Refusals, parsed and RANKED. The backend writes them as one sentence -
+     "X — resembles Y (0.67), but ..." - which is readable and unsortable.
+     A 0.78 near miss is a different object from a term the gazetteer has
+     never heard of, and a flat list buries the one under the other. */
+  const refused=useMemo(()=>{
+    const rows=(data?.rejected_terms||[]).map(t=>{
+      const m=/^(.*?)\s+—\s+(.*)$/.exec(t)||[];
+      const term=(m[1]||t).trim(), why=(m[2]||"").trim();
+      const r=/resembles\s+(.+?)\s+\((\d?\.\d+)\)/.exec(why);
+      return {
+        raw:t, term, why,
+        canonical: r? r[1] : "",
+        score: r? parseFloat(r[2]) : null,
+        kind: /consultation|specialty/.test(why) ? "specialty" : "unknown",
+      };
+    });
+    // Closest first. An unscored refusal is a term nothing recognised at
+    // all, so it sits below every near miss.
+    return rows.sort((a,b)=>(b.score??-1)-(a.score??-1));
+  },[data]);
+
+  /* The segment a phrase was heard in, so the doctor can hear THAT rather
+     than hunt through the whole consultation. */
+  function clip(phrase){
+    const p=(phrase||"").trim();
+    if(!p || !data?.segments) return null;
+    const seg=data.segments.find(s=>(s.corrected_text||"").includes(p));
+    return seg ? {start:seg.start_s||0, end:seg.end_s||0} : null;
+  }
+  function play(c){
+    const a=audio.current; if(!a||!c) return;
+    a.currentTime=Math.max(0,c.start-0.3);
+    a.play();
+    clearTimeout(a._stop);
+    a._stop=setTimeout(()=>a.pause(), Math.max(600,(c.end-c.start+0.6)*1000));
+  }
+
+  /* Putting a refused term back is the ONLY measurement of what the system
+     misses - everything it wrongly accepts is visible on the prescription,
+     everything it wrongly refuses has been invisible. Logged, not just
+     added to the row. */
+  function reinstate(r){
+    setMeds(ms=>[...ms,{key:uid(), drug:r.canonical||r.term, canonical:r.canonical||"",
+      dosage:"",frequency:"",duration:"",tier:"manual",
+      heard_as:r.canonical?r.term:"", review_reason:"put back by the clinician"}]);
+    setData(d=>d?{...d, rejected_terms:(d.rejected_terms||[]).filter(t=>t!==r.raw)}:d);
+    fetch(API+"/api/reinstate",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({consult_id:data?.consult_id, term:r.term,
+        canonical:r.canonical, similarity:r.score, reason:r.why, kind:r.kind})
+    }).catch(()=>{});
+  }
 
   function nextPatient(){
     const p=QUEUE[qi%QUEUE.length];
@@ -654,7 +706,13 @@ function App(){
                             onChange={(v,hit)=>{ setMed(i,"drug",v);
                               if(hit){ setMed(i,"canonical",hit.label);
                                        setMed(i,"tier","manual"); } }}/>
-                          {m.heard_as && <div className="sub-note">heard as “<span className="bn">{m.heard_as}</span>”</div>}
+                          {/* The audio is the only ground truth here. A
+                              doctor hearing the two seconds settles what no
+                              similarity score can. */}
+                          {m.heard_as && <div className="sub-note">
+                            heard as “<span className="bn">{m.heard_as}</span>”
+                            {clip(m.heard_as) && <> · <a onClick={()=>play(clip(m.heard_as))}>▶ hear it</a></>}
+                          </div>}
                           {m.canonical && m.canonical!==m.drug && (
                             <div className="sub-note">
                               {m.tier==="verified"?"= ":"possibly "}
@@ -715,26 +773,60 @@ function App(){
               </div>
             </div>
 
-            {data?.rejected_terms?.length>0 && (
+            {refused.length>0 && (
               <div className="card">
-                <div className="hd"><h2>Refused as medications</h2>
-                  <span className="count">{data.rejected_terms.length}</span></div>
+                <div className="hd"><h2>Refused — check for a real drug</h2>
+                  <span className="count">{refused.length}</span></div>
                 <div className="bd">
-                  <p className="sub-note" style={{padding:"0 0 9px"}}>
-                    Proposed as drugs and refused by the clinical gazetteer.
-                    Check for anything that genuinely is a medication.</p>
-                  <div className="chips">
-                    {data.rejected_terms.map((t,i)=>(
-                      <span className="chip" key={i} style={{alignItems:"flex-start"}}>
-                        <span className="bn" style={{fontSize:12.5}}>{t}</span>
-                      </span>))}
-                  </div>
+                  {/* RANKED, NOT LISTED. A near miss at 0.78 and a term the
+                      gazetteer has never heard of need different attention,
+                      and a flat list buries the first under the second. */}
+                  <p className="sub-note" style={{padding:"0 0 11px"}}>
+                    Proposed as medications and refused. Closest matches first —
+                    put anything real back with one click.</p>
+                  <table>
+                    <tbody>
+                      {refused.map((r,i)=>(
+                        <tr key={i}>
+                          <td style={{width:34,paddingTop:11}}>
+                            {r.score!=null &&
+                              <span className="pill warn mono">{r.score.toFixed(2)}</span>}
+                          </td>
+                          <td>
+                            <div className="bn" style={{fontWeight:600}}>{r.term}</div>
+                            <div className="sub-note" style={{padding:"2px 0 0"}}>
+                              {r.canonical && <>resembles <b>{r.canonical}</b> — </>}
+                              {r.why}
+                            </div>
+                          </td>
+                          <td style={{width:120,paddingTop:8}}>
+                            <span className={"pill "+(r.kind==="specialty"?"warn":"mine")}>
+                              {r.kind==="specialty" ? "wrong specialty" : "not recognised"}
+                            </span>
+                          </td>
+                          <td style={{width:96,paddingTop:8}}>
+                            {clip(r.term) &&
+                              <button className="btn sm" title="hear it"
+                                onClick={()=>play(clip(r.term))}>▶ hear</button>}
+                          </td>
+                          <td style={{width:96,paddingTop:8}}>
+                            <button className="btn sm" onClick={()=>reinstate(r)}>
+                              + put back</button>
+                          </td>
+                        </tr>))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
           </>
         )}
       </main>
+
+      {/* Kept out of the layout: it exists to be seeked, not looked at. */}
+      {data?.consult_id &&
+        <audio ref={audio} preload="none" style={{display:"none"}}
+               src={API+"/api/audio/"+data.consult_id}/>}
 
       {patient && (
         <div className="act-bar">

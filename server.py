@@ -29,7 +29,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -45,6 +45,11 @@ except (ImportError, ModuleNotFoundError) as e:
 APP_DIR = Path(__file__).parent
 STATIC_DIR = APP_DIR / "ui" / "dist"
 RESULTS_DIR = Path(os.environ.get("VOICERX_RESULTS", "/workspace/voicerx/results"))
+AUDIO_DIR = Path(os.environ.get("VOICERX_AUDIO", "/workspace/voicerx/audio"))
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+# Terms the gate refused and a clinician put back - see /api/reinstate.
+REINSTATE_LOG = Path(os.environ.get("VOICERX_REINSTATE",
+                                     "/workspace/reinstated.jsonl"))
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 REVIEW_FILE = RESULTS_DIR / "human_review.json"
 THRESHOLD_LOG = Path("/workspace/threshold_scores.jsonl")
@@ -819,6 +824,17 @@ def session_finalize(sid: str):
     with open(RESULTS_DIR / f"{consult_id}.json", "w", encoding="utf-8") as f:
         json.dump(merged, f, ensure_ascii=False, indent=2)
 
+    # KEEP THE AUDIO. Two seconds of it settles what no similarity score
+    # can: a doctor hearing "ফলু কোনাচেল" knows in one second whether it was
+    # Fluconazole. The session's wav was being deleted on the way out, so
+    # the one piece of ground truth in the whole pipeline was the only piece
+    # not kept.
+    try:
+        import shutil
+        shutil.copyfile(sess["wav_path"], str(AUDIO_DIR / f"{consult_id}.wav"))
+    except Exception:                                  # noqa: BLE001
+        pass                                           # replay is a luxury
+
     _drop_session(sid)
     return JSONResponse(merged)
 
@@ -876,6 +892,54 @@ async def transcribe(file: UploadFile = File(...)):
                 os.unlink(p)
             except OSError:
                 pass
+
+
+@app.get("/api/audio/{consult_id}")
+def consultation_audio(consult_id: str):
+    """The consultation's own audio, for checking a name against the record.
+
+    Served whole; the browser seeks. The UI plays only the seconds belonging
+    to the segment in question, using the start/end already on every segment.
+    """
+    safe = "".join(c for c in consult_id if c.isalnum() or c in "_-")
+    path = AUDIO_DIR / f"{safe}.wav"
+    if not path.exists():
+        raise HTTPException(404, "no audio kept for this consultation")
+    return FileResponse(str(path), media_type="audio/wav")
+
+
+@app.post("/api/reinstate")
+async def reinstate(req: Request):
+    """A term the system refused and the doctor put back.
+
+    THE ONLY MEASUREMENT OF WHAT THIS SYSTEM MISSES.
+
+    Everything it wrongly ACCEPTS is visible - it lands on a prescription and
+    someone notices. Everything it wrongly REFUSES lands in rejected_terms,
+    which nothing ever read back, so the false-negative rate has been
+    unmeasurable while four separate thresholds were tuned on between 2 and
+    38 samples each.
+
+    A reinstatement is a free labelled example: this term, in this
+    consultation, was a real drug. Enough of them and the rate becomes the
+    miss metric, and the terms themselves become gazetteer candidates - so
+    coverage grows from use instead of from guessing which condition to add
+    next. Chalazion, carpal tunnel and impacted ear wax were each found by a
+    human noticing; this is how they would have surfaced on their own.
+    """
+    body = await req.json()
+    rec = {
+        "timestamp": datetime.now().isoformat(),
+        "consult_id": body.get("consult_id") or "",
+        "term": body.get("term") or "",
+        "canonical": body.get("canonical") or "",
+        "similarity": body.get("similarity"),
+        "refused_because": body.get("reason") or "",
+        "kind": body.get("kind") or "",
+    }
+    with open(REINSTATE_LOG, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    return JSONResponse({"ok": True, "logged": rec})
 
 
 @app.get("/api/formulary")
