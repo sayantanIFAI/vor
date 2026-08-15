@@ -317,10 +317,20 @@ def resolve(texts: list[str], merged_symptoms: list[str],
                 f'"{sym}" was raised and then DENIED later in the '
                 f'consultation - removed from symptoms, confirm if intended')
         elif last == "asked" and not any(p == "yes" for _, p in events):
-            dropped.append((sym, "only ever asked about, never confirmed"))
+            # KEPT. This used to delete the symptom, and it was wrong: in a
+            # consultation the DOCTOR names most findings while taking the
+            # history, and the patient answers with a nod or a word the
+            # gazetteer does not carry. Demoting on the speaker heuristic and
+            # then deleting for want of a verbal confirmation emptied four
+            # consultations of correct symptoms - cough, breathlessness and
+            # wheezing off a dust-allergy consultation among them.
+            #
+            # Only an EXPLICIT denial removes a finding now. That is what
+            # settled the vomiting case; this rule never contributed to it.
+            kept.append(sym)
             notes.append(
-                f'"{sym}" was asked about but never confirmed - removed from '
-                f'symptoms, confirm if intended')
+                f'"{sym}" was raised but not confirmed aloud - kept, confirm '
+                f'it belongs')
         else:
             kept.append(sym)
 
