@@ -362,6 +362,37 @@ def _merge_segments(result) -> dict:
     # was spoken, and a doctor may prescribe outside their specialty. Only a
     # GUESS is second-guessed here. Demoted to rejected_terms, never
     # deleted - the UI shows that panel so the doctor can reinstate.
+    # A SYMPTOM CAN BE REVOKED BY A LATER TURN.
+    #
+    # Extraction runs per segment, which is right for grounding a claim next
+    # to its audio and wrong for meaning: a clinical question and its answer
+    # are two segments, and neither makes sense alone. The doctor asked
+    # "বমি হচ্ছে" and the patient answered "না ডাক্তারবাবু বমি তো হয়নি" - and
+    # the prescription recorded vomiting for a patient who had just denied
+    # it, because the denial produced no output for anything downstream to
+    # see. See voicerx/dialogue.py for the model and why punctuation is not
+    # the answer (the ASR vocabulary contains none).
+    #
+    # Runs HERE because this is the only place the whole conversation
+    # exists, the same reason the specialty guard moved here.
+    try:
+        from voicerx.dialogue import resolve as _resolve_dialogue
+
+        _texts = [(rx.source_transcript or "") for rx in result.extractions]
+        _spans = [(rx.segment_start_s or 0.0, rx.segment_end_s or 0.0)
+                  for rx in result.extractions]
+        _res = _resolve_dialogue(_texts, symptoms, _spans)
+        if _res.denied:
+            symptoms = _res.symptoms
+            reasons.extend(_res.notes)
+            # Kept on the record rather than deleted: that a symptom was
+            # asked about and ruled out is a clinical finding of its own.
+            for _sym, _why in _res.denied:
+                rejected.append(f"{_sym} — {_why}")
+    except Exception as exc:                       # noqa: BLE001
+        reasons.append(f"dialogue resolution unavailable: "
+                       f"{type(exc).__name__}: {exc}")
+
     consult_dept = ""
     try:
         from voicerx.glossary import department_for, scan_conditions
