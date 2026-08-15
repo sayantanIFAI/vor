@@ -289,6 +289,11 @@ GI = [
     Drug("Dicyclomine", ("Cyclopam", "Meftal-Spas"),
          ("ডাইসাইক্লোমিন", "সাইক্লোপাম", "মেফটাল স্পাস"),
          "abdominal cramps", "gastro"), #
+    # Prescribed on a live consultation and absent, so nothing could
+    # propose it however clearly it was said.
+    Drug("Rifaximin", ("Rifagut", "Ciboz", "Rifalym"),
+         ("রিফাগাট", "রিফাক্সিমিন", "রিফুগাট"),
+         "gut infection / IBS-D", "gastro"),
     Drug("Mebeverine", ("Colospa", "Morease"),
          ("মেবেভেরিন", "কোলোস্পা"),
          "IBS / antispasmodic", "gastro"),
@@ -761,8 +766,8 @@ REVIEWED = [
     Drug("Albendazole", ("Zentel", "Bandy"),
          ("অ্যালবেনডাজল",),
          "anthelmintic", "general"),
-    Drug("Ispaghula Husk", ("Isabgol", "Naturolax"),
-         ("ইসবগুল হাস্ক", "ইসবগুল"),
+    Drug("Ispaghula Husk", ("Softovac", "Isabgol", "Naturolax"),
+         ("ইসবগুল হাস্ক", "ইসবগুল", "সফটোভ্যাক", "সফ্টোভ্যাক"),
          "bulk laxative", "gastro"),
     Drug("Pheniramine", ("Avil",),
          ("অ্যাভিল ইনজেকশন", "ফেনিরামিন", "অ্যাভিল", "অ্যাভল", "এভিল"),
@@ -1121,6 +1126,13 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
                      "হট ফ্লাশেস"), #
     "loose stools": ("পাতলা পায়খানা", "ডায়রিয়া", "পায়খানা", "diarrhea"), #
     "constipation": ("কোষ্ঠকাঠিন্য", "পায়খানা শক্ত", "constipation"),
+    # "খুব টায়ার" - the commonest complaint on a thyroid consultation, and
+    # with no entry it matched Montelukast at 0.67 instead of being read as
+    # the symptom it is.
+    "tiredness": ("টায়ার", "টায়ার্ড", "ক্লান্ত", "ক্লান্তি", "দুর্বল লাগে",
+                   "শরীর দুর্বল", "tired", "tiredness", "fatigue"),
+    "hypothyroidism": ("হাইপোথাইরয়েড", "হাইপোথাইরয়েডিজম", "থাইরয়েড কম",
+                        "আন্ডার অ্যাকটিভ থাইরয়েড", "hypothyroidism"),
     "vomiting": ("বমি",), #
     "nausea": ("গা গোলানো", "বমি ভাব"), #
     "body ache": ("শরীর ব্যথা", "গা ব্যথা", "গা হাত-পা ম্যাজম্যাজ", "হাড়ে ব্যথা"), #
@@ -2716,6 +2728,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "deviated nasal septum",
     "carpal tunnel syndrome",
     "chalazion",
+    "hypothyroidism",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2760,6 +2773,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "lipoma": "surgery", "deviated nasal septum": "ent",
     "carpal tunnel syndrome": "neurology",
     "chalazion": "ophthalmology",
+    "hypothyroidism": "endocrine",
     "traumatic ulcer": "dental",
     "piles": "surgery", "hernia": "surgery",
     "appendicitis": "surgery", "gallstone": "surgery",

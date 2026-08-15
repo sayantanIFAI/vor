@@ -37,9 +37,25 @@ class PipelineResult:
 
 
 # What a sound-only match must score before it is put to the gate as a
-# medication. Ordinary speech resembles drug names at 0.67-0.73; a real name
-# the ASR mangled scores far higher ("পান্ডি" -> Pan-D at 0.91).
-_PROMOTE_CANDIDATE = 0.85
+# medication.
+#
+# RE-DERIVED. 0.85 was set on two points - junk at 0.67-0.73 and "পান্ডি"
+# -> Pan-D at 0.91 - and a real prescription landed in the gap: "কলস্পা" is
+# Colospa, which the gate resolves to Mebeverine at 0.83, and it was thrown
+# away for want of 0.02. Two more real readings from the same consultation
+# sit alongside it:
+#
+#   wrong: 0.67 (বাথরুম -> Diazepam)   0.73 (একটা ফল -> Paracetamol)
+#   right: 0.83 (কলস্পা -> Mebeverine) 0.86 (থাইরোনক্স -> Levothyroxine)
+#          0.91 (পান্ডি -> Pan-D)
+#
+# The boundary is between 0.73 and 0.83, not above it.
+_PROMOTE_CANDIDATE = 0.78
+
+# Weak matches are still SHOWN, down to the ordinary similarity floor, so a
+# near miss is something a clinician can put back rather than something
+# nobody ever learns about.
+_RECORD_CANDIDATE = 0.65
 
 
 class VoiceToRxPipeline:
@@ -206,6 +222,17 @@ class VoiceToRxPipeline:
         known_now = {(m.canonical or m.drug).lower() for m in rx.medications}
         for cand in find_drug_candidates(text):
             if cand.similarity < _PROMOTE_CANDIDATE:
+                # RECORDED, NOT DROPPED. A candidate that fails this bar
+                # used to vanish before the gate ever saw it, so it never
+                # reached rejected_terms and the reinstatement log could not
+                # see it either - the one miss the loop was built to catch
+                # was the one kind it was blind to. Colospa was lost exactly
+                # this way, 0.02 under the bar and invisible.
+                if cand.similarity >= _RECORD_CANDIDATE:
+                    rx.rejected_terms.append(
+                        f"{cand.observed} — resembles {cand.english_name} "
+                        f"({cand.similarity:.2f}), below the bar for a "
+                        f"sound-only match")
                 continue
             if (cand.english_name or "").lower() in known_now:
                 continue
