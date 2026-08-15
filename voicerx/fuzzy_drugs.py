@@ -26,7 +26,7 @@ from difflib import SequenceMatcher
 
 # Bengali transliterations of drugs actually seen in these consultations,
 # plus the common OPD formulary. Extend as more corrections arrive.
-BENGALI_DRUG_FORMS: dict[str, str] = {
+_SEED_FORMS: dict[str, str] = {
     "নরফ্লক্স": "Norflox",
     "নরফ্লক্স টি জেড": "Norflox-TZ",
     "প্যারাসিটামল": "Paracetamol",
@@ -57,6 +57,50 @@ BENGALI_DRUG_FORMS: dict[str, str] = {
     "প্রেডনিসোলন": "Prednisolone",
     "ওআরএস": "ORS",
 }
+
+# EVERY Bengali form the gazetteer knows, not a hand-listed few.
+#
+# This table is what find_drug_candidates() searches, and it held 29 drugs
+# while the gazetteer held 234 with 583 Bengali spellings between them. A
+# drug outside those 29 that the model also missed was therefore INVISIBLE -
+# no layer could propose it, so the gate never got to judge it.
+#
+# Measured on a live gastro consultation: the ASR heard "পান্ডি", which is
+# Pan-D (pantoprazole + domperidone) and exactly right for the complaint.
+# judge_medication resolves it at 0.91. Qwen had read the line as advice -
+# "take one tablet in the morning" - and dropped the name; scan_drugs_spoken
+# needs an exact or skeleton hit and "পান্ডি" is neither. This table was the
+# last net, and against 29 forms the best score was 0.40. The prescription
+# came back EMPTY with the drug sitting in the transcript.
+#
+# The caution this list was kept short for is real but aimed elsewhere: it
+# is the 174k IMPORTED brand register that must never be fished out of raw
+# text, because much of it is ordinary words and none of it is clinically
+# reviewed. These 583 forms are the curated tables. A candidate is also
+# still only a PROPOSAL - it goes to the gate, and now past the specialty
+# guard, the general floor and the grounding check as well.
+def _all_bengali_forms() -> dict[str, str]:
+    forms = dict(_SEED_FORMS)
+    try:
+        from .glossary import ALL_DRUGS
+    except Exception:                                  # noqa: BLE001
+        return forms
+    for drug in ALL_DRUGS:
+        for form in (drug.bengali or ()):
+            f = (form or "").strip()
+            # One or two characters cannot be garbled evidence of anything;
+            # they would match half the transcript.
+            if len(f) < 4:
+                continue
+            # First writer wins: the seed spellings above are what the ASR
+            # actually emits, which is a better target than the dictionary
+            # spelling when the two differ.
+            forms.setdefault(f, drug.generic)
+    return forms
+
+
+BENGALI_DRUG_FORMS: dict[str, str] = _all_bengali_forms()
+
 
 # Below this, a "match" is more likely coincidence than a real garbling.
 #

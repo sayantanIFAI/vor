@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .asr import ASRNode, TranscribedSegment
 from .correct import correct_transcript
 from .fuzzy_drugs import find_drug_candidates
+from .gate import judge_medication
 from .extract import extract_rx, ExtractionError
 from .english import englishise
 from .extraction_cache import reset_cache as reset_extraction_cache
@@ -33,6 +34,12 @@ class PipelineResult:
     segments: list[TranscribedSegment]
     extractions: list[ExtractedRx]
     timing: dict
+
+
+# What a sound-only match must score before it is put to the gate as a
+# medication. Ordinary speech resembles drug names at 0.67-0.73; a real name
+# the ASR mangled scores far higher ("পান্ডি" -> Pan-D at 0.91).
+_PROMOTE_CANDIDATE = 0.85
 
 
 class VoiceToRxPipeline:
@@ -180,6 +187,43 @@ class VoiceToRxPipeline:
                                "not proposed by the model",
             ))
 
+        # A GARBLED NAME THE SCANNERS CANNOT MATCH IS STILL A PROPOSAL.
+        #
+        # scan_drugs_spoken needs an exact or skeleton hit, so a name the ASR
+        # bent out of shape reaches nothing. On a live gastro consultation
+        # "পান্ডি" - Pan-D, pantoprazole+domperidone, right for the complaint -
+        # was heard cleanly, resolved by the gate at 0.91, and still never
+        # appeared: the model had read the line as advice, the scanner needed
+        # an exact match, and the candidate finder's output went to a display
+        # list nobody acts on. The prescription came back empty.
+        #
+        # Only STRONG candidates are promoted. Fuzzy proposals sit at 0.67
+        # for ordinary speech - "বাথরুম" resembles Diazepam, "একটা ফল"
+        # resembles Paracetamol - and a garbled real name sits far above it.
+        # Whatever is promoted is a PROBABLE at best and still faces the gate,
+        # the specialty guard, the general floor and the grounding check, so
+        # this widens what gets ASKED, not what gets asserted.
+        known_now = {(m.canonical or m.drug).lower() for m in rx.medications}
+        for cand in find_drug_candidates(text):
+            if cand.similarity < _PROMOTE_CANDIDATE:
+                continue
+            if (cand.english_name or "").lower() in known_now:
+                continue
+            v = judge_medication(cand.observed)
+            if v.tier not in ("verified", "probable"):
+                continue                       # the gate refuses it outright
+            known_now.add((v.canonical or cand.english_name or "").lower())
+            rx.medications.append(Medication(
+                drug=cand.observed, canonical=v.canonical,
+                prescribed_name=v.canonical,
+                heard_as=cand.observed,
+                tier=v.tier, verified=False,
+                department=v.department, indication=v.indication,
+                match_similarity=v.similarity,
+                review_reason=(f"heard as \u201c{cand.observed}\u201d and matched by "
+                               f"sound only ({cand.similarity:.2f}) - CONFIRM"),
+            ))
+
         for sym in scan_symptoms(text):
             if sym not in rx.symptoms:
                 rx.symptoms.append(sym)
@@ -199,6 +243,25 @@ class VoiceToRxPipeline:
                 med.frequency = freq
             if dur and not med.duration:
                 med.duration = dur
+        elif not rx.medications:
+            # DOSING WITH NOTHING TO ATTACH IT TO MEANS A DRUG WAS LOST.
+            #
+            # "রোজ সকালে একটা করে পান্ডি" - one every morning - yields
+            # OD (morning) from the scanner and no medication, because the
+            # drug name was garbled past every lookup. The dosing was simply
+            # discarded, so the consultation returned an EMPTY prescription
+            # and looked no different from one where nothing was prescribed.
+            #
+            # Nobody speaks a dose without a drug. Recording it converts a
+            # silent miss into a visible one, which is the only kind a
+            # reviewer can act on.
+            freq, dur = scan_dosing(text)
+            if freq or dur:
+                said = " ".join(x for x in (freq, dur) if x)
+                rx.needs_human_review = True
+                rx.review_reasons.append(
+                    f"dosing was heard here ({said}) but no medication could "
+                    f"be identified - a drug was probably said and missed")
 
     def process_file(self, audio_path: str, skip_before_s: float = 0.0,
                       max_end_s: float | None = None) -> PipelineResult:
