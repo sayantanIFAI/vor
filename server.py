@@ -389,14 +389,14 @@ def _merge_segments(result) -> dict:
         _res = _resolve_dialogue(_texts, symptoms, _spans)
         if _res.denied:
             symptoms = _res.symptoms
-            reasons.extend(_res.notes)
+            review_reasons.extend(_res.notes)
             # Kept on the record rather than deleted: that a symptom was
             # asked about and ruled out is a clinical finding of its own.
             for _sym, _why in _res.denied:
                 rejected.append(f"{_sym} — {_why}")
     except Exception as exc:                       # noqa: BLE001
-        reasons.append(f"dialogue resolution unavailable: "
-                       f"{type(exc).__name__}: {exc}")
+        review_reasons.append(f"dialogue resolution unavailable: "
+                              f"{type(exc).__name__}: {exc}")
 
     consult_dept = ""
     try:
