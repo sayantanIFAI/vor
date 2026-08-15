@@ -3,536 +3,801 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Voice-to-Rx</title>
+<title>Voice-to-Rx · Consultation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Bengali:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
+:root{
+  --paper:#FBF9F4; --paper-2:#F4F0E7; --card:#FFFDF9;
+  --ink:#16191F; --ink-2:#454B57; --ink-3:#7B8291;
+  --rule:#E2DBCE; --rule-2:#D0C7B6;
+  --ochre:#A9611B; --ochre-soft:#F6E9D8;
+  --green:#2F6B4F; --green-soft:#E4EFE7;
+  --red:#9B2C2C; --red-soft:#F7E5E3;
+  --blue:#1B3A5C;
+  --shadow:0 1px 2px rgba(22,25,31,.05), 0 8px 24px -12px rgba(22,25,31,.18);
+}
+@media (prefers-color-scheme: dark){
   :root{
-    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
-    --txt:#e8eaed; --dim:#9aa3b2; --accent:#4f8cff; --ok:#31c48d;
-    --warn:#f0a202; --danger:#f05252;
+    --paper:#14161A; --paper-2:#1A1D22; --card:#1D2026;
+    --ink:#ECE8E1; --ink-2:#B4B0A8; --ink-3:#807C75;
+    --rule:#2C3037; --rule-2:#3A3F48;
+    --ochre:#D99A4E; --ochre-soft:#33281A;
+    --green:#6FBF95; --green-soft:#1B2A22;
+    --red:#E08B84; --red-soft:#2E1E1D;
+    --blue:#9DBBD8;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
   }
-  @media (prefers-color-scheme: light){
-    :root{ --bg:#f6f7f9; --panel:#fff; --panel2:#f0f2f5; --line:#dde1e7;
-           --txt:#1a1d23; --dim:#5b6472; }
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-       background:var(--bg);color:var(--txt)}
-  header{padding:16px 22px;border-bottom:1px solid var(--line);
-         display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-  h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
-  .tabs{display:flex;gap:4px;margin-left:auto}
-  .tab{padding:7px 14px;border-radius:7px;border:1px solid transparent;
-       background:none;color:var(--dim);cursor:pointer;font-size:14px;font-weight:500}
-  .tab.on{background:var(--panel2);color:var(--txt);border-color:var(--line)}
-  main{padding:22px;max-width:1180px;margin:0 auto}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
-        padding:18px;margin-bottom:16px}
-  .row{display:flex;gap:16px;flex-wrap:wrap}
-  .col{flex:1;min-width:280px}
-  button.primary{background:var(--accent);color:#fff;border:0;border-radius:8px;
-    padding:11px 20px;font-size:15px;font-weight:600;cursor:pointer}
-  button.primary:disabled{opacity:.5;cursor:not-allowed}
-  button.rec{background:var(--danger)}
-  .drop{border:2px dashed var(--line);border-radius:10px;padding:32px;
-        text-align:center;color:var(--dim);cursor:pointer}
-  .drop:hover{border-color:var(--accent);color:var(--txt)}
-  h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;
-     color:var(--dim);margin:0 0 9px;font-weight:650}
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--dim);
-     padding:7px 9px;border-bottom:1px solid var(--line);letter-spacing:.05em}
-  td{padding:9px;border-bottom:1px solid var(--line);vertical-align:top}
-  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;
-        font-weight:600;letter-spacing:.02em}
-  .pill.ok{background:rgba(49,196,141,.16);color:var(--ok)}
-  .pill.warn{background:rgba(240,162,2,.16);color:var(--warn)}
-  .pill.danger{background:rgba(240,82,82,.16);color:var(--danger)}
-  ul.clean{margin:0;padding-left:19px}
-  ul.clean li{margin:3px 0}
-  .muted{color:var(--dim)}
-  .warnbox{background:rgba(240,162,2,.10);border:1px solid rgba(240,162,2,.35);
-           border-radius:9px;padding:13px;margin-bottom:16px}
-  .bn{font-size:15px;line-height:1.75}
-  .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);
-        border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;
-        vertical-align:-3px;margin-right:8px}
-  @keyframes s{to{transform:rotate(360deg)}}
-  textarea{width:100%;background:var(--panel2);color:var(--txt);
-    border:1px solid var(--line);border-radius:7px;padding:9px;font:inherit}
-  .seg{border:1px solid var(--line);border-radius:9px;padding:13px;margin-bottom:11px;
-       background:var(--panel2)}
-  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:13px}
-  input.cell{width:100%;background:transparent;color:var(--txt);border:1px solid transparent;
-    border-radius:6px;padding:5px 6px;font:inherit}
-  input.cell:hover{border-color:var(--line)}
-  input.cell:focus{outline:none;border-color:var(--accent);background:var(--panel2)}
-  input.cell::placeholder{color:var(--dim);opacity:.6}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--paper); color:var(--ink);
+  font:400 15px/1.55 "IBM Plex Sans",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb,var(--ochre) 4%,transparent) 0%, transparent 42%),
+    radial-gradient(circle at 92% 8%, color-mix(in srgb,var(--blue) 5%,transparent) 0%, transparent 38%);
+  background-attachment:fixed;
+}
+.bn{font-family:"Noto Sans Bengali","IBM Plex Sans",sans-serif;line-height:1.85}
+.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- masthead ---------- */
+header.mast{
+  border-bottom:1px solid var(--rule); background:var(--card);
+  padding:14px 28px; display:flex; align-items:baseline; gap:18px; flex-wrap:wrap;
+  position:sticky; top:0; z-index:40;
+}
+.mark{font-family:"Newsreader",serif; font-size:22px; font-weight:600; letter-spacing:-.015em}
+.mark em{font-style:italic; color:var(--ochre)}
+.mast .sub{color:var(--ink-3); font-size:12.5px; letter-spacing:.04em; text-transform:uppercase}
+.mast .right{margin-left:auto; display:flex; align-items:center; gap:20px}
+.doc{text-align:right; line-height:1.3}
+.doc b{font-family:"Newsreader",serif; font-weight:600; font-size:15px}
+.doc span{display:block; color:var(--ink-3); font-size:11.5px; letter-spacing:.03em}
+
+main{max-width:1220px; margin:0 auto; padding:26px 28px 90px}
+
+/* ---------- generic ---------- */
+.lab{
+  font-size:10.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); display:block; margin-bottom:9px;
+}
+.card{
+  background:var(--card); border:1px solid var(--rule); border-radius:3px;
+  box-shadow:var(--shadow); margin-bottom:20px;
+}
+.card > .hd{
+  padding:13px 20px; border-bottom:1px solid var(--rule);
+  display:flex; align-items:center; gap:12px;
+}
+.card > .hd h2{
+  font-family:"Newsreader",serif; font-size:17px; font-weight:600; letter-spacing:-.01em;
+}
+.card > .bd{padding:18px 20px}
+.count{
+  margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11.5px;
+  color:var(--ink-3); letter-spacing:.04em;
+}
+
+/* ---------- buttons ---------- */
+button{font:inherit; cursor:pointer; border:none; background:none; color:inherit}
+.btn{
+  border:1px solid var(--rule-2); background:var(--card); color:var(--ink);
+  padding:9px 16px; border-radius:2px; font-size:13.5px; font-weight:500;
+  letter-spacing:.01em; transition:background .13s, border-color .13s, transform .08s;
+}
+.btn:hover{background:var(--paper-2); border-color:var(--ink-3)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.42; cursor:not-allowed}
+.btn.solid{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.btn.solid:hover{background:var(--ink-2); border-color:var(--ink-2)}
+.btn.ochre{background:var(--ochre); color:#fff; border-color:var(--ochre)}
+.btn.ochre:hover{filter:brightness(1.08)}
+.btn.sm{padding:5px 10px; font-size:12px}
+.btn.ghost{border-color:transparent; color:var(--ink-3)}
+.btn.ghost:hover{color:var(--red); background:var(--red-soft)}
+
+/* ---------- patient strip ---------- */
+.patient{
+  background:var(--card); border:1px solid var(--rule); border-radius:3px;
+  box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden;
+}
+.patient .empty{
+  padding:34px 24px; text-align:center;
+}
+.patient .empty p{color:var(--ink-3); font-size:13.5px; margin-bottom:16px}
+.pgrid{display:grid; grid-template-columns:minmax(230px,1.4fr) repeat(auto-fit,minmax(96px,1fr)); }
+.pcell{padding:15px 18px; border-left:1px solid var(--rule)}
+.pcell:first-child{border-left:none; background:var(--paper-2)}
+.pname{font-family:"Newsreader",serif; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.15}
+.pmeta{color:var(--ink-3); font-size:12px; margin-top:5px; letter-spacing:.02em}
+.pval{font-family:"IBM Plex Mono",monospace; font-size:17px; font-weight:500; letter-spacing:-.01em}
+.pval small{font-size:11px; color:var(--ink-3); font-weight:400; margin-left:2px}
+.tag{
+  display:inline-block; padding:2px 8px; border-radius:2px; font-size:10.5px;
+  font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+}
+.tag.new{background:var(--green-soft); color:var(--green)}
+.tag.old{background:var(--ochre-soft); color:var(--ochre)}
+
+/* ---------- record ---------- */
+.rec-wrap{
+  display:flex; align-items:center; gap:22px; flex-wrap:wrap;
+  padding:20px; background:var(--card); border:1px solid var(--rule);
+  border-radius:3px; box-shadow:var(--shadow); margin-bottom:20px;
+}
+.rec-btn{
+  display:inline-flex; align-items:center; gap:13px;
+  padding:15px 30px; border-radius:2px; font-size:15.5px; font-weight:600;
+  background:var(--ink); color:var(--paper); border:1px solid var(--ink);
+  letter-spacing:.01em; transition:filter .15s, transform .08s;
+}
+.rec-btn:hover{filter:brightness(1.15)}
+.rec-btn:active{transform:translateY(1px)}
+.rec-btn:disabled{opacity:.4; cursor:not-allowed}
+.rec-btn.live{background:var(--red); border-color:var(--red); color:#fff}
+.dot{width:11px;height:11px;border-radius:50%;background:currentColor;display:inline-block}
+.rec-btn.live .dot{animation:beat 1.15s ease-in-out infinite}
+@keyframes beat{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.82)}}
+.timer{font-family:"IBM Plex Mono",monospace; font-size:26px; font-weight:500; letter-spacing:.02em}
+.rec-note{color:var(--ink-3); font-size:12.5px; max-width:330px; line-height:1.5}
+.wave{display:flex; align-items:flex-end; gap:3px; height:26px}
+.wave i{width:3px; background:var(--red); border-radius:1px; animation:w .9s ease-in-out infinite}
+@keyframes w{0%,100%{height:5px}50%{height:24px}}
+
+/* ---------- editable rows ---------- */
+table{width:100%; border-collapse:collapse}
+thead th{
+  text-align:left; font-size:10px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); padding:0 8px 9px;
+  border-bottom:1px solid var(--rule);
+}
+tbody td{padding:6px 4px; border-bottom:1px solid var(--rule); vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+.inp{
+  width:100%; background:transparent; border:1px solid transparent; color:var(--ink);
+  padding:7px 8px; border-radius:2px; font:inherit; font-size:14px;
+}
+.inp:hover{border-color:var(--rule)}
+.inp:focus{outline:none; border-color:var(--ochre); background:var(--paper-2)}
+.inp::placeholder{color:var(--ink-3); opacity:.55}
+.inp.mono{font-family:"IBM Plex Mono",monospace; font-size:13.5px}
+.inp.name{font-weight:600}
+.sub-note{font-size:11.5px; color:var(--ink-3); padding:0 9px 5px; line-height:1.45}
+.sub-note a{color:var(--ochre); text-decoration:none; border-bottom:1px dotted currentColor; cursor:pointer}
+
+.pill{
+  display:inline-block; padding:2px 7px; border-radius:2px; font-size:10px;
+  font-weight:600; letter-spacing:.07em; text-transform:uppercase; white-space:nowrap;
+}
+.pill.ok{background:var(--green-soft); color:var(--green)}
+.pill.warn{background:var(--ochre-soft); color:var(--ochre)}
+.pill.mine{background:var(--paper-2); color:var(--ink-2)}
+
+/* ---------- autocomplete ---------- */
+.ac{position:relative}
+.ac-list{
+  position:absolute; z-index:60; left:0; right:0; top:calc(100% + 3px);
+  background:var(--card); border:1px solid var(--rule-2); border-radius:2px;
+  box-shadow:0 12px 30px -8px rgba(0,0,0,.28); max-height:270px; overflow-y:auto;
+}
+.ac-item{padding:8px 11px; cursor:pointer; border-bottom:1px solid var(--rule)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.on{background:var(--ochre-soft)}
+.ac-item b{font-weight:600; font-size:13.5px}
+.ac-item span{display:block; color:var(--ink-3); font-size:11.5px; margin-top:1px}
+.ac-item mark{background:transparent; color:var(--ochre); font-weight:700}
+
+/* ---------- chips (symptoms / labs) ---------- */
+.chips{display:flex; flex-wrap:wrap; gap:7px}
+.chip{
+  display:inline-flex; align-items:center; gap:7px; padding:6px 8px 6px 11px;
+  background:var(--paper-2); border:1px solid var(--rule); border-radius:2px; font-size:13.5px;
+}
+.chip button{color:var(--ink-3); font-size:15px; line-height:1; padding:0 2px}
+.chip button:hover{color:var(--red)}
+.chip.empty-note{background:none; border:none; color:var(--ink-3); font-size:13px; padding-left:0}
+
+.two{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+@media (max-width:880px){ .two{grid-template-columns:1fr} .pgrid{grid-template-columns:1fr 1fr} }
+
+textarea.sum{
+  width:100%; min-height:78px; resize:vertical; background:transparent;
+  border:1px solid var(--rule); border-radius:2px; padding:11px 12px;
+  font:inherit; font-size:14px; color:var(--ink); line-height:1.6;
+}
+textarea.sum:focus{outline:none; border-color:var(--ochre)}
+
+.notice{
+  border-left:3px solid var(--ochre); background:var(--ochre-soft);
+  padding:12px 15px; border-radius:2px; margin-bottom:18px; font-size:13.5px;
+}
+.notice b{display:block; margin-bottom:3px}
+.notice ul{margin:7px 0 0 17px; color:var(--ink-2); font-size:12.5px}
+
+.spin{
+  width:15px;height:15px;border:2px solid var(--rule-2);border-top-color:var(--ochre);
+  border-radius:50%;animation:sp .7s linear infinite;display:inline-block;vertical-align:-3px
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.act-bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:50;
+  background:var(--card); border-top:1px solid var(--rule);
+  padding:12px 28px; display:flex; align-items:center; gap:14px;
+  box-shadow:0 -4px 18px -10px rgba(0,0,0,.3);
+}
+.act-bar .msg{color:var(--ink-3); font-size:12.5px; margin-right:auto}
+
+/* ================= PRINT ================= */
+.rx-sheet{display:none}
+@media print{
+  @page{size:A4; margin:14mm 16mm}
+  body{background:#fff !important; color:#000 !important; background-image:none !important}
+  header.mast, main, .act-bar{display:none !important}
+  .rx-sheet{display:block !important; font-family:"IBM Plex Sans",sans-serif; color:#000}
+  .rx-sheet *{color:#000 !important; background:transparent !important}
+}
+.rx-head{border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:12px}
+.rx-clinic{font-family:"Newsreader",serif; font-size:23px; font-weight:600}
+.rx-doc{font-size:12px; margin-top:3px}
+.rx-row{display:flex; gap:20px; font-size:12.5px; margin-bottom:4px}
+.rx-row b{font-weight:600}
+.rx-band{border-top:1px solid #000; border-bottom:1px solid #000; padding:7px 0; margin:12px 0; display:flex; gap:26px; flex-wrap:wrap; font-size:12.5px}
+.rx-sym{font-family:"Newsreader",serif; font-size:34px; font-weight:600; line-height:1; margin:14px 0 8px}
+.rx-tbl{width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:14px}
+.rx-tbl th{text-align:left; border-bottom:1px solid #000; padding:5px 6px; font-size:10px; letter-spacing:.1em; text-transform:uppercase}
+.rx-tbl td{padding:7px 6px; border-bottom:1px dotted #999; vertical-align:top}
+.rx-tbl td.n{width:22px; color:#444}
+.rx-sec{margin-bottom:12px; font-size:12.5px}
+.rx-sec h4{font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:5px; border-bottom:1px solid #000; padding-bottom:3px}
+.rx-sec ol,.rx-sec ul{margin-left:18px}
+.rx-sign{margin-top:34px; display:flex; justify-content:flex-end; text-align:center}
+.rx-sign .line{border-top:1px solid #000; padding-top:5px; min-width:210px; font-size:11.5px}
+.rx-sign .sig{font-family:"Newsreader",serif; font-style:italic; font-size:25px; margin-bottom:2px}
+.rx-foot{margin-top:16px; border-top:1px solid #000; padding-top:6px; font-size:9.5px; text-align:center}
 </style>
 </head>
 <body>
 <div id="root"></div>
+<div id="rx" class="rx-sheet"></div>
+
 <script type="text/babel">
-const {useState,useRef,useEffect} = React;
+const {useState,useRef,useEffect,useMemo} = React;
 const API = "";
 
-function Pill({kind,children}){ return <span className={"pill "+kind}>{children}</span>; }
+/* ---------------------------------------------------------------- data --
+   A demo queue. Real deployment replaces this with the clinic's own list;
+   the shape is what the prescription needs, nothing more.                */
+const QUEUE = [
+  {name:"Ananya Chatterjee", age:34, sex:"F", ht:158, wt:56, bp:"118/76", pulse:78},
+  {name:"Ramen Bhattacharya", age:62, sex:"M", ht:170, wt:74, bp:"146/92", pulse:84},
+  {name:"Sunita Das",         age:47, sex:"F", ht:152, wt:68, bp:"132/86", pulse:80},
+  {name:"Imran Sheikh",       age:29, sex:"M", ht:174, wt:71, bp:"122/78", pulse:72},
+  {name:"Kavita Mondal",      age:55, sex:"F", ht:155, wt:63, bp:"138/88", pulse:76},
+  {name:"Debashis Roy",       age:41, sex:"M", ht:168, wt:80, bp:"128/84", pulse:82},
+  {name:"Farhana Begum",      age:38, sex:"F", ht:160, wt:59, bp:"116/74", pulse:74},
+  {name:"Pradip Ghosh",       age:70, sex:"M", ht:166, wt:69, bp:"152/94", pulse:88},
+];
+const DOCTOR = {name:"Dr. S. Mukherjee", qual:"MBBS, MD (Gen. Med.)",
+                reg:"WBMC 62481", clinic:"Innofission Polyclinic",
+                addr:"14 Southern Avenue, Kolkata 700026"};
 
-// The model annotates uncertain drug names inline:
-//   "এস্কোরিল (possible medication name, ASR unclear, needs human verification)"
-// The match is correct but the parenthetical belongs in the review reason,
-// not in the drug column of a prescription.
-function cleanDrug(name){
-  return String(name||"").replace(/\s*\((?:possible|likely|probable|uncertain)[^)]*\)/gi,"").trim();
-}
+const uid = () => Math.random().toString(36).slice(2,9);
+const bmi = (ht,wt) => ht&&wt ? (wt/((ht/100)**2)).toFixed(1) : "";
+const today = () => new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
 
-function Rx({data}){
-  // Editable working copy. The doctor is the author of the prescription;
-  // everything the pipeline produced is a draft they correct in place.
-  const [meds,setMeds]=useState([]);
-  const [dx,setDx]=useState("");
-  const [dirty,setDirty]=useState(false);
+/* The parenthetical the model appends belongs in the review note, never in
+   the drug column of a prescription. */
+const clean = s => String(s||"").replace(/\s*\((?:possible|likely|probable|uncertain)[^)]*\)/gi,"").trim();
+
+/* ------------------------------------------------------------ autocomplete */
+function Auto({value,onChange,options,placeholder,cls}){
+  const [open,setOpen]=useState(false), [hi,setHi]=useState(0);
+  const box=useRef(null);
+  const matches=useMemo(()=>{
+    const q=(value||"").trim().toLowerCase();
+    if(q.length<1) return [];
+    const out=[];
+    for(const o of options){
+      const hay=[o.label,...(o.alt||[])];
+      const i=hay.findIndex(h=>h.toLowerCase().includes(q));
+      if(i>-1) out.push({...o, hit:hay[i], starts:hay[i].toLowerCase().startsWith(q)});
+      if(out.length>60) break;
+    }
+    // Names that BEGIN with what was typed come first - a prescriber types
+    // the start of a name, not the middle of one.
+    return out.sort((a,b)=>(b.starts-a.starts)||a.label.length-b.label.length).slice(0,9);
+  },[value,options]);
 
   useEffect(()=>{
-    if(!data){ setMeds([]); setDx(""); return; }
-    // Drug candidates found in garbled audio are shown as MEDICATION ROWS,
-    // not in a separate box. They were being missed entirely because a
-    // reviewer had to notice a second panel and retype the name; as rows
-    // they are one edit away from being correct.
-    const fromCandidates=(data.drug_candidates||[]).map(c=>{
-      const m=/^'([^']+)'\s*may be\s*([^(]+)/.exec(c)||[];
-      return {drug:(m[1]||c).trim(), canonical:(m[2]||"").trim(),
-              dosage:"", frequency:"", duration:"",
-              tier:"probable", verified:false, match_similarity:null,
-              review_reason:"heard in audio, not confirmed"};
-    });
-    // Show prescribed_name, not the raw spoken text. "Ecosprin" is a real
-    // brand and stays as said; "Rasu Basta Tin" is ASR garble of
-    // Rosuvastatin and must not be what a doctor sees on a script. The
-    // backend already made that call - see schema.Medication.
-    const base=(data.medications||[]).map(m=>({
-      ...m, drug:cleanDrug(m.prescribed_name||m.drug)}));
-    const seen=new Set(base.map(m=>(m.canonical||m.drug).toLowerCase()));
-    setMeds([...base, ...fromCandidates.filter(c=>{
-      const k=(c.canonical||c.drug).toLowerCase();
-      if(seen.has(k)) return false; seen.add(k); return true;
-    })]);
-    setDx(data.diagnosis||"");
-    setDirty(false);
-  },[data]);
+    const away=e=>{ if(box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown",away);
+    return ()=>document.removeEventListener("mousedown",away);
+  },[]);
 
-  function edit(i,field,value){
-    setMeds(ms=>ms.map((m,j)=>j===i?{...m,[field]:value}:m)); setDirty(true);
+  // Gated on MATCHES, never on `open`. Keying off the open flag made Enter
+  // silently do nothing: the flag is set by the same keystroke that produces
+  // the matches, so the handler could still read the previous value and bail
+  // before preventDefault ever ran. A prescriber typing at speed hits Enter,
+  // and a picker that ignores it is worse than no picker at all.
+  function key(e){
+    const ms=matches;
+    if(!ms.length) return;
+    const at=Math.min(hi,ms.length-1);
+    if(e.key==="ArrowDown"||e.key==="Down"){
+      e.preventDefault(); setOpen(true); setHi(h=>(h+1)%ms.length);
+    } else if(e.key==="ArrowUp"||e.key==="Up"){
+      e.preventDefault(); setOpen(true); setHi(h=>(h-1+ms.length)%ms.length);
+    } else if(e.key==="Enter"){
+      e.preventDefault(); pick(ms[at]||ms[0]);
+    } else if(e.key==="Tab"){
+      // Tab accepts and moves on - the dose field is the next thing typed.
+      pick(ms[at]||ms[0]);
+    } else if(e.key==="Escape"||e.key==="Esc"){
+      setOpen(false);
+    }
   }
-  function addRow(){
-    setMeds(ms=>[...ms,{drug:"",dosage:"",frequency:"",duration:"",
-                        tier:"manual",verified:true,review_reason:"added by clinician"}]);
-    setDirty(true);
-  }
-  function removeRow(i){ setMeds(ms=>ms.filter((_,j)=>j!==i)); setDirty(true); }
+  function pick(m){ if(!m) return; onChange(m.label,m); setOpen(false); setHi(0); }
 
-  if(!data) return null;
-  const flagged = data.segments_flagged>0;
+  function mark(text){
+    const q=(value||"").trim(); if(!q) return text;
+    const i=text.toLowerCase().indexOf(q.toLowerCase()); if(i<0) return text;
+    return <>{text.slice(0,i)}<mark>{text.slice(i,i+q.length)}</mark>{text.slice(i+q.length)}</>;
+  }
+
+  return (
+    <div className="ac" ref={box}>
+      <input className={"inp "+(cls||"")} value={value||""} placeholder={placeholder}
+        onChange={e=>{onChange(e.target.value,null); setOpen(true); setHi(0);}}
+        onFocus={()=>setOpen(true)} onKeyDown={key} autoComplete="off"/>
+      {open && matches.length>0 && (
+        <div className="ac-list">
+          {matches.map((m,i)=>(
+            <div key={m.label+i} className={"ac-item"+(i===hi?" on":"")}
+              onMouseEnter={()=>setHi(i)} onMouseDown={e=>{e.preventDefault(); pick(m);}}>
+              <b>{mark(m.label)}</b>
+              {m.note && <span>{m.hit!==m.label ? <>{mark(m.hit)} · </> : null}{m.note}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ chips */
+function ChipList({items,setItems,placeholder,options,empty}){
+  const [draft,setDraft]=useState("");
+  function add(v){ const t=(v||draft).trim(); if(!t) return;
+    if(!items.some(i=>i.toLowerCase()===t.toLowerCase())) setItems([...items,t]);
+    setDraft(""); }
   return (
     <div>
-      {flagged && (
-        <div className="warnbox">
-          <strong>⚠ {data.segments_flagged} of {data.segments_total} segments need human review.</strong>
-          <div className="muted" style={{marginTop:6,fontSize:13}}>
-            This is a draft, not a prescription. A clinician must confirm before use.
-          </div>
-          {data.review_reasons?.length>0 && (
-            <ul className="clean muted" style={{marginTop:8,fontSize:13}}>
-              {data.review_reasons.slice(0,6).map((r,i)=><li key={i}>{r}</li>)}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {/* The separate "possible drug names" panel is gone: those entries
-          are now editable rows in the Medications table, where they can be
-          corrected in one step instead of being retyped. */}
-
-      <div className="row">
-        <div className="col card">
-          <h3>Patient</h3>
-          <div style={{fontSize:17,fontWeight:600}}>
-            {data.patient_name || <span className="muted">Not stated in audio</span>}
-          </div>
-          {/* Editable. The model only fills this when the doctor states a
-              diagnosis outright, which in practice is rare - so it is a
-              field to complete, not a read-only result. */}
-          <h3 style={{marginTop:16}}>Diagnosis</h3>
-          <input value={dx} onChange={e=>{setDx(e.target.value); setDirty(true);}}
-                 placeholder="e.g. diabetic, cardiac — ischaemic heart disease"
-                 style={{width:"100%",background:"var(--panel2)",color:"var(--txt)",
-                         border:"1px solid var(--line)",borderRadius:7,padding:"9px 10px",
-                         font:"inherit"}}/>
-          {!data.diagnosis && (
-            <div className="muted" style={{fontSize:12,marginTop:5}}>
-              Not stated outright in the audio — please complete.
-            </div>)}
-          <h3 style={{marginTop:16}}>Summary</h3>
-          <div className="muted">{data.summary || "—"}</div>
-        </div>
-
-        <div className="col card">
-          <h3>Symptoms</h3>
-          {data.symptoms?.length ? (
-            <ul className="clean bn">{data.symptoms.map((s,i)=><li key={i}>{s}</li>)}</ul>
-          ) : <span className="muted">None extracted</span>}
-
-          {/* Shown separately and greyed: the model asserted these but the
-              transcript does not support them. Mixing them into Symptoms
-              is how "loose stools" reached a cataract prescription. */}
-          {data.symptoms_unconfirmed?.length>0 && (
-            <>
-              <h3 style={{marginTop:16,color:"var(--warn)"}}>
-                Not heard in the audio — check</h3>
-              <ul className="clean muted" style={{fontSize:13}}>
-                {data.symptoms_unconfirmed.map((s,i)=><li key={i}>{s}</li>)}
-              </ul>
-            </>)}
-
-          <h3 style={{marginTop:16}}>Lab tests ordered</h3>
-          {data.labs_ordered?.length ? (
-            <ul className="clean">{data.labs_ordered.map((s,i)=><li key={i}>{s}</li>)}</ul>
-          ) : <span className="muted">None</span>}
-
-          {/* Advice is part of the prescription, not a footnote - a skin
-              or diabetes consultation is half advice. It used to be
-              discarded outright: the prompt told the model to omit it
-              because there was no field to put it in. */}
-          <h3 style={{marginTop:16}}>Advice</h3>
-          {data.advice?.length ? (
-            <ul className="clean">{data.advice.map((s,i)=><li key={i}>{s}</li>)}</ul>
-          ) : <span className="muted">None</span>}
-
-          <h3 style={{marginTop:16}}>Follow-up</h3>
-          <div className="muted">{data.follow_up || "—"}</div>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>Medications</h3>
-        {meds.length ? (
-          <table>
-            <thead><tr><th style={{width:"30%"}}>Drug</th><th>Dosage</th><th>Frequency</th>
-              <th>Duration</th><th style={{width:130}}>Source</th><th></th></tr></thead>
-            <tbody>
-              {meds.map((m,i)=>(
-                <tr key={i}>
-                  <td>
-                    <input value={m.drug} onChange={e=>edit(i,"drug",e.target.value)}
-                           className="cell" style={{fontWeight:600}}/>
-                    {/* The gazetteer's canonical name stays a SUGGESTION
-                        under what was actually said. Clicking it accepts
-                        it - the doctor decides, the system never rewrites
-                        a drug name on its own. */}
-                    {m.canonical && m.canonical!==m.drug && (
-                      <div className="muted" style={{fontSize:"0.85em",marginTop:3}}>
-                        {m.tier==="verified" ? "= " : "possibly "}
-                        <a href="#" onClick={e=>{e.preventDefault();edit(i,"drug",m.canonical);}}
-                           style={{color:"var(--accent)"}}>{m.canonical}</a>
-                        {m.indication ? ` — ${m.indication}` : ""}
-                      </div>)}
-                    {/* Provenance. When the printed name is NOT what the
-                        audio said, the original has to stay on screen - the
-                        substitution is the thing most worth checking, and
-                        hiding it is how a wrong drug gets signed off. */}
-                    {m.heard_as && (
-                      <div className="muted" style={{fontSize:"0.85em",marginTop:3}}>
-                        heard as “{m.heard_as}”
-                      </div>)}
-                  </td>
-                  {/* A dose heard as words was NOT resolved to a number -
-                      see validate._clean_dosing on why guessing "180mg"
-                      from "One Eightti EMI" is the one guess never worth
-                      making. The field is marked so it reads as a
-                      question, not as a recorded value. */}
-                  <td><input value={m.dosage||""} placeholder="500mg"
-                             onChange={e=>edit(i,"dosage",e.target.value)}
-                             className="cell"
-                             style={/CONFIRM the amount/.test(m.review_reason||"")
-                                    ? {borderColor:"var(--warn,#c80)"} : undefined}/></td>
-                  <td><input value={m.frequency||""} placeholder="BD / after lunch"
-                             onChange={e=>edit(i,"frequency",e.target.value)} className="cell"/></td>
-                  <td><input value={m.duration||""} placeholder="7 days"
-                             onChange={e=>edit(i,"duration",e.target.value)} className="cell"/></td>
-                  <td>{m.tier==="manual"
-                        ? <Pill kind="ok">you added</Pill>
-                        : m.tier==="probable"
-                          ? <Pill kind="warn">confirm{m.match_similarity?` (${m.match_similarity})`:""}</Pill>
-                          : m.verified
-                            ? <Pill kind="ok">known drug</Pill>
-                            : <Pill kind="danger">unverified</Pill>}
-                      {m.review_reason && (
-                        <div className="muted" style={{fontSize:11,marginTop:3}}>{m.review_reason}</div>)}
-                  </td>
-                  <td><button onClick={()=>removeRow(i)} title="remove"
-                        style={{background:"none",border:0,color:"var(--dim)",
-                                cursor:"pointer",fontSize:17}}>×</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <span className="muted">Nothing detected — add any medication you prescribed.</span>}
-        <div style={{marginTop:12,display:"flex",gap:12,alignItems:"center"}}>
-          <button onClick={addRow} style={{background:"var(--panel2)",color:"var(--txt)",
-                  border:"1px solid var(--line)",borderRadius:7,padding:"7px 13px",
-                  cursor:"pointer",font:"inherit"}}>+ Add medication</button>
-          {dirty && <span className="muted" style={{fontSize:12}}>edited — not yet saved</span>}
-        </div>
-      </div>
-
-      {data.raw_uncertain_terms?.length>0 && (
-        <div className="card">
-          <h3>Uncertain terms — not interpreted</h3>
-          <ul className="clean bn muted">
-            {data.raw_uncertain_terms.map((t,i)=><li key={i}>{t}</li>)}
-          </ul>
-        </div>
-      )}
-
-      {/* Shown, not hidden. These were proposed as medications and refused
-          by the gazetteer. Surfacing them is the only way a reviewer can
-          catch the gate being WRONG - a silent drop would look identical to
-          a term that was never extracted at all. */}
-      {data.rejected_terms?.length>0 && (
-        <div className="card">
-          <h3>Rejected as medications</h3>
-          <p className="muted" style={{marginTop:0,fontSize:13}}>
-            The model proposed these as drugs; the clinical gazetteer refused
-            them. Check for anything that is genuinely a medication.
-          </p>
-          <ul className="clean bn muted">
-            {data.rejected_terms.map((t,i)=><li key={i}>{t}</li>)}
-          </ul>
-        </div>
-      )}
-
-      <div className="card">
-        <h3>Transcript by segment</h3>
-        {data.segments?.map((s,i)=>(
-          <div className="seg" key={i}>
-            <div className="muted" style={{fontSize:12,marginBottom:5}}>
-              {s.start_s?.toFixed(1)}s – {s.end_s?.toFixed(1)}s · {s.decoder_used}
-              {" · agreement "}{s.decoder_agreement}
-              {s.corrections_applied?.length>0 &&
-                <span> · <span style={{color:"var(--ok)"}}>
-                  {s.corrections_applied.length} auto-corrected</span></span>}
-            </div>
-            <div className="bn">{s.corrected_text}</div>
-            {s.corrections_applied?.length>0 && (
-              <div className="muted" style={{fontSize:12,marginTop:5}}>
-                {s.corrections_applied.join(", ")}
-              </div>
-            )}
-          </div>
+      <div className="chips" style={{marginBottom:11}}>
+        {items.length===0 && <span className="chip empty-note">{empty}</span>}
+        {items.map((s,i)=>(
+          <span className="chip" key={i}>
+            <span className={/[ঀ-৿]/.test(s)?"bn":""}>{s}</span>
+            <button onClick={()=>setItems(items.filter((_,j)=>j!==i))} title="remove">×</button>
+          </span>
         ))}
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+        <div style={{flex:1,maxWidth:340}}>
+          {options
+            ? <Auto value={draft} options={options} placeholder={placeholder}
+                onChange={(v,m)=>{ if(m){add(m.label);} else setDraft(v); }}/>
+            : <input className="inp" style={{border:"1px solid var(--rule)"}} value={draft}
+                placeholder={placeholder} onChange={e=>setDraft(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();add();}}}/>}
+        </div>
+        <button className="btn sm" onClick={()=>add()}>Add</button>
       </div>
     </div>
   );
 }
 
-function Record(){
-  const [busy,setBusy]=useState(false);
-  const [rec,setRec]=useState(false);
-  const [data,setData]=useState(null);
-  const [err,setErr]=useState(null);
-  const [progress,setProgress]=useState(null);
-  const mr=useRef(null), chunks=useRef([]), fileIn=useRef(null), sid=useRef(null);
+/* ------------------------------------------------------------------- app */
+function App(){
+  const [patient,setPatient]=useState(null);
+  const [qi,setQi]=useState(0);
 
-  async function send(blob,name){
-    setBusy(true); setErr(null); setData(null);
-    try{
-      const fd=new FormData(); fd.append("file",blob,name);
-      const r=await fetch(API+"/api/transcribe",{method:"POST",body:fd});
-      if(!r.ok) throw new Error("Server returned "+r.status);
-      setData(await r.json());
-    }catch(e){ setErr(e.message); }
-    finally{ setBusy(false); }
+  const [rec,setRec]=useState(false), [busy,setBusy]=useState(false);
+  const [secs,setSecs]=useState(0), [err,setErr]=useState(null);
+  const [data,setData]=useState(null);
+
+  const [dx,setDx]=useState(""), [sym,setSym]=useState([]), [labs,setLabs]=useState([]);
+  const [meds,setMeds]=useState([]), [advice,setAdvice]=useState([]);
+  const [summary,setSummary]=useState(""), [followUp,setFollowUp]=useState("");
+
+  const [form,setForm]=useState({drugs:[],labs:[]});
+  const mr=useRef(null), sid=useRef(null), tick=useRef(null);
+
+  useEffect(()=>{ fetch(API+"/api/formulary").then(r=>r.json())
+    .then(d=>setForm({drugs:d.drugs||[],labs:d.labs||[]})).catch(()=>{}); },[]);
+
+  const drugOpts=useMemo(()=>form.drugs.map(d=>({
+    label:d.generic, alt:d.brands||[], note:[(d.brands||[]).slice(0,3).join(", "),d.indication].filter(Boolean).join(" · ")
+  })),[form.drugs]);
+  const labOpts=useMemo(()=>form.labs.map(l=>({label:l,alt:[],note:""})),[form.labs]);
+
+  function nextPatient(){
+    const p=QUEUE[qi%QUEUE.length];
+    setQi(qi+1);
+    setPatient({...p, id:uid(), status:"new", reg:null, visit:today()});
+    setData(null); setErr(null);
+    setDx(""); setSym([]); setLabs([]); setMeds([]); setAdvice([]);
+    setSummary(""); setFollowUp(""); setSecs(0);
   }
 
-  // STREAMING CAPTURE.
-  // Chunks are uploaded DURING the consultation and transcribed as they
-  // arrive, so pressing Stop only has the final chunk left to process.
-  // The old design did all the work after Stop, which meant ~60s of
-  // waiting on a real consultation.
-  async function startRec(){
+  /* Chunks upload DURING the consultation and are transcribed as they land,
+     so pressing Stop leaves only the last few seconds to process. */
+  async function start(){
     try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:{
-        channelCount:1, echoCancellation:true, noiseSuppression:true}});
-
+      const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,
+        echoCancellation:true, noiseSuppression:true}});
       const s=await fetch(API+"/api/session/start",{method:"POST"});
-      if(!s.ok) throw new Error("could not start session");
+      if(!s.ok) throw new Error("could not start a session");
       const {session_id,chunk_seconds}=await s.json();
-      sid.current=session_id; setErr(null); setData(null); setProgress(null);
+      sid.current=session_id; setErr(null); setData(null); setSecs(0);
 
       const m=new MediaRecorder(stream);
-      // Chunks are uploaded in order and awaited one at a time. The server
-      // appends them to a single growing file, because MediaRecorder only
-      // puts the container header in the FIRST chunk - later ones cannot
-      // be decoded on their own, and out-of-order arrival would corrupt
-      // the stream.
-      let queue=Promise.resolve();
+      let q=Promise.resolve();
       m.ondataavailable=e=>{
         if(!e.data.size) return;
-        queue=queue.then(async()=>{
-          try{
-            const fd=new FormData();
-            fd.append("file",e.data,"chunk.webm");
-            const r=await fetch(API+"/api/session/"+sid.current+"/chunk",
-                                {method:"POST",body:fd});
-            if(r.ok){ const j=await r.json(); setProgress(j); }
-          }catch(_){ /* a dropped chunk must not stop the recording */ }
-        });
+        q=q.then(async()=>{ try{
+          const fd=new FormData(); fd.append("file",e.data,"chunk.webm");
+          await fetch(API+"/api/session/"+sid.current+"/chunk",{method:"POST",body:fd});
+        }catch(_){/* a dropped chunk must not stop the recording */} });
       };
       m.onstop=async()=>{
         stream.getTracks().forEach(t=>t.stop());
-        setBusy(true);
+        clearInterval(tick.current); setBusy(true);
         try{
-          await queue;                    // let in-flight chunks land first
-          const r=await fetch(API+"/api/session/"+sid.current+"/finalize",
-                              {method:"POST"});
-          if(!r.ok) throw new Error("Server returned "+r.status);
-          setData(await r.json());
+          await q;
+          const r=await fetch(API+"/api/session/"+sid.current+"/finalize",{method:"POST"});
+          if(!r.ok) throw new Error("server returned "+r.status);
+          load(await r.json());
         }catch(e){ setErr(e.message); }
-        finally{ setBusy(false); setProgress(null); }
+        finally{ setBusy(false); }
       };
-      mr.current=m;
-      m.start((chunk_seconds||10)*1000);   // emit a chunk every N seconds
+      mr.current=m; m.start((chunk_seconds||4)*1000);
       setRec(true);
-    }catch(e){ setErr("Microphone blocked: "+e.message); }
+      tick.current=setInterval(()=>setSecs(s=>s+1),1000);
+    }catch(e){ setErr("Microphone unavailable: "+e.message); }
   }
-  function stopRec(){ mr.current?.stop(); setRec(false); }
+  function stop(){ mr.current?.stop(); setRec(false); }
+
+  function load(d){
+    setData(d);
+    setDx(d.diagnosis||"");
+    setSym(d.symptoms||[]);
+    setLabs(d.labs_ordered||[]);
+    setAdvice(d.advice||[]);
+    setSummary(d.summary||"");
+    setFollowUp(d.follow_up||"");
+    setMeds((d.medications||[]).map(m=>({
+      key:uid(),
+      drug: clean(m.prescribed_name||m.drug),
+      canonical: m.canonical||"",
+      dosage:m.dosage||"", frequency:m.frequency||"", duration:m.duration||"",
+      tier:m.tier||"", heard_as:m.heard_as||"", review_reason:m.review_reason||"",
+      indication:m.indication||"",
+    })));
+  }
+
+  const setMed=(i,k,v)=>setMeds(ms=>ms.map((m,j)=>j===i?{...m,[k]:v}:m));
+  const addMed=()=>setMeds(ms=>[...ms,{key:uid(),drug:"",canonical:"",dosage:"",
+    frequency:"",duration:"",tier:"manual",heard_as:"",review_reason:""}]);
+
+  const flagged = data && data.segments_flagged>0;
+  const mmss = `${String(Math.floor(secs/60)).padStart(2,"0")}:${String(secs%60).padStart(2,"0")}`;
+  const ready = meds.length>0 || dx || sym.length>0;
+
+  useEffect(()=>{ renderRx({patient,dx,sym,labs,meds,advice,summary,followUp}); });
 
   return (
-    <div>
-      <div className="card">
-        <div className="row" style={{alignItems:"center"}}>
-          <button className={"primary "+(rec?"rec":"")} disabled={busy}
-                  onClick={rec?stopRec:startRec}>
-            {rec ? "■ Stop recording" : "● Record from microphone"}
-          </button>
-          <span className="muted">or</span>
-          <button className="primary" style={{background:"var(--panel2)",
-                  color:"var(--txt)",border:"1px solid var(--line)"}}
-                  disabled={busy} onClick={()=>fileIn.current.click()}>
-            Upload a recording
-          </button>
-          <input ref={fileIn} type="file" accept="audio/*" style={{display:"none"}}
-                 onChange={e=>{const f=e.target.files[0]; if(f) send(f,f.name);}}/>
-          {rec && <span style={{color:"var(--danger)",fontWeight:600}}>● recording…</span>}
+    <>
+      <header className="mast">
+        <div>
+          <div className="mark">Voice<em>-to-</em>Rx</div>
         </div>
-        {/* Live progress while recording. Shown because the work is now
-            happening DURING the consultation - without this the user has
-            no way to tell that transcription is keeping up. */}
-        {rec && progress && !progress.pending && (
-          <div className="muted" style={{marginTop:12,fontSize:13}}>
-            transcribed {progress.segments_done} segment(s) so far
-            {progress.audio_s ? ` · ${progress.audio_s}s audio in ${progress.compute_s}s compute` : ""}
-          </div>)}
-        {busy && <div style={{marginTop:14}}><span className="spin"></span>
-          Finishing the last segment…</div>}
-        {err && <div style={{marginTop:14,color:"var(--danger)"}}>{err}</div>}
-        {data && <div className="muted" style={{marginTop:12,fontSize:13}}>
-          {data.click_to_result_s!=null
-            ? <>Ready {data.click_to_result_s}s after you pressed Stop · {data.segments_total} segments
-                <span className="muted"> (transcribed live during the consultation)</span></>
-            : <>Processed in {data.processing_s}s · {data.segments_total} segments</>}</div>}
-      </div>
-      <Rx data={data}/>
-    </div>
-  );
-}
-
-function Review(){
-  const [items,setItems]=useState([]);
-  const [n,setN]=useState(0);
-  const [load,setLoad]=useState(true);
-  const [edits,setEdits]=useState({});
-
-  async function refresh(){
-    setLoad(true);
-    try{
-      const r=await fetch(API+"/api/review/pending");
-      const d=await r.json(); setItems(d.pending||[]); setN(d.reviewed||0);
-    }finally{ setLoad(false); }
-  }
-  useEffect(()=>{ refresh(); },[]);
-
-  async function decide(seg,action){
-    await fetch(API+"/api/review/"+encodeURIComponent(seg.segment_id),{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({action, corrected_text: edits[seg.segment_id] ?? seg.transcript})
-    });
-    setItems(x=>x.filter(i=>i.segment_id!==seg.segment_id)); setN(v=>v+1);
-  }
-
-  if(load) return <div className="card"><span className="spin"></span>Loading…</div>;
-
-  return (
-    <div>
-      <div className="card">
-        <strong>{items.length} segments awaiting review</strong>
-        <span className="muted"> · {n} already reviewed</span>
-        <button className="primary" style={{marginLeft:16,padding:"6px 13px",fontSize:13}}
-                onClick={refresh}>Refresh</button>
-      </div>
-      {items.length===0 && <div className="card muted">
-        Nothing pending. Process a recording first.</div>}
-      {items.map(s=>(
-        <div className="card" key={s.segment_id}>
-          <div className="muted" style={{fontSize:12,marginBottom:7}}>
-            {s.consult_id} · {s.start_s?.toFixed(1)}s–{s.end_s?.toFixed(1)}s
+        <div className="sub">Consultation desk</div>
+        <div className="right">
+          <div className="doc">
+            <b>{DOCTOR.name}</b>
+            <span>{DOCTOR.qual} · {DOCTOR.reg}</span>
           </div>
-          <textarea rows={2} className="bn"
-            value={edits[s.segment_id] ?? s.transcript}
-            onChange={e=>setEdits({...edits,[s.segment_id]:e.target.value})}/>
-          <div style={{marginTop:9}}>
-            {s.review_reasons.map((r,i)=>
-              <div key={i} className="muted" style={{fontSize:13}}>• {r}</div>)}
-          </div>
-          {s.drug_candidates?.length>0 && (
-            <div className="warnbox" style={{marginTop:10,marginBottom:0}}>
-              {s.drug_candidates.map((c,i)=><div key={i} style={{fontSize:13}}>{c}</div>)}
-            </div>
-          )}
-          <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button className="primary" style={{background:"var(--ok)",padding:"8px 15px",
-                    fontSize:14}} onClick={()=>decide(s,"approved")}>Approve</button>
-            <button className="primary" style={{background:"var(--accent)",padding:"8px 15px",
-                    fontSize:14}} onClick={()=>decide(s,"edited")}>Save edit</button>
-            <button className="primary" style={{background:"var(--danger)",padding:"8px 15px",
-                    fontSize:14}} onClick={()=>decide(s,"rejected")}>Reject</button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function App(){
-  const [tab,setTab]=useState("record");
-  return (
-    <div>
-      <header>
-        <h1>Voice-to-Rx <span className="muted" style={{fontWeight:400}}>
-          · Bengali consultation → structured prescription</span></h1>
-        <div className="tabs">
-          <button className={"tab"+(tab==="record"?" on":"")}
-                  onClick={()=>setTab("record")}>Record / Upload</button>
-          <button className={"tab"+(tab==="review"?" on":"")}
-                  onClick={()=>setTab("review")}>Review queue</button>
         </div>
       </header>
-      <main>{tab==="record" ? <Record/> : <Review/>}</main>
-    </div>
+
+      <main>
+        {/* ---------------- patient ---------------- */}
+        <div className="patient">
+          {!patient ? (
+            <div className="empty">
+              <p>No patient in the chair.</p>
+              <button className="btn solid" onClick={nextPatient}>Get next patient</button>
+            </div>
+          ) : (
+            <div className="pgrid">
+              <div className="pcell">
+                <span className="lab">Patient</span>
+                <div className="pname">{patient.name}</div>
+                <div className="pmeta">
+                  {patient.age} yrs · {patient.sex==="F"?"Female":"Male"} &nbsp;
+                  <span className={"tag "+(patient.status==="new"?"new":"old")}>
+                    {patient.status==="new"?"New":"Follow-up"}
+                  </span>
+                </div>
+                {patient.reg && <div className="pmeta mono">Reg. {patient.reg}</div>}
+              </div>
+              <div className="pcell"><span className="lab">Height</span>
+                <div className="pval">{patient.ht}<small>cm</small></div></div>
+              <div className="pcell"><span className="lab">Weight</span>
+                <div className="pval">{patient.wt}<small>kg</small></div></div>
+              <div className="pcell"><span className="lab">BMI</span>
+                <div className="pval">{bmi(patient.ht,patient.wt)}</div></div>
+              <div className="pcell"><span className="lab">Blood pressure</span>
+                <div className="pval">{patient.bp}<small>mmHg</small></div></div>
+              <div className="pcell"><span className="lab">Pulse</span>
+                <div className="pval">{patient.pulse}<small>/min</small></div></div>
+              <div className="pcell" style={{display:"flex",alignItems:"center"}}>
+                <button className="btn" onClick={nextPatient}>Next patient</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ---------------- record ---------------- */}
+        {patient && (
+          <div className="rec-wrap">
+            <button className={"rec-btn"+(rec?" live":"")} disabled={busy}
+                    onClick={rec?stop:start}>
+              <span className="dot"></span>
+              {rec ? "Stop recording" : "Start recording"}
+            </button>
+            {rec && <>
+              <div className="timer">{mmss}</div>
+              <div className="wave">
+                {[0,1,2,3,4,5,6].map(i=>(
+                  <i key={i} style={{animationDelay:(i*0.11)+"s"}}></i>
+                ))}
+              </div>
+            </>}
+            {busy && <div><span className="spin"></span> &nbsp;Finishing the last segment…</div>}
+            {!rec && !busy && !data &&
+              <div className="rec-note">Speak the consultation in Bengali as you normally
+                would. Transcription runs while you talk.</div>}
+            {data && !rec && !busy &&
+              <div className="rec-note mono" style={{fontSize:12}}>
+                {data.segments_total} segments
+                {data.click_to_result_s!=null && <> · ready {data.click_to_result_s}s after Stop</>}
+              </div>}
+            {err && <div style={{color:"var(--red)",fontSize:13.5}}>{err}</div>}
+          </div>
+        )}
+
+        {/* ---------------- results ----------------
+            Shown as soon as a patient is seated, not only after a recording.
+            Some consultations are two lines the doctor would rather type than
+            dictate, and a form that appears only after speaking makes that
+            impossible. Recording fills these fields in; it is not the only
+            way to reach them. */}
+        {patient && (
+          <>
+            {flagged && (
+              <div className="notice">
+                <b>{data.segments_flagged} of {data.segments_total} segments need your eye.</b>
+                This is a draft, not a prescription. Confirm every line before printing.
+                {data.review_reasons?.length>0 &&
+                  <ul>{data.review_reasons.slice(0,4).map((r,i)=><li key={i}>{r}</li>)}</ul>}
+              </div>
+            )}
+
+            <div className="two">
+              <div className="card">
+                <div className="hd"><h2>Diagnosis</h2></div>
+                <div className="bd">
+                  <input className="inp" style={{border:"1px solid var(--rule)",fontSize:16}}
+                    value={dx} onChange={e=>setDx(e.target.value)}
+                    placeholder="e.g. carpal tunnel syndrome"/>
+                  {!data?.diagnosis && data &&
+                    <div className="sub-note" style={{paddingTop:7}}>
+                      Not stated outright in the audio — please complete.</div>}
+                  <div style={{marginTop:20}}>
+                    <span className="lab">Follow-up</span>
+                    <input className="inp" style={{border:"1px solid var(--rule)"}}
+                      value={followUp} onChange={e=>setFollowUp(e.target.value)}
+                      placeholder="e.g. review after 2 weeks"/>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="hd"><h2>Symptoms</h2>
+                  <span className="count">{sym.length}</span></div>
+                <div className="bd">
+                  <ChipList items={sym} setItems={setSym} empty="None recorded."
+                    placeholder="add a symptom…"/>
+                </div>
+              </div>
+            </div>
+
+            {/* medications */}
+            <div className="card">
+              <div className="hd"><h2>Medications</h2>
+                <span className="count">{meds.length}</span></div>
+              <div className="bd">
+                <table>
+                  <thead><tr>
+                    <th style={{width:"30%"}}>Drug</th><th style={{width:"13%"}}>Dose</th>
+                    <th style={{width:"17%"}}>Frequency</th><th style={{width:"13%"}}>Duration</th>
+                    <th style={{width:"20%"}}>Source</th><th style={{width:34}}></th>
+                  </tr></thead>
+                  <tbody>
+                    {meds.length===0 && <tr><td colSpan={6}
+                      style={{color:"var(--ink-3)",padding:"14px 8px",fontSize:13.5}}>
+                      Nothing detected — add anything you prescribed.</td></tr>}
+                    {meds.map((m,i)=>(
+                      <tr key={m.key}>
+                        <td>
+                          <Auto cls="name" value={m.drug} options={drugOpts}
+                            placeholder="type a drug or brand…"
+                            onChange={(v,hit)=>{ setMed(i,"drug",v);
+                              if(hit){ setMed(i,"canonical",hit.label);
+                                       setMed(i,"tier","manual"); } }}/>
+                          {m.heard_as && <div className="sub-note">heard as “<span className="bn">{m.heard_as}</span>”</div>}
+                          {m.canonical && m.canonical!==m.drug && (
+                            <div className="sub-note">
+                              {m.tier==="verified"?"= ":"possibly "}
+                              <a onClick={()=>setMed(i,"drug",m.canonical)}>{m.canonical}</a>
+                              {m.indication?` — ${m.indication}`:""}
+                            </div>)}
+                        </td>
+                        <td><input className="inp mono" value={m.dosage} placeholder="500 mg"
+                          onChange={e=>setMed(i,"dosage",e.target.value)}/></td>
+                        <td><input className="inp" value={m.frequency} placeholder="1-0-1 after food"
+                          onChange={e=>setMed(i,"frequency",e.target.value)}/></td>
+                        <td><input className="inp mono" value={m.duration} placeholder="7 days"
+                          onChange={e=>setMed(i,"duration",e.target.value)}/></td>
+                        <td style={{paddingTop:12}}>
+                          {m.tier==="manual" ? <span className="pill mine">you added</span>
+                            : m.tier==="verified" ? <span className="pill ok">known drug</span>
+                            : m.tier==="probable" ? <span className="pill warn">confirm</span>
+                            : <span className="pill mine">—</span>}
+                          {m.review_reason && <div className="sub-note" style={{padding:"4px 0 0"}}>
+                            {m.review_reason}</div>}
+                        </td>
+                        <td style={{paddingTop:11}}>
+                          <button className="btn ghost sm" title="remove"
+                            onClick={()=>setMeds(ms=>ms.filter((_,j)=>j!==i))}>×</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{marginTop:13}}>
+                  <button className="btn" onClick={addMed}>+ Add medication</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="two">
+              <div className="card">
+                <div className="hd"><h2>Lab tests</h2><span className="count">{labs.length}</span></div>
+                <div className="bd">
+                  <ChipList items={labs} setItems={setLabs} options={labOpts}
+                    empty="None ordered." placeholder="type a test…"/>
+                </div>
+              </div>
+              <div className="card">
+                <div className="hd"><h2>Advice</h2><span className="count">{advice.length}</span></div>
+                <div className="bd">
+                  <ChipList items={advice} setItems={setAdvice} empty="None given."
+                    placeholder="add advice…"/>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="hd"><h2>Summary</h2></div>
+              <div className="bd">
+                <textarea className="sum" value={summary} onChange={e=>setSummary(e.target.value)}
+                  placeholder="A short note for the record…"/>
+              </div>
+            </div>
+
+            {data?.rejected_terms?.length>0 && (
+              <div className="card">
+                <div className="hd"><h2>Refused as medications</h2>
+                  <span className="count">{data.rejected_terms.length}</span></div>
+                <div className="bd">
+                  <p className="sub-note" style={{padding:"0 0 9px"}}>
+                    Proposed as drugs and refused by the clinical gazetteer.
+                    Check for anything that genuinely is a medication.</p>
+                  <div className="chips">
+                    {data.rejected_terms.map((t,i)=>(
+                      <span className="chip" key={i} style={{alignItems:"flex-start"}}>
+                        <span className="bn" style={{fontSize:12.5}}>{t}</span>
+                      </span>))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {patient && (
+        <div className="act-bar">
+          <span className="msg">
+            {meds.length} medication{meds.length===1?"":"s"} · {labs.length} test{labs.length===1?"":"s"}
+            {" "}· review every line before printing
+          </span>
+          <button className="btn" onClick={nextPatient}>Discard &amp; next patient</button>
+          <button className="btn ochre" onClick={()=>window.print()}>Generate prescription</button>
+        </div>
+      )}
+    </>
   );
 }
+
+/* ------------------------------------------------- printable prescription
+   Black and white only, and built from the EDITED state rather than the
+   model output - what the doctor corrected on screen is what prints.     */
+function renderRx(s){
+  const el=document.getElementById("rx"); if(!el) return;
+  const p=s.patient;
+  if(!p){ el.innerHTML=""; return; }
+  const esc=t=>String(t==null?"":t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const rows=(s.meds||[]).filter(m=>m.drug&&m.drug.trim()).map((m,i)=>`
+    <tr><td class="n">${i+1}.</td>
+      <td><b>${esc(m.drug)}</b>${m.canonical&&m.canonical!==m.drug?` <span style="font-size:11px">(${esc(m.canonical)})</span>`:""}</td>
+      <td>${esc(m.dosage)}</td><td>${esc(m.frequency)}</td><td>${esc(m.duration)}</td></tr>`).join("");
+  const list=(a)=>(a||[]).filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join("");
+
+  el.innerHTML=`
+    <div class="rx-head">
+      <div class="rx-clinic">${esc(DOCTOR.clinic)}</div>
+      <div class="rx-doc">${esc(DOCTOR.addr)}</div>
+      <div class="rx-doc"><b>${esc(DOCTOR.name)}</b> · ${esc(DOCTOR.qual)} · Reg. ${esc(DOCTOR.reg)}</div>
+    </div>
+    <div class="rx-row"><b>Patient:</b> ${esc(p.name)} &nbsp;&nbsp;
+      <b>Age/Sex:</b> ${esc(p.age)} / ${esc(p.sex)} &nbsp;&nbsp;
+      <b>Date:</b> ${esc(p.visit)} &nbsp;&nbsp;
+      <b>Type:</b> ${p.status==="new"?"New":"Follow-up"}${p.reg?` &nbsp;&nbsp;<b>Reg:</b> ${esc(p.reg)}`:""}</div>
+    <div class="rx-band">
+      <span><b>Ht</b> ${esc(p.ht)} cm</span><span><b>Wt</b> ${esc(p.wt)} kg</span>
+      <span><b>BMI</b> ${bmi(p.ht,p.wt)}</span><span><b>BP</b> ${esc(p.bp)} mmHg</span>
+      <span><b>Pulse</b> ${esc(p.pulse)}/min</span>
+    </div>
+    ${s.dx?`<div class="rx-sec"><h4>Diagnosis</h4><div style="font-size:14px"><b>${esc(s.dx)}</b></div></div>`:""}
+    ${(s.sym||[]).length?`<div class="rx-sec"><h4>Complaints</h4><ul>${list(s.sym)}</ul></div>`:""}
+    <div class="rx-sym">&#8478;</div>
+    ${rows?`<table class="rx-tbl"><thead><tr><th></th><th>Medicine</th><th>Dose</th>
+        <th>Frequency</th><th>Duration</th></tr></thead><tbody>${rows}</tbody></table>`
+      :`<div class="rx-sec" style="font-style:italic">No medication prescribed.</div>`}
+    ${(s.labs||[]).length?`<div class="rx-sec"><h4>Investigations advised</h4><ol>${list(s.labs)}</ol></div>`:""}
+    ${(s.advice||[]).length?`<div class="rx-sec"><h4>Advice</h4><ul>${list(s.advice)}</ul></div>`:""}
+    ${s.followUp?`<div class="rx-sec"><h4>Follow-up</h4><div>${esc(s.followUp)}</div></div>`:""}
+    <div class="rx-sign">
+      <div>
+        <div class="sig">${esc(DOCTOR.name.replace(/^Dr\.?\s*/,""))}</div>
+        <div class="line">${esc(DOCTOR.name)}<br/>${esc(DOCTOR.qual)} · Reg. ${esc(DOCTOR.reg)}</div>
+      </div>
+    </div>
+    <div class="rx-foot">Transcribed from a spoken consultation and reviewed by the
+      prescriber before signing. Not valid without signature.</div>`;
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>

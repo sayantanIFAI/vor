@@ -847,6 +847,38 @@ async def transcribe(file: UploadFile = File(...)):
                 pass
 
 
+@app.get("/api/formulary")
+def formulary():
+    """Every drug and lab the gate will accept, for the prescriber's autocomplete.
+
+    The doctor types into the SAME closed set the gate validates against. A
+    name typed here therefore cannot land as an unverifiable string - which is
+    the whole premise of the system, applied to the keyboard as well as to the
+    microphone. Free text is still allowed; it simply arrives flagged, exactly
+    as a garbled utterance would.
+    """
+    try:
+        from voicerx.glossary import ALL_DRUGS, LAB_TESTS
+    except Exception as exc:                       # noqa: BLE001
+        return JSONResponse({"drugs": [], "labs": [], "error": str(exc)})
+
+    drugs = []
+    for d in ALL_DRUGS:
+        # Brands are listed separately rather than folded into one string:
+        # a doctor reaches for the name they prescribe by, which in India is
+        # far more often the brand than the molecule.
+        drugs.append({
+            "generic": d.generic,
+            "brands": list(d.brands or ()),
+            "indication": d.indication or "",
+            "department": d.department or "",
+        })
+    return JSONResponse({
+        "drugs": sorted(drugs, key=lambda x: x["generic"]),
+        "labs": sorted(LAB_TESTS.keys()),
+    })
+
+
 @app.get("/api/results")
 def list_results():
     out = []
