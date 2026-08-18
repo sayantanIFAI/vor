@@ -655,6 +655,42 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
     # its original text, and is flagged for confirmation. The failure this
     # closes is the opposite of the "Naloxone" one - not a garbled fragment
     # becoming a confident drug, but a real drug staying invisible.
+    # ADVICE AND SUMMARY MUST BE ENGLISH, OR THEY ARE NOT ADVICE.
+    #
+    # The model is asked for "short plain-English instructions" and on
+    # degraded audio it stops obeying, echoing the transcript back instead.
+    # A real prescription came out carrying "বাচ্চাদের বলছে দুদিন দেখে নে না
+    # হলে তুই অযাট লিস্ট ডেঙ্গু টা রুলে কর তারপরে যাবি" as clinical advice -
+    # a fragment of conversation, printed for a patient to follow.
+    #
+    # This is not answered by more prompt-tuning; this file's own history
+    # records two rounds of it producing under-extraction rather than fewer
+    # false positives. The model PROPOSES and the rules DECIDE, and the rule
+    # here is simple: untranslated Bengali in a plain-English field means the
+    # model did not understand the line well enough to render it. Its own
+    # doubt, expressed by echoing.
+    #
+    # Curated advice is unaffected - scan_advice returns English canonicals
+    # ("use less soap") because that is what the table holds. Nothing is
+    # deleted: the text moves to raw_uncertain_terms, where a human can read
+    # it beside the audio.
+    _bengali = lambda t: any("ঀ" <= c <= "৿" for c in (t or ""))
+    _kept_advice = []
+    for _a in (rx.advice or []):
+        if _bengali(_a):
+            rx.raw_uncertain_terms.append(
+                f"{_a} (advice left untranslated by the model - not printed)")
+            reasons.append(
+                "a line of advice came back in Bengali rather than as an "
+                "instruction - moved to uncertain terms, not printed")
+        else:
+            _kept_advice.append(_a)
+    rx.advice = _kept_advice
+
+    if _bengali(rx.summary):
+        rx.summary = None
+        reasons.append("the summary came back untranslated - dropped")
+
     recovered: list[str] = []
     for term in rx.raw_uncertain_terms:
         # Strip the parenthetical note the model or this file appended.
