@@ -686,6 +686,27 @@ def validate(rx: ExtractedRx) -> ExtractedRx:
         # ear consultation. A recovered term is the weakest evidence in the
         # file - the model already said it was unsure - so it does not get
         # a weaker check than everything else.
+        # THE BRAND REGISTER VALIDATES A CLAIM, IT DOES NOT RESCUE A DOUBT.
+        #
+        # The 174k register is imported and unreviewed, and a great many of
+        # its keys are ordinary words - "improve" is in it, mapped to
+        # Rabeprazole. Reached from here it turned the English word the
+        # doctor used about the patient getting better into a VERIFIED PPI
+        # at 1.00 on a fever consultation.
+        #
+        # gate.py already restricts that table to validating a name the
+        # model ASSERTED, precisely because fishing it out of free text is
+        # dangerous. A term the model filed under raw_uncertain_terms is the
+        # opposite of an assertion - it is the model saying it does not
+        # know - so the weakest table in the system does not get to settle
+        # it. Every curated route still applies.
+        if "brand register" in (v.reason or ""):
+            rx.rejected_terms.append(
+                f"{candidate} — matches {v.canonical} only in the imported "
+                f"brand register, and was a term the model was unsure of")
+            recovered.append(term)
+            continue
+
         _act, _why = medication_decision(v, dept)
         if _act == "demote":
             rx.rejected_terms.append(

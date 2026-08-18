@@ -52,10 +52,20 @@ class PipelineResult:
 # The boundary is between 0.73 and 0.83, not above it.
 _PROMOTE_CANDIDATE = 0.78
 
-# Weak matches are still SHOWN, down to the ordinary similarity floor, so a
-# near miss is something a clinician can put back rather than something
-# nobody ever learns about.
-_RECORD_CANDIDATE = 0.65
+# Weak matches are still shown, so a near miss is something a clinician can
+# put back rather than something nobody ever learns about.
+#
+# RAISED FROM 0.65. At the ordinary floor this produced ONE HUNDRED AND TEN
+# refusals on a single degraded consultation - "মানে" resembling Montelukast,
+# "রেস্ট" resembling ORS, "তোমার" resembling Amitriptyline - and a panel
+# nobody will read is the same as no panel at all. The point was to make
+# misses visible; burying them in noise makes them less visible, not more.
+#
+# 0.75 is safe against the thing this exists to catch: real drugs the bar
+# rejected sit at 0.83 (Colospa) and above, while ordinary speech clusters
+# at 0.67-0.73. Nothing that has ever turned out to be a real prescription
+# falls below this.
+_RECORD_CANDIDATE = 0.75
 
 
 class VoiceToRxPipeline:

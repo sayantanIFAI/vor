@@ -1264,6 +1264,11 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # complaint. The word itself was being read as Calamine at 0.82.
     "chalazion": ("ক্যালাজিওন", "ক্যালাজিয়ন", "ক্যালেজিয়ন",
                    "চ্যালাজিওন", "chalazion"), #
+    # The whole consultation was about dengue - the word appears five times
+    # in one recording - and it was in no table at all, so the diagnosis came
+    # back empty. "ডেঙ্গু টেস্ট" was already a lab alias; the disease itself
+    # was not a condition, which is why nothing could name it.
+    "dengue": ("ডেঙ্গু", "ডেঙ্গি", "ডেংগু", "ডেঙ্গু জ্বর", "dengue"), #
     # A procedure, not a medicine. "ইন্সিশন" was matching Human insulin
     # at 0.77 - an insulin injection proposed because a doctor described
     # cutting something open.
@@ -2747,6 +2752,7 @@ CONDITIONS: frozenset[str] = frozenset({
     "carpal tunnel syndrome",
     "chalazion",
     "hypothyroidism",
+    "dengue",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2791,6 +2797,7 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "lipoma": "surgery", "deviated nasal septum": "ent",
     "carpal tunnel syndrome": "neurology",
     "chalazion": "ophthalmology",
+    "dengue": "general",
     "hypothyroidism": "endocrine",
     "traumatic ulcer": "dental",
     "piles": "surgery", "hernia": "surgery",
