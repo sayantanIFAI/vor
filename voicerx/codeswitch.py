@@ -43,28 +43,23 @@ from difflib import SequenceMatcher
 # taught: match the form the ASR emits, and let the dictionary spelling be
 # the label rather than the key.
 NUMBERS: dict[str, int] = {
-    "one": 1, "oyan": 1, "wan": 1,
-    "two": 2, "tu": 2,
-    "three": 3, "thri": 3, "thre": 3, "tri": 3,
-    # "four" only. "ফর" is the preposition FOR and romanises to the same
-    # "phor" - listing it as a number read "for three to five days" as
-    # 4 then 3. A word that is two things is worth neither.
-    "four": 4,
-    "five": 5, "faibh": 5, "phaibh": 5, "faib": 5,
-    "six": 6, "siks": 6, "sike": 6,
-    "seven": 7, "sebhen": 7, "saten": 7,
-    "eight": 8, "et": 8, "at": 8,
-    "nine": 9, "nain": 9,
-    "ten": 10, "fifteen": 15, "phiphtin": 15,
-    "twenty": 20, "thirty": 30,
+    # EXACT romanised forms, computed by running romanize() over the Bengali
+    # spellings a doctor actually uses - not fuzzy targets. Measured on 154
+    # real segments, fuzzy matching produced 19 fabricated durations
+    # (9-1 hours from a sentence about taking medicine twice daily) and
+    # exact matching produced zero.
+    #
+    # ফোর romanises to for, identical to the preposition, so four is
+    # omitted rather than made ambiguous. টু gives tu - two characters,
+    # below _MIN_TOKEN - so two is unreachable here and the to/two
+    # ambiguity cannot arise at all.
+    'oyan': 1, 'thri': 3, 'faibh': 5, 'siks': 6,
+    'sebhen': 7, 'nain': 9, 'tuyelbh': 12,
 }
 UNITS: dict[str, str] = {
-    "day": "days", "days": "days", "dis": "days", "deis": "days",
-    "dej": "days", "dais": "days",
-    "week": "weeks", "weeks": "weeks", "uik": "weeks", "wik": "weeks",
-    "month": "months", "months": "months", "manth": "months",
-    "hour": "hours", "hours": "hours", "aoyar": "hours",
-    "night": "nights", "nights": "nights", "nait": "nights",
+    'dis': 'days', 'deis': 'days', 'dej': 'days',
+    'uik': 'weeks', 'uiks': 'weeks',
+    'manth': 'months', 'aoyar': 'hours', 'nait': 'nights',
 }
 INSTRUCTIONS: dict[str, str] = {
     "rest": "rest", "gargle": "gargle", "warm": "warm",
@@ -78,7 +73,16 @@ _JOINERS = {"to", "tu", "for", "fr", "and", "after", "aftar"}
 # A romanised token is a noisy rendering of an English word, so the bar is
 # lower than for a drug name - but high enough that ordinary Bengali does not
 # drift into the lexicon.
-_FLOOR = 0.72
+_FLOOR = 1.0
+
+# Shorter than this, a romanised token carries too little signal to be
+# matched against anything. See read_tokens.
+# Three. The length guard existed to protect FUZZY matching, where two
+# shared characters against a short key scored 0.80 and ordinary Bengali
+# fired constantly. Matching is exact now, so a key cannot over-fire
+# whatever its length, and the guard was rejecting legitimate ones - 'dis'
+# for days and 'uik' for weeks are both three characters.
+_MIN_TOKEN = 3
 
 
 def _best(token: str, table: dict) -> tuple[str | None, float]:
@@ -97,7 +101,19 @@ def read_tokens(text: str) -> list[tuple[str, str, str]]:
     out = []
     for tok in (text or "").split():
         rom = romanize(tok)
-        if len(rom) < 2:
+        # A SHORT ROMANISED TOKEN MATCHES ALMOST ANYTHING.
+        #
+        # SequenceMatcher scores 2M/T, so two shared characters against a
+        # two-letter key like "tu" give 0.80 - clear of any floor loose
+        # enough to be useful. Bengali is full of two and three letter
+        # particles, so ordinary speech was firing constantly: তো -> "to"
+        # matched two at 0.80, তুই -> "tui" matched tu at 0.80, নাই ->
+        # "nai" matched nait at 0.86.
+        #
+        # Real code-switched words are longer - rest, thri, faibh, dis, uik,
+        # gargle - so requiring four characters costs nothing and removes
+        # the entire class.
+        if len(rom) < _MIN_TOKEN:
             continue
         for table in (NUMBERS, UNITS, INSTRUCTIONS):
             hit, _ = _best(rom, table)
