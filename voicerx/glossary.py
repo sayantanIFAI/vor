@@ -964,7 +964,17 @@ LAB_TESTS: dict[str, tuple[str, ...]] = {
     "PSA": ("পিএসএ", "পি এস এ", "প্রস্টেট স্পেসিফিক অ্যান্টিজেন"), #
     "CRP": ("সিআরপি", "সি আর পি", "c reactive protein", "crp"),
     "ESR": ("ইএসআর", "ই এস আর", "esr"),
-    "Dengue NS1": ("ডেঙ্গু এনএসওয়ান", "dengue ns1", "ns1 antigen", "ডেঙ্গু টেস্ট"),
+    # "ডেঙ্গু" bare is an ORDER as often as a diagnosis - "প্রোফাইল করে নিতে
+    # হবে ডেঙ্গু" is the doctor sending the patient for the test, and with
+    # only "ডেঙ্গু টেস্ট" listed the order vanished while the word claimed
+    # the diagnosis field instead. Listed in BOTH tables deliberately: a
+    # mention now yields the condition and the test, and deleting the wrong
+    # one is a click, where recovering a lost test order is not.
+    "Dengue NS1": ("ডেঙ্গু এনএসওয়ান", "dengue ns1", "ns1 antigen",
+                    "ডেঙ্গু টেস্ট", "ডেঙ্গু", "ডেঙ্গি", "ডেংগু"),
+    # Ordered by name on any fever consultation and absent from the table.
+    "Fever profile": ("ফিভার প্রোফাইল", "ফিভার প্রোফাইলে", "জ্বরের প্রোফাইল",
+                       "fever profile"),
     "Widal Test": ("উইডাল টেস্ট", "widal", "টাইফয়েড টেস্ট"),
     "Iron Profile": ("আয়রন প্রোফাইল", "iron profile", "ferritin", "ফেরিটিন"),
     "Lipase": ("লাইপেজ", "lipase", "amylase", "অ্যামাইলেজ"),
@@ -1264,11 +1274,6 @@ CLINICAL_TERMS: dict[str, tuple[str, ...]] = {
     # complaint. The word itself was being read as Calamine at 0.82.
     "chalazion": ("ক্যালাজিওন", "ক্যালাজিয়ন", "ক্যালেজিয়ন",
                    "চ্যালাজিওন", "chalazion"), #
-    # The whole consultation was about dengue - the word appears five times
-    # in one recording - and it was in no table at all, so the diagnosis came
-    # back empty. "ডেঙ্গু টেস্ট" was already a lab alias; the disease itself
-    # was not a condition, which is why nothing could name it.
-    "dengue": ("ডেঙ্গু", "ডেঙ্গি", "ডেংগু", "ডেঙ্গু জ্বর", "dengue"), #
     # A procedure, not a medicine. "ইন্সিশন" was matching Human insulin
     # at 0.77 - an insulin injection proposed because a doctor described
     # cutting something open.
@@ -2201,6 +2206,14 @@ def _lookup_span(grams: list[str], table: dict, n_tokens: int = 1,
                 hit = _DRUG_SKELETON.get(_sk) #
                 if hit is not None: #
                     return hit, grams[0] #
+        elif table is _CURATED_TERM_LOOKUP and n_tokens <= 2: #
+            # Same bound as the drug branch and for the same reason: gluing
+            # a clause together manufactures skeletons that were never a
+            # word. Two tokens because a complaint is spoken as one -
+            # "খুসখুসে কাশি" is two, "কাশি" is one.
+            hit = _TERM_SKELETON.get(_skeleton(grams[0])) #
+            if hit is not None: #
+                return hit, grams[0] #
         elif (table is _LAB_LOOKUP and allow_near
                 and n_tokens <= _MAX_LAB_SPAN_TOKENS): #
             # BOUNDED BY SPAN WIDTH, and for a stronger reason than the
@@ -2486,6 +2499,22 @@ def _skeleton(text: str) -> str: #
 # Same caveat as every threshold here: five observations, not fifty. It is
 # the gap the data shows, and raising it costs nothing measurable - the
 # regression suite is unchanged at 177.
+# CLINICAL TERMS GET THE FALLBACK DRUGS HAVE HAD ALL ALONG.
+#
+# A drug name is tried six ways - exact fold, consonant skeleton, form
+# stripping, brand register, fuzzy, phonetic. A symptom was tried ONE way,
+# an exact dict hit, and anything the ASR spelled differently was simply
+# gone.
+#
+# It is not that the phonetics were too weak. "খুসখুসখাশি" and the listed
+# "খুসখুসে কাশি" fold to কুসকুসকাসি and কুসকুসেকাসি - 0.95 similar, and
+# their skeletons are IDENTICAL at ksksks. fold() already folds the
+# aspirate খ->ক. The match was there and nothing looked for it.
+#
+# Curated terms only, for the reason stated where _CURATED_TERM_LOOKUP is
+# built: an imported table may validate, never generate.
+_TERM_SKELETON: dict[str, str] = {} #
+
 _MIN_SKELETON = 5 #
 # How wide a span the LAB near-skeleton fallback may glue together.
 #
@@ -2508,6 +2537,16 @@ for _k, _d in _DRUG_LOOKUP.items(): #
 for _s, _owners in _skel_owners.items(): #
     if len(_owners) > 1: #
         _DRUG_SKELETON.pop(_s, None) #
+
+for _tk, _tv in _CURATED_TERM_LOOKUP.items(): #
+    _ts = _skeleton(_tk) #
+    if len(_ts) >= _MIN_SKELETON: #
+        if _ts in _TERM_SKELETON and _TERM_SKELETON[_ts] != _tv: #
+            _TERM_SKELETON[_ts] = "" #      ambiguous - refuse both
+        else: #
+            _TERM_SKELETON.setdefault(_ts, _tv) #
+_TERM_SKELETON = {k: v for k, v in _TERM_SKELETON.items() if v} #
+
 del _skel_owners #
 
 
@@ -2752,7 +2791,6 @@ CONDITIONS: frozenset[str] = frozenset({
     "carpal tunnel syndrome",
     "chalazion",
     "hypothyroidism",
-    "dengue",
 })
 
 # Neither a symptom nor a diagnosis: advice, dosage forms and drug classes.
@@ -2797,7 +2835,6 @@ DEPARTMENT_BY_CONDITION: dict[str, str] = {
     "lipoma": "surgery", "deviated nasal septum": "ent",
     "carpal tunnel syndrome": "neurology",
     "chalazion": "ophthalmology",
-    "dengue": "general",
     "hypothyroidism": "endocrine",
     "traumatic ulcer": "dental",
     "piles": "surgery", "hernia": "surgery",

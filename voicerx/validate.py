@@ -213,7 +213,21 @@ def medication_decision(verdict, consult_dept: str,
     # Glimepiride beside its Metformin on a diabetes consultation, and the
     # only medication on a mouth-ulcer one - both of which resolve
     # perfectly once the segments are merged.
-    if strict_unknown and not consult_dept and \
+    # "general" counts as unknown HERE, though not for the clash above.
+    #
+    # A general consultation cannot contradict any drug's specialty, so
+    # _department_clash returns False for it - correctly, since paracetamol
+    # is prescribed in every clinic. But that same absence of signal is
+    # exactly the situation the floor below exists for, and it was being
+    # read as "no problem" instead of "nothing checked this".
+    #
+    # Giving dengue a department of "general" therefore switched the guard
+    # off for a whole consultation, and two drugs came through on pure ASR
+    # noise at decoder agreement 0.0: "এ এবে" became Tobramycin EYE DROPS
+    # and "অ্যান্ড" - the English word "and" - became Pantoprazole, both at
+    # 0.73. A department that discriminates nothing must raise the bar, not
+    # remove it.
+    if strict_unknown and consult_dept in ("", "general") and \
             (verdict.similarity or 0) < _GENERAL_FLOOR:
         return "demote", (f"matched only by similarity "
                           f"({verdict.similarity:.2f}) on a consultation "
