@@ -39,6 +39,7 @@ _CONS = {r[0] for r in _RULES}
 _VOWELS: list[tuple[str, str, str]] = [
     ("ee", "ঈ", "ী"), ("oo", "উ", "ু"), ("ai", "আই", "াই"), ("au", "আউ", "াউ"),
     ("ou", "আউ", "াউ"), ("ea", "ই", "ি"), ("ie", "আই", "াই"),
+    ("y", "ই", "াই"),       # thyro -> থাইরো. Word-internal y is a vowel.
     ("a", "আ", "া"),         # ASR writes the sign explicitly, so do we
     ("i", "ই", "ি"), ("e", "এ", "ে"), ("o", "ও", "ো"), ("u", "উ", "ু"),
 ]
@@ -83,5 +84,16 @@ def translit(word: str) -> str:
 
 
 def transliterate_brand(name: str) -> str:
-    """A whole brand name, token by token, spaces preserved."""
-    return " ".join(t for t in (translit(p) for p in name.split()) if t)
+    """A whole brand name as ONE token.
+
+    Joined, not split. Transliterating token by token shattered hyphenated
+    and multi-word brands into single characters - "A-ARTI L" became
+    আ / আর্টি / ল - and one-character keys are the collision-prone junk this
+    gazetteer has been burned by repeatedly (টোবা matching "to the child").
+
+    Joining is not a compromise, it is the correct form: fold() strips
+    spacing before any lookup, so a joined key matches however the ASR chose
+    to space what it heard. That is the same property that already makes
+    "সি বি সি" and "সিবিসি" the same key.
+    """
+    return translit("".join(name.split()))
