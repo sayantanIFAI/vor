@@ -273,8 +273,34 @@ class VoiceToRxPipeline:
         if conditions and not rx.diagnosis:
             rx.diagnosis = ", ".join(conditions)
 
+        # ENGLISH SPOKEN IN BENGALI SCRIPT.
+        #
+        # Every scanner above matches Bengali vocabulary, so a doctor saying
+        # রেস্ট ফর থ্রি টু ফাইভ দইস - rest for three to five days - was
+        # read by none of them, and the consultation came back with no
+        # duration and follow_up=None while the instruction sat in the
+        # transcript. See voicerx/codeswitch.py: it romanises token by token
+        # and resolves against a small closed lexicon, so nothing is guessed.
+        #
+        # Additive only. It fills fields the Bengali scanners left empty and
+        # never overwrites them - where both read the same line, the curated
+        # Bengali tables are the better authority.
+        try:
+            from .codeswitch import read_duration, read_instructions
+            _dur_en = read_duration(text)
+            for _adv in read_instructions(text):
+                if _adv not in rx.advice:
+                    rx.advice.append(_adv)
+            # A duration spoken with no drug beside it is how long to rest or
+            # when to return, not how long to take something.
+            if _dur_en and not rx.medications and not rx.follow_up:
+                rx.follow_up = _dur_en
+        except Exception:                              # noqa: BLE001
+            _dur_en = str()
+
         if len(rx.medications) == 1:
             freq, dur = scan_dosing(text)
+            dur = dur or _dur_en
             med = rx.medications[0]
             if freq and not med.frequency:
                 med.frequency = freq
